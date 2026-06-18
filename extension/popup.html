@@ -12,25 +12,26 @@
         <div class="mark">F</div>
         <div>
           <strong>FOMO</strong>
-          <small>Private mirror, anonymous pulse</small>
+          <small>Attention network</small>
         </div>
       </div>
 
       <section class="card">
         <div class="row between">
-          <span>Tracking</span>
+          <div class="row" style="gap:8px">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="trackingStatus" style="font-size:0.88rem">Loading…</span>
+          </div>
           <label class="switch">
             <input id="trackingToggle" type="checkbox" />
             <span class="slider"></span>
           </label>
         </div>
-        <p id="trackingStatus" class="muted"></p>
-        <p class="muted">When tracking is on, FOMO automatically sends AI-generated page topics for safe pages.</p>
       </section>
 
       <section class="card">
-        <p class="label">AI topic</p>
-        <h2 id="topicLabel">Checking...</h2>
+        <p class="label">Current page</p>
+        <h2 id="topicLabel">Checking…</h2>
         <div id="topicTags" class="tags"></div>
         <p id="reason" class="muted"></p>
       </section>

@@ -1,5 +1,6 @@
 const trackingToggle = document.getElementById("trackingToggle");
 const trackingStatus = document.getElementById("trackingStatus");
+const statusDot = document.getElementById("statusDot");
 const topicLabel = document.getElementById("topicLabel");
 const topicTags = document.getElementById("topicTags");
 const reason = document.getElementById("reason");
@@ -13,26 +14,29 @@ async function loadState() {
     topicLabel.textContent = "Unavailable";
     topicTags.innerHTML = "";
     reason.textContent = currentState?.reason || "Could not inspect the current tab.";
+    trackingStatus.textContent = "Unavailable";
+    statusDot.classList.remove("active");
     return;
   }
 
+  const active = !currentState.blocked && currentState.trackingEnabled;
   trackingToggle.checked = Boolean(currentState.trackingEnabled);
+  statusDot.classList.toggle("active", active);
   trackingStatus.textContent = currentState.blocked
-    ? "This page is blocked from tracking."
+    ? "Page excluded"
     : currentState.trackingEnabled
-      ? currentState.alreadySent
-        ? "Tracking is on."
-        : "Tracking is on."
-      : "Tracking is paused.";
-  topicLabel.textContent = currentState.classification.topicLabel || currentState.classification.category;
+      ? "Tracking"
+      : "Paused";
+
+  topicLabel.textContent = currentState.classification?.topicLabel || currentState.classification?.category || "Unknown";
   topicTags.innerHTML = "";
-  (currentState.classification.topicTags || []).forEach((tag) => {
+  (currentState.classification?.topicTags || []).forEach((tag) => {
     const span = document.createElement("span");
     span.className = "tag";
     span.textContent = tag;
     topicTags.appendChild(span);
   });
-  reason.textContent = currentState.classification.reasoning;
+  reason.textContent = currentState.classification?.reasoning || "";
 }
 
 trackingToggle.addEventListener("change", async () => {

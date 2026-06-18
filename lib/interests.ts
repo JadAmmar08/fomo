@@ -45,6 +45,54 @@ function normalizeTopicKey(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function topicWordSet(label: string): Set<string> {
+  const stopwords = new Set(["the", "a", "an", "of", "on", "in", "at", "to", "for", "and", "or", "is", "with"]);
+  return new Set(
+    normalizeTopicKey(label)
+      .split(" ")
+      .filter((w) => w.length >= 3 && !stopwords.has(w))
+  );
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1;
+  const intersection = new Set([...a].filter((w) => b.has(w)));
+  const union = new Set([...a, ...b]);
+  return intersection.size / union.size;
+}
+
+function deduplicateTopics(grouped: Map<string, { signals: BrowsingSignal[]; label: string }>): Map<string, { signals: BrowsingSignal[]; label: string }> {
+  const keys = Array.from(grouped.keys());
+  const merged = new Set<string>();
+  const result = new Map<string, { signals: BrowsingSignal[]; label: string }>();
+
+  for (let i = 0; i < keys.length; i++) {
+    if (merged.has(keys[i])) continue;
+    const a = grouped.get(keys[i])!;
+    const wordsA = topicWordSet(a.label);
+    let mergedSignals = [...a.signals];
+    let bestLabel = a.label;
+
+    for (let j = i + 1; j < keys.length; j++) {
+      if (merged.has(keys[j])) continue;
+      const b = grouped.get(keys[j])!;
+      const wordsB = topicWordSet(b.label);
+      if (jaccardSimilarity(wordsA, wordsB) >= 0.45) {
+        mergedSignals = [...mergedSignals, ...b.signals];
+        // keep whichever label has more signals
+        if (b.signals.length > a.signals.length) {
+          bestLabel = b.label;
+        }
+        merged.add(keys[j]);
+      }
+    }
+
+    result.set(keys[i], { signals: mergedSignals, label: bestLabel });
+  }
+
+  return result;
+}
+
 function makeInterestId(topicLabel: string) {
   return `interest_${normalizeTopicKey(topicLabel).replace(/\s+/g, "_")}`;
 }
@@ -76,21 +124,23 @@ export function buildUserInterests(
   feedback: FeedbackEntry[],
   privacy: PrivacySettings
 ): UserInterest[] {
-  const grouped = new Map<string, BrowsingSignal[]>();
+  const rawGrouped = new Map<string, { signals: BrowsingSignal[]; label: string }>();
 
   signals.forEach((signal) => {
     const key = normalizeTopicKey(signal.topicLabel || signal.pageTitle || signal.category);
-    const current = grouped.get(key) ?? [];
-    current.push(signal);
-    grouped.set(key, current);
+    const current = rawGrouped.get(key) ?? { signals: [], label: signal.topicLabel || signal.pageTitle || signal.category };
+    current.signals.push(signal);
+    rawGrouped.set(key, current);
   });
 
+  const grouped = deduplicateTopics(rawGrouped);
+
   return Array.from(grouped.entries())
-    .map(([topicKey, items]) => {
+    .map(([_topicKey, { signals: items, label: mergedLabel }]) => {
       const representative = items
         .slice()
         .sort((a, b) => new Date(b.timestampBucket).getTime() - new Date(a.timestampBucket).getTime())[0];
-      const topicLabel = representative?.topicLabel ?? representative?.pageTitle ?? "Unknown topic";
+      const topicLabel = mergedLabel || (representative?.topicLabel ?? representative?.pageTitle ?? "Unknown topic");
       const interestId = makeInterestId(topicLabel);
       const topicFeedback = feedback.filter((entry) => entry.targetId === interestId);
       const feedbackScore = topicFeedback.reduce(
