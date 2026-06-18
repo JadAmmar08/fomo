@@ -524,7 +524,7 @@ function buildRuleResult(input: ClassifierInput): ClassificationResult {
 }
 
 function shouldUseAiClassifier() {
-  return process.env.OPENAI_CLASSIFIER_ENABLED === "true";
+  return process.env.AI_CLASSIFIER_ENABLED === "true";
 }
 
 export function isWeakTopicLabel(label: string, input: Pick<ClassifierInput, "domain" | "urlPath">): boolean {
@@ -550,28 +550,40 @@ async function classifyWithOptionalAi(
   input: ClassifierInput,
   fallback: ClassificationResult
 ): Promise<ClassificationResult | null> {
-  const baseUrl = process.env.OPENAI_BASE_URL;
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!baseUrl || !apiKey) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
     return null;
   }
 
   try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
-        temperature: 0.1,
-        messages: [
-          {
-            role: "system",
-            content:
-              `You classify privacy-safe browsing metadata into one broad topical category and produce a clean human-readable topic label.
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey });
+
+    const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
+
+    const message = await client.messages.create({
+      model,
+      max_tokens: 512,
+      tools: [
+        {
+          name: "classify",
+          description: "Classify the browsing signal and return a structured result.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              category: { type: "string", enum: [...CATEGORIES] },
+              topicLabel: { type: "string" },
+              topicTags: { type: "array", items: { type: "string" } },
+              confidence: { type: "number" },
+              reasoning: { type: "string" }
+            },
+            required: ["category", "topicLabel", "topicTags", "confidence", "reasoning"],
+            additionalProperties: false
+          }
+        }
+      ],
+      tool_choice: { type: "tool", name: "classify" },
+      system: `You classify privacy-safe browsing metadata into one broad topical category and produce a clean human-readable topic label.
 
 GOAL: Infer what the user is actually paying attention to — the *subject matter*, not the page wrapper.
 
@@ -586,68 +598,41 @@ TOPIC LABEL RULES:
 GOOD examples: "Goldman Sachs interview timeline", "AP Physics review materials", "Foldable iPhone rumors", "USC transfer success program", "UCLA–USC rivalry", "NBA trade deadline analysis"
 BAD examples: "feed", "colemallinger", "linkedin.com", "r/college", "Jobs on LinkedIn", "Home", "Profile"
 
-Never infer sensitive traits. Return strict JSON with category, topicLabel, topicTags, confidence, and reasoning.`
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              allowedCategories: CATEGORIES,
-              safeMetadata: {
-                domain: input.domain,
-                pageTitle: input.pageTitle,
-                urlPath: input.urlPath,
-                pageHints: input.pageHints ?? [],
-                pageContent: input.pageContent ?? ""
-              },
-              localHint:
-                input.localCategory && typeof input.localConfidence === "number"
-                  ? {
-                      category: input.localCategory,
-                      topicLabel: input.localTopicLabel ?? null,
-                      topicTags: input.localTopicTags ?? [],
-                      confidence: input.localConfidence,
-                      reasoning: input.localReasoning ?? null
-                    }
-                  : null,
-              fallbackRuleClassification: fallback
-            })
-          }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "fomo_classification",
-            schema: {
-              type: "object",
-              properties: {
-                category: { type: "string", enum: [...CATEGORIES] },
-                topicLabel: { type: "string" },
-                topicTags: {
-                  type: "array",
-                  items: { type: "string" }
-                },
-                confidence: { type: "number" },
-                reasoning: { type: "string" }
-              },
-              required: ["category", "topicLabel", "topicTags", "confidence", "reasoning"],
-              additionalProperties: false
-            }
-          }
+Never infer sensitive traits.`,
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify({
+            allowedCategories: CATEGORIES,
+            safeMetadata: {
+              domain: input.domain,
+              pageTitle: input.pageTitle,
+              urlPath: input.urlPath,
+              pageHints: input.pageHints ?? [],
+              pageContent: input.pageContent ?? ""
+            },
+            localHint:
+              input.localCategory && typeof input.localConfidence === "number"
+                ? {
+                    category: input.localCategory,
+                    topicLabel: input.localTopicLabel ?? null,
+                    topicTags: input.localTopicTags ?? [],
+                    confidence: input.localConfidence,
+                    reasoning: input.localReasoning ?? null
+                  }
+                : null,
+            fallbackRuleClassification: fallback
+          })
         }
-      })
+      ]
     });
 
-    if (!response.ok) {
+    const toolBlock = message.content.find((b) => b.type === "tool_use");
+    if (!toolBlock || toolBlock.type !== "tool_use") {
       return null;
     }
 
-    const data = await response.json();
-    const payload = data.choices?.[0]?.message?.content;
-    if (!payload) {
-      return null;
-    }
-
-    return finalizeClassification(input, JSON.parse(payload) as ClassificationResult);
+    return finalizeClassification(input, toolBlock.input as ClassificationResult);
   } catch {
     return null;
   }
