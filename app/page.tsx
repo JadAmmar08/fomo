@@ -15,27 +15,28 @@ export default function LandingPage() {
           they become obvious.
         </p>
         <div className="button-row">
-          <Link href="/mirror" className="button">See your mirror</Link>
-          <Link href="/pulse" className="button-secondary">View community pulse</Link>
+          <Link href="/pulse" className="button">See the pulse</Link>
+          <Link href="/mirror" className="button-secondary">View your mirror</Link>
         </div>
       </section>
 
       {/* Three pillars */}
       <div className="grid three">
         <div className="card">
-          <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>🪞</div>
-          <h3>Private Mirror</h3>
-          <p>
-            FOMO builds a private map of your interests based purely on what you spend
-            time reading and exploring — not what you tell it.
-          </p>
-        </div>
-        <div className="card">
           <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>📡</div>
           <h3>Community Pulse</h3>
           <p>
-            Anonymous attention signals from people with similar patterns get
-            aggregated into a live pulse of what's emerging in your world.
+            The pulse is the core of FOMO. It surfaces what your community is quietly
+            converging on — emerging topics, opportunities, and ideas — before they
+            become obvious to everyone.
+          </p>
+        </div>
+        <div className="card">
+          <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>🪞</div>
+          <h3>Private Mirror</h3>
+          <p>
+            Your mirror shows how you're represented on the pulse — what topics FOMO
+            associates with you, and how your attention shapes what you see in your community.
           </p>
         </div>
         <div className="card">
@@ -54,8 +55,8 @@ export default function LandingPage() {
         <h2>Attention is the signal. Everything else is noise.</h2>
         <p style={{ marginBottom: 24, maxWidth: 560 }}>
           FOMO runs as a browser extension that privately observes page titles and
-          domains — never passwords, forms, or messages. Claude AI classifies each
-          page into a human-readable topic. Over time, patterns emerge.
+          domains — never passwords, forms, or messages. Over time, patterns emerge
+          and get woven into your community pulse.
         </p>
         <div className="grid two">
           <div className="item">
@@ -65,18 +66,18 @@ export default function LandingPage() {
           </div>
           <div className="item">
             <span className="kicker">Step 2</span>
-            <h3>FOMO builds your mirror</h3>
-            <p>Claude classifies each page into a topic. Your mirror builds up over hours and days, revealing patterns you didn't know were there.</p>
+            <h3>FOMO reads your attention</h3>
+            <p>Every page you visit gets classified into a topic. Over hours and days, a clear picture of what you actually care about begins to form.</p>
           </div>
           <div className="item">
             <span className="kicker">Step 3</span>
-            <h3>Your community pulse emerges</h3>
-            <p>Anonymous signals from people with similar attention patterns get aggregated. You see what's rising before it becomes obvious.</p>
+            <h3>Your pulse emerges</h3>
+            <p>Anonymous signals from people with similar attention patterns get aggregated. You see what's rising in your community before it becomes obvious.</p>
           </div>
           <div className="item">
             <span className="kicker">Step 4</span>
-            <h3>Get ahead of the curve</h3>
-            <p>FOMO surfaces opportunities, events, and ideas your community is quietly converging on — before they go mainstream.</p>
+            <h3>Your mirror shows your position</h3>
+            <p>The mirror is a window into how you're represented on the pulse — which topics you're contributing to, and how your attention places you in your community.</p>
           </div>
         </div>
       </section>
@@ -100,13 +101,13 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="panel" style={{ textAlign: "center", padding: "48px 36px" }}>
-        <h2>Start building your mirror.</h2>
+        <h2>See what your community is paying attention to.</h2>
         <p style={{ marginBottom: 24 }}>
-          Your attention history starts accumulating the moment you install the extension.
-          The longer FOMO runs, the sharper the picture gets.
+          The pulse is live. Your mirror builds the moment the extension starts running.
         </p>
         <div className="button-row" style={{ justifyContent: "center" }}>
-          <Link href="/mirror" className="button">Open your mirror</Link>
+          <Link href="/pulse" className="button">Open the pulse</Link>
+          <Link href="/mirror" className="button-secondary">See your mirror</Link>
         </div>
       </section>
     </div>
