@@ -12,8 +12,7 @@ export default async function MirrorPage() {
         <h1>How FOMO sees you.</h1>
         <p>
           Based on what you pay attention to, FOMO places you in communities and
-          surfaces the pulse of those communities to you. This is your representation —
-          not what you say, but what you consistently look at.
+          surfaces the pulse of those communities to you. This is your representation: not what you say, but what you consistently look at.
         </p>
         <div className="status-strip">
           <div className="status-tile">
@@ -35,13 +34,13 @@ export default async function MirrorPage() {
         </div>
       </section>
 
-      {/* Community placement — the main profile section */}
+      {/* Community placement the main profile section */}
       {mirror.communities.length > 0 ? (
         <section className="panel">
           <span className="eyebrow">Your placement</span>
           <h2>Communities FOMO places you in</h2>
           <p style={{ marginBottom: 20 }}>
-            These are inferred automatically from your attention patterns — you never chose them.
+            These are inferred automatically from your attention patterns. You never chose them.
             They determine which pulse signals get surfaced to you.
           </p>
           <div className="grid two">
@@ -75,7 +74,7 @@ export default async function MirrorPage() {
           <h2>No community placement yet</h2>
           <p>
             FOMO places you in communities based on your attention patterns. Keep browsing
-            with the extension active — your placement emerges over time.
+            with the extension active. Your placement emerges over time.
           </p>
         </section>
       )}
