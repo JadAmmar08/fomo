@@ -16,8 +16,8 @@ export default async function MirrorPage() {
         </p>
         <div className="status-strip">
           <div className="status-tile">
-            <span className="kicker">Session</span>
-            <div className="mono">{mirror.user.anonymousUserId.slice(0, 16)}…</div>
+            <span className="kicker">Member since</span>
+            <div>{new Date(mirror.user.createdAt).toLocaleDateString([], { month: "short", year: "numeric" })}</div>
           </div>
           <div className="status-tile">
             <span className="kicker">Storage</span>
@@ -100,7 +100,6 @@ export default async function MirrorPage() {
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <strong style={{ fontSize: "1.1rem" }}>{formatPercent(interest.confidence)}</strong>
-                    <div className="score-note">Feedback {interest.feedbackScore >= 0 ? "+" : ""}{interest.feedbackScore.toFixed(2)}</div>
                   </div>
                 </div>
                 <div className="progress" style={{ margin: "12px 0" }}>

@@ -82,3 +82,10 @@ create table if not exists privacy_settings (
   account_data_retention text not null default 'keep',
   updated_at timestamptz not null default now()
 );
+
+create table if not exists waitlist (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  name text,
+  created_at timestamptz not null default now()
+);
