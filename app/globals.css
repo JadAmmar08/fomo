@@ -87,13 +87,6 @@ button, input, select { font: inherit; }
   letter-spacing: -0.02em;
 }
 
-.brand small {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--muted);
-  letter-spacing: 0;
-}
-
 .topnav {
   display: flex;
   gap: 4px;

@@ -10,8 +10,9 @@ export default async function PulsePage() {
         <span className="eyebrow">Community Pulse</span>
         <h1>What your community is paying attention to.</h1>
         <p>
-          Anonymous signals from people with similar attention patterns, aggregated in real time.
-          No posts. No opinions. Just attention.
+          {pulse.storageMode === "database"
+            ? "Anonymous signals from people with similar attention patterns, aggregated in real time. No posts. No opinions. Just attention."
+            : "Your own attention signals, grouped into topics. Connect with others to see a real community pulse."}
         </p>
         <div className="status-strip">
           <div className="status-tile">

@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
-import type { Route } from "next";
 import Link from "next/link";
+import { Nav } from "@/components/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FOMO",
-  description: "Transparent social sensing with a private mirror and anonymous community pulse."
+  description: "Know what matters before everyone else does."
 };
-
-const navItems = [
-  { href: "/mirror", label: "Private Mirror" },
-  { href: "/pulse", label: "Community Pulse" }
-] satisfies Array<{ href: Route; label: string }>;
 
 export default function RootLayout({
   children
@@ -23,20 +18,11 @@ export default function RootLayout({
       <body>
         <div className="app-shell">
           <header className="topbar">
-            <Link href="/mirror" className="brand">
+            <Link href="/" className="brand">
               <span className="brand-mark">F</span>
-              <span>
-                <strong>FOMO</strong>
-                <small>Transparent social sensing</small>
-              </span>
+              <strong>FOMO</strong>
             </Link>
-            <nav className="topnav" aria-label="Primary">
-              {navItems.map((item) => (
-                <Link key={item.href} href={item.href}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <Nav />
           </header>
           <main className="page-frame">{children}</main>
         </div>
