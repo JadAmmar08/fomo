@@ -71,7 +71,7 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
       const mirror = {
         user: state.user,
         interests: visibleInterests,
-        communities: inferCommunities(visibleInterests),
+        communities: await inferCommunities(visibleInterests),
         recentSignals: state.ownSignals.slice(0, 10),
         privacy: state.privacySettings
       };
@@ -93,7 +93,7 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
   const mirror = {
     user: state.user,
     interests: visibleInterests,
-    communities: inferCommunities(visibleInterests),
+    communities: await inferCommunities(visibleInterests),
     recentSignals: state.ownSignals.slice(0, 10),
     privacy: state.privacySettings
   };

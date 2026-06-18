@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { UserInterest, Category } from "@/lib/types";
 
 export interface CommunityPlacement {
@@ -9,151 +10,119 @@ export interface CommunityPlacement {
   signal: string;
 }
 
-type CommunityDefinition = {
-  name: string;
-  description: string;
-  signal: string;
-  requires: Category[];
-  boosts?: Category[];
-  minConfidence: number;
-};
-
-const COMMUNITY_DEFINITIONS: CommunityDefinition[] = [
-  {
-    name: "Startup Builders",
-    description: "People building or closely following early-stage companies, fundraising, and the founding journey.",
-    signal: "High attention to startup news, founder content, and venture activity.",
-    requires: ["startups"],
-    boosts: ["technology", "finance"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Finance & Markets",
-    description: "People tracking markets, investments, economic trends, and financial news closely.",
-    signal: "Consistent attention to financial publications, market data, and investment content.",
-    requires: ["finance"],
-    boosts: ["startups", "research"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Tech & Builders",
-    description: "Developers, engineers, and technically-minded people following the software and tools ecosystem.",
-    signal: "Strong attention to developer tools, software projects, and technical discussions.",
-    requires: ["technology"],
-    boosts: ["startups", "research"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Campus & Student Life",
-    description: "Students and people embedded in university culture, academics, and campus communities.",
-    signal: "Attention concentrated on educational platforms, campus resources, and student content.",
-    requires: ["school/campus"],
-    boosts: ["events", "research"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Research & Academia",
-    description: "People who follow academic work, scientific publishing, and knowledge-driven fields.",
-    signal: "Regular attention to research papers, journals, and academic institutions.",
-    requires: ["research"],
-    boosts: ["technology", "healthcare"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Healthcare & Biotech",
-    description: "People tracking health innovation, clinical research, biotech, and medical news.",
-    signal: "Consistent attention to health publications, clinical content, and biotech developments.",
-    requires: ["healthcare"],
-    boosts: ["research", "startups"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Sports & Athletics",
-    description: "People closely following sports, athletes, leagues, and competitive events.",
-    signal: "High attention to sports media, game coverage, and athletic content.",
-    requires: ["sports"],
-    boosts: ["events", "entertainment"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Culture & Entertainment",
-    description: "People tracking film, music, media, and pop culture as it evolves.",
-    signal: "Sustained attention to entertainment publications, streaming, and cultural content.",
-    requires: ["entertainment"],
-    boosts: ["fashion", "events"],
-    minConfidence: 0.3
-  },
-  {
-    name: "VC & Dealflow",
-    description: "People at the intersection of startups and capital — founders, investors, and operators.",
-    signal: "Combined attention to startups and finance suggests proximity to the investment ecosystem.",
-    requires: ["startups", "finance"],
-    boosts: ["technology"],
-    minConfidence: 0.28
-  },
-  {
-    name: "Emerging Tech",
-    description: "People on the frontier of new technology — AI, crypto, biotech, and what comes next.",
-    signal: "Attention spanning technology, research, and startups points to early-adopter orientation.",
-    requires: ["technology", "research"],
-    boosts: ["startups", "healthcare"],
-    minConfidence: 0.28
-  },
-  {
-    name: "Fashion & Style",
-    description: "People tracking fashion, aesthetics, trends, and the culture of style.",
-    signal: "Attention to fashion publications, runway coverage, and style content.",
-    requires: ["fashion"],
-    boosts: ["entertainment", "events"],
-    minConfidence: 0.3
-  },
-  {
-    name: "Events & Community",
-    description: "People who are plugged into local happenings, conferences, and community gatherings.",
-    signal: "Attention to event listings, meetups, and community-driven content.",
-    requires: ["events"],
-    boosts: ["startups", "school/campus"],
-    minConfidence: 0.3
-  }
-];
-
-function categoryScore(interests: UserInterest[], category: Category): number {
-  const matching = interests.filter((i) => i.category === category && !i.hidden);
-  if (matching.length === 0) return 0;
-  const total = matching.reduce((sum, i) => sum + i.confidence * Math.log1p(i.signalCount), 0);
-  return total / matching.length;
-}
-
-export function inferCommunities(interests: UserInterest[]): CommunityPlacement[] {
+export async function inferCommunities(interests: UserInterest[]): Promise<CommunityPlacement[]> {
   if (interests.length === 0) return [];
 
-  const scores = new Map<Category, number>();
-  const allCategories = Array.from(new Set(interests.map((i) => i.category)));
-  for (const cat of allCategories) {
-    scores.set(cat, categoryScore(interests, cat));
-  }
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return fallbackCommunities(interests);
 
-  const placements: CommunityPlacement[] = [];
+  try {
+    const client = new Anthropic({ apiKey });
 
-  for (const def of COMMUNITY_DEFINITIONS) {
-    const requiredScores = def.requires.map((cat) => scores.get(cat) ?? 0);
-    if (requiredScores.some((s) => s < def.minConfidence)) continue;
+    const topInterests = interests
+      .filter((i) => !i.hidden)
+      .sort((a, b) => b.confidence * b.signalCount - a.confidence * a.signalCount)
+      .slice(0, 20)
+      .map((i) => ({
+        topic: i.topicLabel,
+        category: i.category,
+        signals: i.signalCount,
+        confidence: Math.round(i.confidence * 100),
+        trend: i.change
+      }));
 
-    const baseScore = requiredScores.reduce((a, b) => a + b, 0) / requiredScores.length;
-    const boostScore = (def.boosts ?? []).reduce((sum, cat) => sum + (scores.get(cat) ?? 0) * 0.2, 0);
-    const confidence = Math.min(0.97, baseScore + boostScore);
+    const message = await client.messages.create({
+      model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8",
+      max_tokens: 1024,
+      tools: [
+        {
+          name: "place_in_communities",
+          description: "Generate community placements for a user based on their attention patterns.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              communities: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    description: { type: "string" },
+                    confidence: { type: "number" },
+                    primaryCategories: { type: "array", items: { type: "string" } },
+                    signal: { type: "string" }
+                  },
+                  required: ["name", "description", "confidence", "primaryCategories", "signal"],
+                  additionalProperties: false
+                },
+                minItems: 1,
+                maxItems: 4
+              }
+            },
+            required: ["communities"],
+            additionalProperties: false
+          }
+        }
+      ],
+      tool_choice: { type: "tool", name: "place_in_communities" },
+      system: `You analyze a person's browsing attention patterns and group them into communities they naturally belong to.
 
-    placements.push({
-      id: `community_${def.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
-      name: def.name,
-      description: def.description,
-      confidence,
-      primaryCategories: def.requires,
-      signal: def.signal
+RULES:
+- Generate 1–4 communities that genuinely reflect this person's attention fingerprint
+- Community names should be specific and evocative — not generic category names
+- Names should feel like real groups of people ("Pre-med students tracking research", "Early-stage founders in AI", "Finance students watching markets")
+- Description should be 1–2 sentences explaining who else is in this community
+- Signal should be 1 sentence explaining what in their attention data led to this placement
+- Confidence is 0.0–1.0 based on how strongly the data supports this placement
+- primaryCategories should list the broad content categories that drive this placement
+- If the data is thin (few signals, low confidence), generate fewer but more accurate communities — don't guess
+- Never invent communities not supported by the data`,
+      messages: [
+        {
+          role: "user",
+          content: `Here are this user's top attention topics. Generate community placements:\n\n${JSON.stringify(topInterests, null, 2)}`
+        }
+      ]
     });
-  }
 
-  return placements
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 4);
+    const toolBlock = message.content.find((b) => b.type === "tool_use");
+    if (!toolBlock || toolBlock.type !== "tool_use") return fallbackCommunities(interests);
+
+    const result = toolBlock.input as { communities: Array<{
+      name: string;
+      description: string;
+      confidence: number;
+      primaryCategories: string[];
+      signal: string;
+    }> };
+
+    return result.communities.map((c) => ({
+      id: `community_${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+      name: c.name,
+      description: c.description,
+      confidence: Math.min(0.97, Math.max(0.1, c.confidence)),
+      primaryCategories: c.primaryCategories as Category[],
+      signal: c.signal
+    }));
+  } catch {
+    return fallbackCommunities(interests);
+  }
+}
+
+function fallbackCommunities(interests: UserInterest[]): CommunityPlacement[] {
+  const categoryCounts = new Map<string, number>();
+  for (const i of interests) {
+    categoryCounts.set(i.category, (categoryCounts.get(i.category) ?? 0) + i.signalCount);
+  }
+  const topCategory = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (!topCategory) return [];
+
+  return [{
+    id: `community_${topCategory[0]}`,
+    name: topCategory[0].charAt(0).toUpperCase() + topCategory[0].slice(1),
+    description: `People paying close attention to ${topCategory[0]} content.`,
+    confidence: 0.5,
+    primaryCategories: [topCategory[0] as Category],
+    signal: `Most attention concentrated in ${topCategory[0]}.`
+  }];
 }
