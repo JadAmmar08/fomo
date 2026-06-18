@@ -98,7 +98,7 @@ export default function SignupPage() {
         )}
 
         <p style={{ marginTop: 20, fontSize: "0.82rem", color: "var(--subtle)", textAlign: "center" }}>
-          Already have the extension?{" "}
+          Already signed up?{" "}
           <Link href="/mirror" style={{ color: "var(--accent)" }}>Open your mirror</Link>
         </p>
       </div>
