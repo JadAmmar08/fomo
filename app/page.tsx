@@ -23,7 +23,11 @@ export default function LandingPage() {
       {/* Three pillars */}
       <div className="grid three">
         <div className="card">
-          <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>📡</div>
+          <div className="icon-block">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
           <h3>Community Pulse</h3>
           <p>
             The pulse is the core of FOMO. It surfaces what your community is quietly
@@ -32,7 +36,11 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="card">
-          <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>🪞</div>
+          <div className="icon-block">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
           <h3>Private Mirror</h3>
           <p>
             Your mirror shows how you're represented on the pulse. FOMO infers which
@@ -41,7 +49,11 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="card">
-          <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>⚡</div>
+          <div className="icon-block">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
           <h3>Early Signal</h3>
           <p>
             Trends appear in attention before they appear in conversation. FOMO

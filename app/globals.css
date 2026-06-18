@@ -389,6 +389,20 @@ p {
 
 .table th { color: var(--subtle); font-weight: 500; }
 
+/* ── Icon block ──────────────────────────────────────── */
+
+.icon-block {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
 /* ── Responsive ──────────────────────────────────────── */
 
 @media (max-width: 900px) {
