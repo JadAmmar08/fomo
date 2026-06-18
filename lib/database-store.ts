@@ -187,26 +187,21 @@ export async function getDatabaseMirrorState(anonymousUserId: string) {
   });
 }
 
-export async function getDatabasePulseState(anonymousUserId: string) {
+export async function getDatabasePulseState(_anonymousUserId: string) {
   return withClient(async (client) => {
-    const [signalsRes, privacyRes] = await Promise.all([
-      client.query(
-        `select * from browsing_signals where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '48 hours'`,
-        [anonymousUserId]
-      ),
-      client.query(`select * from privacy_settings where anonymous_user_id = $1 limit 1`, [
-        anonymousUserId
-      ])
-    ]);
+    // Pull signals from ALL users who have sharing enabled for each category
+    const signalsRes = await client.query(
+      `select bs.*
+       from browsing_signals bs
+       join privacy_settings ps on ps.anonymous_user_id = bs.anonymous_user_id
+       where bs.timestamp_bucket >= now() - interval '48 hours'
+         and ps.tracking_paused = false
+         and bs.broad_category = any(ps.shareable_categories)
+       order by bs.timestamp_bucket desc
+       limit 2000`
+    );
 
-    const privacy = mapPrivacy(anonymousUserId, privacyRes.rows[0]);
-    const sharedSignals = signalsRes.rows
-      .map(mapSignal)
-      .filter((signal) =>
-        privacy.shareableCategories.includes(signal.category)
-      );
-
-    return buildCommunityTrends(sharedSignals);
+    return buildCommunityTrends(signalsRes.rows.map(mapSignal));
   });
 }
 
@@ -361,9 +356,7 @@ export async function deleteDatabaseData(anonymousUserId: string, scope: "local"
 
 export async function materializeDatabaseTrends() {
   return withClient(async (client) => {
-    const userRes = await client.query(`select anonymous_user_id from users limit 1`);
-    const anonymousUserId = String(userRes.rows[0]?.anonymous_user_id ?? "");
-    const trends = anonymousUserId ? (await getDatabasePulseState(anonymousUserId)) ?? [] : [];
+    const trends = (await getDatabasePulseState("")) ?? [];
     await client.query(`delete from community_trends`);
 
     for (const trend of trends) {
