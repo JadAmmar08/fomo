@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getPool } from "@/lib/postgres";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend() {
+  if (!resendClient && process.env.RESEND_API_KEY) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 export async function POST(req: NextRequest) {
   const { email, name } = await req.json();
@@ -25,7 +31,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Send welcome email if Resend is configured
-  if (process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (resend) {
     const fromAddress = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
     const result = await resend.emails.send({
       from: `FOMO <${fromAddress}>`,

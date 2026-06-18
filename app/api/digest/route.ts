@@ -3,7 +3,13 @@ import { Resend } from "resend";
 import { getPool } from "@/lib/postgres";
 import { buildCommunityTrends } from "@/lib/trends";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
+function getResend() {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 function digestHtml(recipientName: string, trends: Array<{ topicLabel: string; category: string; changePct: number; anonymousSignals: number; explanation: string }>) {
   const trendRows = trends.slice(0, 5).map((t) => `
@@ -53,7 +59,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.RESEND_API_KEY) {
+  const resendClient = getResend();
+  if (!resendClient) {
     return NextResponse.json({ error: "RESEND_API_KEY not configured" }, { status: 500 });
   }
 
@@ -85,7 +92,7 @@ export async function POST(req: NextRequest) {
 
   let sent = 0;
   for (const user of users) {
-    const result = await resend.emails.send({
+    const result = await resendClient.emails.send({
       from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
       to: user.email,
       subject: "What your communities noticed this week",
