@@ -6,18 +6,18 @@ export const metadata: Metadata = { title: "FOMO - Get the Extension" };
 const steps = [
   {
     n: "1",
-    title: "Download the extension",
-    body: "Click the button below to download the FOMO extension folder to your computer."
+    title: "Download and unzip",
+    body: 'Click the button below to download the extension. Once downloaded, double-click the zip file to unzip it. You\'ll get a folder called "extension".'
   },
   {
     n: "2",
     title: "Open Chrome extensions",
-    body: 'Go to chrome://extensions in your browser and turn on "Developer mode" in the top right corner.'
+    body: 'In Chrome, go to chrome://extensions (paste that into your address bar). In the top right corner, turn on "Developer mode".'
   },
   {
     n: "3",
-    title: 'Click "Load unpacked"',
-    body: 'Click "Load unpacked" and select the extension folder you downloaded. FOMO will appear in your toolbar.'
+    title: 'Load the extension',
+    body: 'Click "Load unpacked" and select the "extension" folder you just unzipped. FOMO will appear in your Chrome toolbar.'
   },
   {
     n: "4",

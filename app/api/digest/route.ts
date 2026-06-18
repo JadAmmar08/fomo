@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   let sent = 0;
   for (const user of users) {
     const result = await resend.emails.send({
-      from: "FOMO <hello@getfomo.app>",
+      from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
       to: user.email,
       subject: "What your communities noticed this week",
       html: digestHtml(user.name ?? "", trends)

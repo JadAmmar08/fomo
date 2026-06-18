@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
 
   // Send welcome email if Resend is configured
   if (process.env.RESEND_API_KEY) {
-    await resend.emails.send({
-      from: "FOMO <hello@getfomo.app>",
+    const fromAddress = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+    const result = await resend.emails.send({
+      from: `FOMO <${fromAddress}>`,
       to: email,
       subject: "You're on the FOMO waitlist",
       html: `
@@ -46,7 +47,10 @@ export async function POST(req: NextRequest) {
           <p style="color:rgba(240,237,232,0.28);font-size:0.8rem;margin-top:32px;">FOMO · Attention network</p>
         </div>
       `
-    }).catch(() => null);
+    });
+    if (result.error) {
+      console.error("[waitlist] Resend error:", result.error);
+    }
   }
 
   return NextResponse.json({ ok: true });
