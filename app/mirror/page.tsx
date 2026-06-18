@@ -9,10 +9,11 @@ export default async function MirrorPage() {
     <div className="stack">
       <section className="panel">
         <span className="eyebrow">Private Mirror</span>
-        <h1>What your attention reveals about you.</h1>
+        <h1>How FOMO sees you.</h1>
         <p>
-          Built entirely from what you pay attention to — not what you post or say.
-          This data never leaves your session without your permission.
+          Based on what you pay attention to, FOMO places you in communities and
+          surfaces the pulse of those communities to you. This is your representation —
+          not what you say, but what you consistently look at.
         </p>
         <div className="status-strip">
           <div className="status-tile">
@@ -24,17 +25,67 @@ export default async function MirrorPage() {
             <div>{mirror.storageMode === "database" ? "Persistent" : "Demo"}</div>
           </div>
           <div className="status-tile">
+            <span className="kicker">Communities</span>
+            <div>{mirror.communities.length}</div>
+          </div>
+          <div className="status-tile">
             <span className="kicker">Tracked topics</span>
             <div>{mirror.interests.length}</div>
           </div>
         </div>
       </section>
 
+      {/* Community placement — the main profile section */}
+      {mirror.communities.length > 0 ? (
+        <section className="panel">
+          <span className="eyebrow">Your placement</span>
+          <h2>Communities FOMO places you in</h2>
+          <p style={{ marginBottom: 20 }}>
+            These are inferred automatically from your attention patterns — you never chose them.
+            They determine which pulse signals get surfaced to you.
+          </p>
+          <div className="grid two">
+            {mirror.communities.map((community) => (
+              <div key={community.id} className="item" style={{ borderColor: "rgba(232,103,58,0.18)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                  <h3 style={{ marginBottom: 0 }}>{community.name}</h3>
+                  <strong style={{ color: "var(--accent)", flexShrink: 0 }}>
+                    {formatPercent(community.confidence)}
+                  </strong>
+                </div>
+                <div className="progress" style={{ marginBottom: 12 }}>
+                  <span style={{ width: `${community.confidence * 100}%` }} />
+                </div>
+                <p style={{ fontSize: "0.88rem", marginBottom: 10 }}>{community.description}</p>
+                <div className="tag-row">
+                  {community.primaryCategories.map((cat) => (
+                    <span key={cat} className="pill">{cat}</span>
+                  ))}
+                </div>
+                <p style={{ fontSize: "0.78rem", color: "var(--subtle)", marginTop: 10, marginBottom: 0 }}>
+                  {community.signal}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="panel">
+          <span className="eyebrow">Your placement</span>
+          <h2>No community placement yet</h2>
+          <p>
+            FOMO places you in communities based on your attention patterns. Keep browsing
+            with the extension active — your placement emerges over time.
+          </p>
+        </section>
+      )}
+
+      {/* Interests */}
       {mirror.interests.length > 0 ? (
         <section className="panel">
-          <h2>Detected interests</h2>
+          <h2>Attention topics</h2>
           <p style={{ marginBottom: 20 }}>
-            Topics FOMO inferred from your attention patterns. The stronger the signal, the more consistently you returned to it.
+            The specific topics shaping your community placement and pulse feed.
           </p>
           <div className="list">
             {mirror.interests.map((interest) => (
@@ -73,15 +124,16 @@ export default async function MirrorPage() {
         </section>
       ) : (
         <section className="panel">
-          <h2>No interests yet</h2>
+          <h2>No topics yet</h2>
           <p>Browse a few pages with the extension active. Your mirror builds up as signals accumulate.</p>
         </section>
       )}
 
+      {/* Recent signals */}
       {mirror.recentSignals.length > 0 && (
         <section className="panel">
           <h2>Recent signals</h2>
-          <p style={{ marginBottom: 20 }}>The raw attention data feeding your mirror.</p>
+          <p style={{ marginBottom: 20 }}>The raw attention data feeding your mirror and community placement.</p>
           <div className="list">
             {mirror.recentSignals.map((signal) => (
               <div key={signal.id} className="item">

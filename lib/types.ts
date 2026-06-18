@@ -93,9 +93,19 @@ export interface FomoUser {
   createdAt: string;
 }
 
+export interface CommunityPlacement {
+  id: string;
+  name: string;
+  description: string;
+  confidence: number;
+  primaryCategories: Category[];
+  signal: string;
+}
+
 export interface MirrorResponse {
   user: FomoUser;
   interests: UserInterest[];
+  communities: CommunityPlacement[];
   recentSignals: BrowsingSignal[];
   privacy: PrivacySettings;
   storageMode: "database" | "demo";

@@ -1,4 +1,5 @@
 import { classifySignal, isWeakTopicLabel } from "@/lib/classifier";
+import { inferCommunities } from "@/lib/communities";
 import { CATEGORIES } from "@/lib/types";
 import {
   deleteLocalData,
@@ -66,9 +67,11 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
   if (isDatabaseMode()) {
     const state = await getDatabaseMirrorState(resolvedAnonymousUserId);
     if (state) {
+      const visibleInterests = state.interests.filter((interest) => !interest.hidden);
       const mirror = {
-      user: state.user,
-        interests: state.interests.filter((interest) => !interest.hidden),
+        user: state.user,
+        interests: visibleInterests,
+        communities: inferCommunities(visibleInterests),
         recentSignals: state.ownSignals.slice(0, 10),
         privacy: state.privacySettings
       };
@@ -86,9 +89,11 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
   }
 
   const state = getDemoState(resolvedAnonymousUserId);
+  const visibleInterests = state.interests.filter((interest) => !interest.hidden);
   const mirror = {
     user: state.user,
-    interests: state.interests.filter((interest) => !interest.hidden),
+    interests: visibleInterests,
+    communities: inferCommunities(visibleInterests),
     recentSignals: state.ownSignals.slice(0, 10),
     privacy: state.privacySettings
   };

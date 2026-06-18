@@ -35,8 +35,9 @@ export default function LandingPage() {
           <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>🪞</div>
           <h3>Private Mirror</h3>
           <p>
-            Your mirror shows how you're represented on the pulse — what topics FOMO
-            associates with you, and how your attention shapes what you see in your community.
+            Your mirror shows how you're represented on the pulse. FOMO infers which
+            communities you belong to based purely on your attention — and that placement
+            determines what pulse signals you see.
           </p>
         </div>
         <div className="card">
@@ -71,13 +72,13 @@ export default function LandingPage() {
           </div>
           <div className="item">
             <span className="kicker">Step 3</span>
-            <h3>Your pulse emerges</h3>
-            <p>Anonymous signals from people with similar attention patterns get aggregated. You see what's rising in your community before it becomes obvious.</p>
+            <h3>FOMO places you in communities</h3>
+            <p>Based on your attention patterns, FOMO quietly groups you with people who pay attention to similar things — no signup form, no self-reported identity required.</p>
           </div>
           <div className="item">
             <span className="kicker">Step 4</span>
-            <h3>Your mirror shows your position</h3>
-            <p>The mirror is a window into how you're represented on the pulse — which topics you're contributing to, and how your attention places you in your community.</p>
+            <h3>Your pulse reflects your communities</h3>
+            <p>The pulse shows what those communities are paying attention to right now. Your mirror lets you see exactly how you're placed — and why.</p>
           </div>
         </div>
       </section>
