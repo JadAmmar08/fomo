@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FOMO</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="brand">
+        <div class="mark">F</div>
+        <div>
+          <strong>FOMO</strong>
+          <small>Private mirror, anonymous pulse</small>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="row between">
+          <span>Tracking</span>
+          <label class="switch">
+            <input id="trackingToggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p id="trackingStatus" class="muted"></p>
+        <p class="muted">When tracking is on, FOMO automatically sends AI-generated page topics for safe pages.</p>
+      </section>
+
+      <section class="card">
+        <p class="label">AI topic</p>
+        <h2 id="topicLabel">Checking...</h2>
+        <div id="topicTags" class="tags"></div>
+        <p id="reason" class="muted"></p>
+      </section>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

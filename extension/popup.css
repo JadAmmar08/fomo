@@ -1,0 +1,143 @@
+:root {
+  --bg: #f7efe4;
+  --surface: #fffaf4;
+  --line: rgba(48, 34, 22, 0.12);
+  --text: #221d18;
+  --muted: #6a6159;
+  --accent: #c8572d;
+}
+
+body {
+  margin: 0;
+  width: 360px;
+  min-height: 360px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(219, 157, 47, 0.24), transparent 38%),
+    linear-gradient(180deg, #f8f2ea 0%, #f5eee4 100%);
+}
+
+.shell {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.brand,
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #f1a261);
+}
+
+.brand small,
+.muted {
+  display: block;
+  color: var(--muted);
+}
+
+.card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 250, 244, 0.92);
+  border: 1px solid var(--line);
+}
+
+.button {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  min-height: 44px;
+  cursor: pointer;
+  color: white;
+  background: var(--accent);
+  margin-bottom: 10px;
+}
+
+.button.secondary {
+  color: var(--text);
+  background: white;
+  border: 1px solid var(--line);
+}
+
+.label {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+h2 {
+  margin: 0 0 6px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.tag {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #f3e3d6;
+  color: #5b473b;
+}
+
+.switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d4c8bb;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 4px;
+  top: 4px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.18s ease;
+}
+
+input:checked + .slider {
+  background: var(--accent);
+}
+
+input:checked + .slider::before {
+  transform: translateX(20px);
+}

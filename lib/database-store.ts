@@ -1,0 +1,401 @@
+import type { PoolClient } from "pg";
+import { buildUserInterests } from "@/lib/interests";
+import { getPool } from "@/lib/postgres";
+import { buildCommunityTrends } from "@/lib/trends";
+import type {
+  BlockedDomain,
+  BrowsingSignal,
+  FeedbackEntry,
+  FomoUser,
+  PrivacySettings
+} from "@/lib/types";
+
+function defaultPrivacySettings(anonymousUserId: string): PrivacySettings {
+  return {
+    anonymousUserId,
+    trackingPaused: false,
+    shareableCategories: ["startups", "technology", "research", "events", "finance"],
+    localDataRetention: "keep",
+    accountDataRetention: "keep"
+  };
+}
+
+function mapUser(row: Record<string, unknown>): FomoUser {
+  return {
+    id: String(row.id),
+    anonymousUserId: String(row.anonymous_user_id),
+    name: String(row.name ?? "FOMO user"),
+    createdAt: new Date(String(row.created_at)).toISOString()
+  };
+}
+
+function mapSignal(row: Record<string, unknown>): BrowsingSignal {
+  return {
+    id: String(row.id),
+    anonymousUserId: String(row.anonymous_user_id),
+    normalizedDomain: String(row.normalized_domain),
+    urlPath: String(row.url_path),
+    pageTitle: String(row.page_title),
+    timestampBucket: new Date(String(row.timestamp_bucket)).toISOString(),
+    category: String(row.broad_category) as BrowsingSignal["category"],
+    topicLabel: String(row.topic_label ?? row.page_title),
+    topicTags: Array.isArray(row.topic_tags) ? (row.topic_tags as string[]) : [],
+    confidence: Number(row.confidence),
+    reasoning: String(row.reasoning),
+    source: String(row.source) as BrowsingSignal["source"]
+  };
+}
+
+function mapFeedback(row: Record<string, unknown>): FeedbackEntry {
+  return {
+    id: String(row.id),
+    anonymousUserId: String(row.anonymous_user_id),
+    targetType: String(row.target_type) as FeedbackEntry["targetType"],
+    targetId: String(row.target_id),
+    action: String(row.action) as FeedbackEntry["action"],
+    createdAt: new Date(String(row.created_at)).toISOString()
+  };
+}
+
+function mapBlockedDomain(row: Record<string, unknown>): BlockedDomain {
+  return {
+    id: String(row.id),
+    anonymousUserId: String(row.anonymous_user_id),
+    domain: String(row.domain),
+    reason: String(row.reason)
+  };
+}
+
+function mapPrivacy(
+  anonymousUserId: string,
+  row?: Record<string, unknown>
+): PrivacySettings {
+  if (!row) {
+    return defaultPrivacySettings(anonymousUserId);
+  }
+
+  return {
+    anonymousUserId,
+    trackingPaused: Boolean(row.tracking_paused),
+    shareableCategories: Array.isArray(row.shareable_categories)
+      ? (row.shareable_categories as PrivacySettings["shareableCategories"])
+      : defaultPrivacySettings(anonymousUserId).shareableCategories,
+    localDataRetention:
+      String(row.local_data_retention ?? "keep") === "delete" ? "delete" : "keep",
+    accountDataRetention:
+      String(row.account_data_retention ?? "keep") === "delete" ? "delete" : "keep"
+  };
+}
+
+async function withClient<T>(run: (client: PoolClient) => Promise<T>) {
+  const pool = getPool();
+  if (!pool) {
+    return null;
+  }
+
+  try {
+    const client = await pool.connect();
+    try {
+      return await run(client);
+    } finally {
+      client.release();
+    }
+  } catch {
+    return null;
+  }
+}
+
+export function isDatabaseMode() {
+  return Boolean(getPool());
+}
+
+export async function ensureDatabaseUser(anonymousUserId: string) {
+  return withClient(async (client) => {
+    const userResult = await client.query(
+      `
+      insert into users (anonymous_user_id, name)
+      values ($1, $2)
+      on conflict (anonymous_user_id)
+      do update set anonymous_user_id = excluded.anonymous_user_id
+      returning *
+      `,
+      [anonymousUserId, "FOMO user"]
+    );
+
+    await client.query(
+      `
+      insert into privacy_settings (
+        anonymous_user_id,
+        tracking_paused,
+        shareable_categories,
+        local_data_retention,
+        account_data_retention
+      )
+      values ($1, false, $2::text[], 'keep', 'keep')
+      on conflict (anonymous_user_id) do nothing
+      `,
+      [anonymousUserId, defaultPrivacySettings(anonymousUserId).shareableCategories]
+    );
+
+    return mapUser(userResult.rows[0]);
+  });
+}
+
+export async function getDatabaseMirrorState(anonymousUserId: string) {
+  return withClient(async (client) => {
+    await ensureDatabaseUser(anonymousUserId);
+
+    const [userRes, signalsRes, feedbackRes, blockedRes, privacyRes] = await Promise.all([
+      client.query(`select * from users where anonymous_user_id = $1 limit 1`, [anonymousUserId]),
+      client.query(
+        `select * from browsing_signals where anonymous_user_id = $1 order by timestamp_bucket desc limit 200`,
+        [anonymousUserId]
+      ),
+      client.query(
+        `select * from feedback where anonymous_user_id = $1 order by created_at desc`,
+        [anonymousUserId]
+      ),
+      client.query(
+        `select * from blocked_domains where anonymous_user_id = $1 order by created_at desc`,
+        [anonymousUserId]
+      ),
+      client.query(`select * from privacy_settings where anonymous_user_id = $1 limit 1`, [
+        anonymousUserId
+      ])
+    ]);
+
+    const user = mapUser(userRes.rows[0]);
+    const ownSignals = signalsRes.rows.map(mapSignal);
+    const ownFeedback = feedbackRes.rows.map(mapFeedback);
+    const blockedDomains = blockedRes.rows.map(mapBlockedDomain);
+    const privacySettings = mapPrivacy(anonymousUserId, privacyRes.rows[0]);
+    const interests = buildUserInterests(
+      anonymousUserId,
+      ownSignals,
+      ownFeedback,
+      privacySettings
+    );
+
+    return {
+      user,
+      ownSignals,
+      ownFeedback,
+      blockedDomains,
+      privacySettings,
+      interests
+    };
+  });
+}
+
+export async function getDatabasePulseState(anonymousUserId: string) {
+  return withClient(async (client) => {
+    const [signalsRes, privacyRes] = await Promise.all([
+      client.query(
+        `select * from browsing_signals where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '48 hours'`,
+        [anonymousUserId]
+      ),
+      client.query(`select * from privacy_settings where anonymous_user_id = $1 limit 1`, [
+        anonymousUserId
+      ])
+    ]);
+
+    const privacy = mapPrivacy(anonymousUserId, privacyRes.rows[0]);
+    const sharedSignals = signalsRes.rows
+      .map(mapSignal)
+      .filter((signal) =>
+        privacy.shareableCategories.includes(signal.category)
+      );
+
+    return buildCommunityTrends(sharedSignals);
+  });
+}
+
+export async function insertDatabaseSignal(signal: BrowsingSignal) {
+  return withClient(async (client) => {
+    await ensureDatabaseUser(signal.anonymousUserId);
+    await client.query(
+      `
+      insert into browsing_signals (
+        id,
+        anonymous_user_id,
+        normalized_domain,
+        url_path,
+        page_title,
+        timestamp_bucket,
+        broad_category,
+        topic_label,
+        topic_tags,
+        confidence,
+        reasoning,
+        source
+      )
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text[],$10,$11,$12)
+      `,
+      [
+        signal.id,
+        signal.anonymousUserId,
+        signal.normalizedDomain,
+        signal.urlPath,
+        signal.pageTitle,
+        signal.timestampBucket,
+        signal.category,
+        signal.topicLabel,
+        signal.topicTags,
+        signal.confidence,
+        signal.reasoning,
+        signal.source
+      ]
+    );
+
+    return signal;
+  });
+}
+
+export async function insertDatabaseFeedback(entry: FeedbackEntry) {
+  return withClient(async (client) => {
+    await ensureDatabaseUser(entry.anonymousUserId);
+    await client.query(
+      `
+      insert into feedback (id, anonymous_user_id, target_type, target_id, action, created_at)
+      values ($1,$2,$3,$4,$5,$6)
+      `,
+      [
+        entry.id,
+        entry.anonymousUserId,
+        entry.targetType,
+        entry.targetId,
+        entry.action,
+        entry.createdAt
+      ]
+    );
+
+    return entry;
+  });
+}
+
+export async function upsertDatabasePrivacySettings(
+  anonymousUserId: string,
+  update: Partial<PrivacySettings> & { blockDomain?: string }
+) {
+  return withClient(async (client) => {
+    await ensureDatabaseUser(anonymousUserId);
+    const currentRes = await client.query(
+      `select * from privacy_settings where anonymous_user_id = $1 limit 1`,
+      [anonymousUserId]
+    );
+    const current = mapPrivacy(anonymousUserId, currentRes.rows[0]);
+    const next = {
+      ...current,
+      ...update,
+      anonymousUserId
+    };
+
+    await client.query(
+      `
+      insert into privacy_settings (
+        anonymous_user_id,
+        tracking_paused,
+        shareable_categories,
+        local_data_retention,
+        account_data_retention
+      )
+      values ($1,$2,$3::text[],$4,$5)
+      on conflict (anonymous_user_id)
+      do update set
+        tracking_paused = excluded.tracking_paused,
+        shareable_categories = excluded.shareable_categories,
+        local_data_retention = excluded.local_data_retention,
+        account_data_retention = excluded.account_data_retention
+      `,
+      [
+        anonymousUserId,
+        next.trackingPaused,
+        next.shareableCategories,
+        next.localDataRetention,
+        next.accountDataRetention
+      ]
+    );
+
+    if (update.blockDomain) {
+      await client.query(
+        `
+        insert into blocked_domains (anonymous_user_id, domain, reason)
+        values ($1,$2,$3)
+        on conflict (anonymous_user_id, domain) do nothing
+        `,
+        [anonymousUserId, update.blockDomain, "never-track"]
+      );
+    }
+
+    return next;
+  });
+}
+
+export async function deleteDatabaseData(anonymousUserId: string, scope: "local" | "account") {
+  return withClient(async (client) => {
+    await client.query("begin");
+    try {
+      await client.query(`delete from browsing_signals where anonymous_user_id = $1`, [
+        anonymousUserId
+      ]);
+      await client.query(`delete from feedback where anonymous_user_id = $1`, [anonymousUserId]);
+
+      if (scope === "account") {
+        await client.query(`delete from blocked_domains where anonymous_user_id = $1`, [
+          anonymousUserId
+        ]);
+        await client.query(`delete from privacy_settings where anonymous_user_id = $1`, [
+          anonymousUserId
+        ]);
+        await client.query(`delete from users where anonymous_user_id = $1`, [anonymousUserId]);
+      }
+
+      await client.query("commit");
+      return { ok: true, scope };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    }
+  });
+}
+
+export async function materializeDatabaseTrends() {
+  return withClient(async (client) => {
+    const userRes = await client.query(`select anonymous_user_id from users limit 1`);
+    const anonymousUserId = String(userRes.rows[0]?.anonymous_user_id ?? "");
+    const trends = anonymousUserId ? (await getDatabasePulseState(anonymousUserId)) ?? [] : [];
+    await client.query(`delete from community_trends`);
+
+    for (const trend of trends) {
+      await client.query(
+        `
+        insert into community_trends (
+          broad_category,
+          topic_label,
+          topic_tags,
+          trend_score,
+          anonymous_signals,
+          unique_users,
+          time_window,
+          change_pct,
+          explanation
+        )
+        values ($1,$2,$3::text[],$4,$5,$6,$7,$8,$9)
+        `,
+        [
+          trend.category,
+          trend.topicLabel,
+          trend.topicTags,
+          trend.trendScore,
+          trend.anonymousSignals,
+          trend.uniqueUsers,
+          trend.timeWindow,
+          trend.changePct,
+          trend.explanation
+        ]
+      );
+    }
+
+    return trends;
+  });
+}
