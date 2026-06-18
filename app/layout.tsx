@@ -19,7 +19,7 @@ export default function RootLayout({
         <div className="app-shell">
           <header className="topbar">
             <Link href="/" className="brand">
-              <span className="brand-mark">F</span>
+              <span className="brand-mark"></span>
               <strong>FOMO</strong>
             </Link>
             <Nav />

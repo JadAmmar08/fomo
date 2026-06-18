@@ -46,7 +46,7 @@ export default async function MirrorPage() {
           </p>
           <div className="grid two">
             {mirror.communities.map((community) => (
-              <div key={community.id} className="item" style={{ borderColor: "rgba(232,103,58,0.18)" }}>
+              <div key={community.id} className="item" style={{ borderColor: "rgba(58,184,170,0.18)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
                   <h3 style={{ marginBottom: 0 }}>{community.name}</h3>
                   <strong style={{ color: "var(--accent)", flexShrink: 0 }}>
