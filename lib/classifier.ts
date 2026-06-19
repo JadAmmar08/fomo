@@ -590,10 +590,11 @@ YOUR JOB: Return a short human-readable topic label describing the subject matte
 RULES:
 - topicLabel: 2-6 words describing the subject. NEVER include person names, platform names, usernames, or domain names
 - KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
-- For social media profiles (Instagram, Twitter/X, TikTok, LinkedIn): the label MUST include the platform name. Format: "[Account name] [Platform]". e.g. USC Marshall's Instagram → "USC Marshall Instagram", an NBA player's TikTok → "LeBron James TikTok", a brand's Twitter → "Nike Twitter". The platform is part of the signal — people need to know WHERE attention is going, not just WHO it's going to
-- For social feeds with no specific profile: "[Platform] feed" e.g. "Instagram feed", "Twitter feed"
-- For YouTube: use the exact video subject e.g. "How to get into investment banking" — YouTube is content not social, so no need to append "YouTube"
-- For articles: summarize the topic in 2-5 words
+- Use your judgment on whether the platform/source matters to understanding what someone is paying attention to. Ask yourself: "would knowing WHERE this is change what the pulse means?"
+- If yes, include it in the label. e.g. "USC Marshall Instagram" (people are specifically going to their Instagram, not just researching USC Marshall), "r/USC transfer advice" (Reddit-specific discussion), "Chase Bank app" (the platform IS the signal)
+- If no, leave it out. e.g. a New York Times article about inflation → "Inflation and interest rates" (the NYT part doesn't matter), a YouTube video about coding → "Learning to code" (YouTube is just the delivery mechanism)
+- For social profiles specifically: almost always include the platform because visiting someone's Instagram vs their LinkedIn vs their website are meaningfully different signals
+- For feeds with no specific content: "[Platform] feed" e.g. "Instagram feed", "Twitter feed"
 - topicTags: 3-5 short keyword tags about the subject matter
 - confidence: 0.0-1.0 reflecting how much useful signal was in the page
 - If the page is empty or unreadable, set confidence below 0.4
