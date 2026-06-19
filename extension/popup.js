@@ -29,14 +29,15 @@ async function loadState() {
       : "Paused";
 
   topicLabel.textContent = currentState.classification?.topicLabel || currentState.classification?.category || "Unknown";
+  const tags = (currentState.classification?.topicTags || []).slice(0, 2);
   topicTags.innerHTML = "";
-  (currentState.classification?.topicTags || []).forEach((tag) => {
+  tags.forEach((tag) => {
     const span = document.createElement("span");
     span.className = "tag";
     span.textContent = tag;
     topicTags.appendChild(span);
   });
-  reason.textContent = "";
+  topicTags.style.display = tags.length ? "flex" : "none";
 }
 
 trackingToggle.addEventListener("change", async () => {
