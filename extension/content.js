@@ -1,93 +1,70 @@
 function cleanText(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function collectHints() {
-  const description =
-    document.querySelector('meta[name="description"]')?.getAttribute("content") ||
-    document.querySelector('meta[property="og:description"]')?.getAttribute("content") ||
-    "";
-  const headings = Array.from(document.querySelectorAll("h1, h2, h3"))
-    .map((node) => cleanText(node.textContent))
+  const selectors = [
+    'meta[name="description"]',
+    'meta[property="og:description"]',
+    'meta[property="og:title"]',
+    'meta[name="twitter:description"]',
+    'meta[name="twitter:title"]',
+    'meta[name="keywords"]'
+  ];
+  return selectors
+    .map(s => document.querySelector(s)?.getAttribute("content"))
+    .filter(Boolean)
+    .map(cleanText)
     .filter(Boolean)
     .slice(0, 8);
-
-  return [cleanText(description), ...headings].filter(Boolean).slice(0, 8);
 }
 
 function collectPageContent() {
-  const text = cleanText(document.body?.innerText || "");
-  return text.slice(0, 20000);
-}
+  const parts = [];
 
-function collectStructuredSignals() {
-  const signals = {};
+  // Page title
+  if (document.title) parts.push("PAGE TITLE: " + document.title);
 
-  // Job titles, roles, professions
-  const roleSelectors = [
-    '[data-field="experience_current_positions"]',
-    '.pv-text-details__left-panel',
-    '.text-body-medium',
-    '[aria-label*="role"]',
-    '[aria-label*="title"]',
-    'h2.top-card-layout__headline',
-    '.top-card__subline-item',
-    '.profile-info-subheader'
-  ];
-  const roles = roleSelectors.flatMap(sel =>
-    Array.from(document.querySelectorAll(sel)).map(el => cleanText(el.textContent))
-  ).filter(Boolean).slice(0, 5);
-  if (roles.length) signals.roles = roles;
+  // All meta tags
+  document.querySelectorAll("meta[content]").forEach(el => {
+    const name = el.getAttribute("name") || el.getAttribute("property") || "";
+    const content = el.getAttribute("content") || "";
+    if (content && name && !name.includes("viewport") && !name.includes("theme")) {
+      parts.push(`META[${name}]: ${content}`);
+    }
+  });
 
-  // Skills, topics, tags
-  const skillSelectors = [
-    '[data-field="skills"]',
-    '.skill-category-entity__name',
-    '.pvs-entity__supplementary-info',
-    'a[data-control-name*="skill"]',
-    '.artdeco-chip__text',
-    '[data-js-module-id="ember-skill"]'
-  ];
-  const skills = skillSelectors.flatMap(sel =>
-    Array.from(document.querySelectorAll(sel)).map(el => cleanText(el.textContent))
-  ).filter(Boolean).slice(0, 10);
-  if (skills.length) signals.skills = skills;
+  // All headings
+  const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4"))
+    .map(el => cleanText(el.textContent))
+    .filter(Boolean);
+  if (headings.length) parts.push("HEADINGS: " + headings.join(" | "));
 
-  // About / bio text
-  const bioSelectors = [
-    '.pv-about-section',
-    '[data-field="summary"]',
-    '.core-section-container__content p',
-    'meta[name="description"]',
-    'meta[property="og:description"]'
-  ];
-  const bio = bioSelectors.map(sel => {
-    const el = document.querySelector(sel);
-    return el ? cleanText(el.getAttribute('content') || el.textContent) : null;
-  }).filter(Boolean)[0] || "";
-  if (bio) signals.bio = bio.slice(0, 500);
+  // All aria-labels (LinkedIn uses these heavily)
+  const ariaLabels = Array.from(document.querySelectorAll("[aria-label]"))
+    .map(el => cleanText(el.getAttribute("aria-label")))
+    .filter(t => t && t.length > 3 && t.length < 200);
+  if (ariaLabels.length) parts.push("ARIA LABELS: " + [...new Set(ariaLabels)].slice(0, 30).join(" | "));
 
-  // Industry / company
-  const industrySelectors = [
-    '.pv-text-details__left-panel .text-body-small',
-    '[data-field="industry"]',
-    '.top-card-layout__company',
-    'a[data-field="experience_company_logo"]'
-  ];
-  const industry = industrySelectors.flatMap(sel =>
-    Array.from(document.querySelectorAll(sel)).map(el => cleanText(el.textContent))
-  ).filter(Boolean).slice(0, 3);
-  if (industry.length) signals.industry = industry;
+  // All alt text
+  const altTexts = Array.from(document.querySelectorAll("img[alt]"))
+    .map(el => cleanText(el.getAttribute("alt")))
+    .filter(t => t && t.length > 3);
+  if (altTexts.length) parts.push("IMAGE ALTS: " + [...new Set(altTexts)].slice(0, 20).join(" | "));
 
-  // Open Graph / meta signals
-  const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
-  const ogDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '';
-  if (ogTitle) signals.ogTitle = ogTitle;
-  if (ogDesc) signals.ogDescription = ogDesc.slice(0, 300);
+  // Spans and divs with short meaningful text (job titles, company names, skills)
+  const shortTexts = Array.from(document.querySelectorAll("span,div,p,li,a"))
+    .map(el => cleanText(el.textContent))
+    .filter(t => t.length > 4 && t.length < 120)
+    .filter(t => !t.match(/^[\d\s]+$/)); // skip pure numbers
+  const uniqueShort = [...new Set(shortTexts)].slice(0, 80);
+  if (uniqueShort.length) parts.push("PAGE TEXT SNIPPETS: " + uniqueShort.join(" | "));
 
-  return Object.keys(signals).length > 0 ? signals : null;
+  // Full body text as fallback
+  const bodyText = cleanText(document.body?.innerText || "");
+  if (bodyText) parts.push("BODY: " + bodyText.slice(0, 8000));
+
+  return parts.join("\n\n").slice(0, 25000);
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -95,19 +72,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
-  // Wait briefly for JS-rendered content (LinkedIn, etc.) to settle
+  // Wait for JS-rendered content to settle
   setTimeout(() => {
-    const structured = collectStructuredSignals();
-    const pageContent = collectPageContent();
-    const enriched = structured
-      ? `${pageContent}\n\n[STRUCTURED_SIGNALS:${JSON.stringify(structured)}]`
-      : pageContent;
-
     sendResponse({
       pageHints: collectHints(),
-      pageContent: enriched
+      pageContent: collectPageContent()
     });
-  }, 1500);
+  }, 2000);
 
-  return true; // keep message channel open for async response
+  return true;
 });
