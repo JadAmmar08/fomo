@@ -590,11 +590,10 @@ YOUR JOB: Return a short human-readable topic label describing the subject matte
 RULES:
 - topicLabel: 2-6 words describing the subject. NEVER include person names, platform names, usernames, or domain names
 - KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
-- For social profiles (Instagram, Twitter, TikTok, LinkedIn): infer WHO or WHAT the account is about from the username, bio, and page content. Include the platform in the tag context but not the label. e.g. Instagram profile of USC Marshall → "USC Marshall business school", NBA player's Instagram → "Professional basketball player", brand account → "Nike sneaker culture"
-- For social feeds with no specific profile: label by what content is likely being consumed e.g. "Instagram fashion content", "Twitter tech discourse"
-- For YouTube: use the video title to describe exactly what's being watched
+- For social media profiles (Instagram, Twitter/X, TikTok, LinkedIn): the label MUST include the platform name. Format: "[Account name] [Platform]". e.g. USC Marshall's Instagram → "USC Marshall Instagram", an NBA player's TikTok → "LeBron James TikTok", a brand's Twitter → "Nike Twitter". The platform is part of the signal — people need to know WHERE attention is going, not just WHO it's going to
+- For social feeds with no specific profile: "[Platform] feed" e.g. "Instagram feed", "Twitter feed"
+- For YouTube: use the exact video subject e.g. "How to get into investment banking" — YouTube is content not social, so no need to append "YouTube"
 - For articles: summarize the topic in 2-5 words
-- Always include the platform as a topicTag (e.g. "instagram", "youtube", "twitter") so the pulse can show platform-level trends
 - topicTags: 3-5 short keyword tags about the subject matter
 - confidence: 0.0-1.0 reflecting how much useful signal was in the page
 - If the page is empty or unreadable, set confidence below 0.4
