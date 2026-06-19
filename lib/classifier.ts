@@ -594,8 +594,10 @@ TOPIC LABEL RULES:
 - NEVER copy a raw page title or article headline verbatim — summarize it
 - NEVER produce single-word labels
 - NEVER include a person's name in the topic label
-- For social profiles (LinkedIn, Twitter, Instagram): use the person's *field, role, or industry* — not their name. e.g. "Finance founder" → "Investment banking careers", "NBA athlete" → "Professional basketball", "Software engineer at Google" → "Big tech engineering"
+- For social profiles (LinkedIn, Twitter, Instagram): use the person's *field, role, or industry* — not their name. e.g. "Investment Banking Analyst at Lazard" → "Investment banking careers", "NBA athlete" → "Professional basketball", "Software engineer at Google" → "Big tech engineering", "Psychological & Brain Sciences Major" → "Neuroscience academic research"
+- The page title often contains the person's job title after their name — extract the role, ignore the name
 - If STRUCTURED_SIGNALS are present in pageContent, extract role/industry/skills from them to improve classification
+- If the page content contains job titles, majors, companies, or industries — use those to form the label
 - If you truly cannot infer anything meaningful, use the broad category name as a 2-word phrase
 
 GOOD examples: "Investment banking recruiting", "AP Physics review materials", "Foldable iPhone rumors", "Professional basketball careers", "Venture capital fundraising", "NBA trade deadline analysis"
@@ -610,6 +612,7 @@ Never infer sensitive traits (health, religion, political views, sexuality).`,
             safeMetadata: {
               domain: input.domain,
               pageTitle: input.pageTitle,
+              rawPageTitle: input.pageTitle,
               urlPath: input.urlPath,
               pageHints: input.pageHints ?? [],
               pageContent: input.pageContent ?? ""

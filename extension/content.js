@@ -100,15 +100,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
-  const structured = collectStructuredSignals();
-  const pageContent = collectPageContent();
-  const enriched = structured
-    ? `${pageContent}\n\n[STRUCTURED_SIGNALS:${JSON.stringify(structured)}]`
-    : pageContent;
+  // Wait briefly for JS-rendered content (LinkedIn, etc.) to settle
+  setTimeout(() => {
+    const structured = collectStructuredSignals();
+    const pageContent = collectPageContent();
+    const enriched = structured
+      ? `${pageContent}\n\n[STRUCTURED_SIGNALS:${JSON.stringify(structured)}]`
+      : pageContent;
 
-  sendResponse({
-    pageHints: collectHints(),
-    pageContent: enriched
-  });
-  return false;
+    sendResponse({
+      pageHints: collectHints(),
+      pageContent: enriched
+    });
+  }, 1500);
+
+  return true; // keep message channel open for async response
 });
