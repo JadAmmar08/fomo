@@ -78,7 +78,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       pageHints: collectHints(),
       pageContent: collectPageContent()
     });
-  }, 2000);
+  }, 800);
 
   return true;
 });

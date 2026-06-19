@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const classification = await classifySignal({
     domain: normalizedDomain,
-    pageTitle: String(body.pageTitle ?? "Untitled page"),
+    pageTitle: String(body.rawTitle ?? body.pageTitle ?? "Untitled page"),
     urlPath,
     localCategory: typeof body.localCategory === "string" ? body.localCategory : undefined,
     localConfidence:

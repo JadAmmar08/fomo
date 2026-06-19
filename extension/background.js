@@ -204,6 +204,7 @@ async function getAiClassificationForTab(url, title, tabId, existingStore) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...signal,
+      rawTitle: title,
       pageHints: pageContext.pageHints,
       pageContent: pageContext.pageContent,
       localCategory: localClassification.category,
