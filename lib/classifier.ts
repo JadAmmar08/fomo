@@ -589,6 +589,7 @@ YOUR JOB: Return a short human-readable topic label describing the subject matte
 
 RULES:
 - topicLabel: 2-6 words describing the subject. NEVER include person names, platform names, usernames, or domain names
+- KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
 - For social profiles: infer the person's field/role/industry from their title, employer, bio, or skills in the page content. e.g. "Investment Banking Analyst at Lazard" → "Investment banking careers", "Psych & Brain Sciences student" → "Neuroscience student life"
 - For articles: summarize the topic in 2-5 words
 - For videos: describe what the video is about
