@@ -118,9 +118,11 @@ function toHourBucket(date) {
 
 export function normalizeSignal(urlString, title) {
   const url = new URL(urlString);
+  const videoId = url.searchParams.get("v");
+  const urlPath = videoId ? `${url.pathname}?v=${videoId}` : url.pathname || "/";
   return {
     normalizedDomain: url.hostname.replace(/^www\./, ""),
-    urlPath: url.pathname || "/",
+    urlPath,
     pageTitle: title || "Untitled page",
     timestampBucket: toHourBucket(new Date())
   };

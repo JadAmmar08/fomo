@@ -21,7 +21,6 @@ function collectHints() {
 
 function collectPageContent() {
   const parts = [];
-
   // Page title
   if (document.title) parts.push("PAGE TITLE: " + document.title);
 
@@ -72,13 +71,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
-  // Wait for JS-rendered content to settle
+  const delay = location.hostname.includes("youtube.com") ? 5000 : 2500;
   setTimeout(() => {
-    sendResponse({
-      pageHints: collectHints(),
-      pageContent: collectPageContent()
-    });
-  }, 800);
+    sendResponse({ pageHints: collectHints(), pageContent: collectPageContent() });
+  }, delay);
 
   return true;
 });

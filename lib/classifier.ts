@@ -588,14 +588,15 @@ async function classifyWithOptionalAi(
 YOUR JOB: Return a short human-readable topic label describing the subject matter — what the content is actually about, not the platform or wrapper.
 
 RULES:
-- topicLabel: 2-6 words describing the subject. NEVER include person names, platform names, usernames, or domain names
+- topicLabel: 2-6 words describing the TOPIC in your own words. NEVER copy or paraphrase the video/article title. Summarize what it's actually about. e.g. "Stanford's Sapolsky On Depression in U.S." → "Depression biology on YouTube" | "Brian Cox: The terrifying possibility of the Great Filter" → "Fermi paradox on YouTube" | "How to build a startup" → "Startup advice on YouTube"
 - KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
 - Use your judgment on whether the platform/source matters to understanding what someone is paying attention to. Ask yourself: "would knowing WHERE this is change what the pulse means?"
 - If yes, include it in the label. e.g. "USC Marshall Instagram" (people are specifically going to their Instagram, not just researching USC Marshall), "r/USC transfer advice" (Reddit-specific discussion), "Chase Bank app" (the platform IS the signal)
-- If no, leave it out. e.g. a New York Times article about inflation → "Inflation and interest rates" (the NYT part doesn't matter), a YouTube video about coding → "Learning to code" (YouTube is just the delivery mechanism)
+- If no, leave it out. e.g. a New York Times article about inflation → "Inflation and interest rates" (the NYT part doesn't matter)
+- For video platforms (YouTube, TikTok, Twitch, Reels): always end with "on YouTube" / "on TikTok" etc. Use the channel name, description, and surrounding content to infer the real topic — not just the video title. e.g. Vsauce video about reasoning → "Philosophy of mind on YouTube" | Stanford professor on depression → "Depression biology on YouTube" | therapist on toxic mindsets → "Toxic mindsets on YouTube". If the title is already a clean 2-4 word topic, append the platform: "The Future Of Reasoning" → "Future of reasoning on YouTube"
 - For social profiles specifically: almost always include the platform because visiting someone's Instagram vs their LinkedIn vs their website are meaningfully different signals
 - For feeds with no specific content: "[Platform] feed" e.g. "Instagram feed", "Twitter feed"
-- topicTags: 3-5 short keyword tags about the subject matter
+- topicTags: 3-5 short keyword tags about the subject matter — concepts, not words from the title
 - confidence: 0.0-1.0 reflecting how much useful signal was in the page
 - If the page is empty or unreadable, set confidence below 0.4
 
@@ -606,6 +607,7 @@ Never infer sensitive traits (health, religion, political views, sexuality).`,
           role: "user",
           content: JSON.stringify({
             allowedCategories: CATEGORIES,
+            instruction: "The topicLabel MUST describe the topic in your own words — do NOT copy or paraphrase the page title. Summarize what it is actually about.",
             safeMetadata: {
               domain: input.domain,
               pageTitle: input.pageTitle,
