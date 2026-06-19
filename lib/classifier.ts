@@ -593,12 +593,15 @@ TOPIC LABEL RULES:
 - NEVER use: platform names (LinkedIn, Reddit, YouTube, Twitter), usernames, people's names, subreddit names, domain names, route fragments like "feed", "profile", "home", "jobs", "notifications"
 - NEVER copy a raw page title or article headline verbatim — summarize it
 - NEVER produce single-word labels
-- If the page is a person's profile (LinkedIn, Twitter, etc.) with no clear topic content, use the *person's professional role or field* if inferable, otherwise use the category name
+- NEVER include a person's name in the topic label
+- For social profiles (LinkedIn, Twitter, Instagram): use the person's *field, role, or industry* — not their name. e.g. "Finance founder" → "Investment banking careers", "NBA athlete" → "Professional basketball", "Software engineer at Google" → "Big tech engineering"
+- If STRUCTURED_SIGNALS are present in pageContent, extract role/industry/skills from them to improve classification
+- If you truly cannot infer anything meaningful, use the broad category name as a 2-word phrase
 
-GOOD examples: "Goldman Sachs interview timeline", "AP Physics review materials", "Foldable iPhone rumors", "USC transfer success program", "UCLA–USC rivalry", "NBA trade deadline analysis"
-BAD examples: "feed", "colemallinger", "linkedin.com", "r/college", "Jobs on LinkedIn", "Home", "Profile"
+GOOD examples: "Investment banking recruiting", "AP Physics review materials", "Foldable iPhone rumors", "Professional basketball careers", "Venture capital fundraising", "NBA trade deadline analysis"
+BAD examples: "feed", "Patrick Curtis", "linkedin.com", "r/college", "Jobs on LinkedIn", "Home", "Profile", "cameronthornee"
 
-Never infer sensitive traits.`,
+Never infer sensitive traits (health, religion, political views, sexuality).`,
       messages: [
         {
           role: "user",

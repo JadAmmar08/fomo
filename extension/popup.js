@@ -36,7 +36,7 @@ async function loadState() {
     span.textContent = tag;
     topicTags.appendChild(span);
   });
-  reason.textContent = currentState.classification?.reasoning || "";
+  reason.textContent = "";
 }
 
 trackingToggle.addEventListener("change", async () => {
