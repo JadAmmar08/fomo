@@ -583,26 +583,21 @@ async function classifyWithOptionalAi(
         }
       ],
       tool_choice: { type: "tool", name: "classify" },
-      system: `You classify privacy-safe browsing metadata into one broad topical category and produce a clean human-readable topic label.
+      system: `You are an attention classifier. Given full page content from a browser, determine what the user is actually looking at and label it clearly.
 
-GOAL: Infer what the user is actually paying attention to — the *subject matter*, not the page wrapper.
+YOUR JOB: Return a short human-readable topic label describing the subject matter — what the content is actually about, not the platform or wrapper.
 
-TOPIC LABEL RULES:
-- Must be 2–7 words that read like a short summary phrase
-- Must describe the subject matter, not the container (not the platform, not the user, not the page type)
-- NEVER use: platform names (LinkedIn, Reddit, YouTube, Twitter), usernames, people's names, subreddit names, domain names, route fragments like "feed", "profile", "home", "jobs", "notifications"
-- NEVER copy a raw page title or article headline verbatim — summarize it
-- NEVER produce single-word labels
-- NEVER include a person's name in the topic label
-- For social profiles (LinkedIn, Twitter, Instagram): use the person's *field, role, or industry* — not their name. e.g. "Investment Banking Analyst at Lazard" → "Investment banking careers", "NBA athlete" → "Professional basketball", "Software engineer at Google" → "Big tech engineering", "Psychological & Brain Sciences Major" → "Neuroscience academic research"
-- The page title often contains the person's job title after their name — extract the role, ignore the name
-- If STRUCTURED_SIGNALS are present in pageContent, extract role/industry/skills from them to improve classification
-- If the page content contains job titles, majors, companies, or industries — use those to form the label
-- If you truly cannot infer anything meaningful, use the broad category name as a 2-word phrase
+RULES:
+- topicLabel: 2-6 words describing the subject. NEVER include person names, platform names, usernames, or domain names
+- For social profiles: infer the person's field/role/industry from their title, employer, bio, or skills in the page content. e.g. "Investment Banking Analyst at Lazard" → "Investment banking careers", "Psych & Brain Sciences student" → "Neuroscience student life"
+- For articles: summarize the topic in 2-5 words
+- For videos: describe what the video is about
+- For feeds with no clear topic: use the platform's general subject e.g. "Online video browsing"
+- topicTags: 3-5 short keyword tags about the subject matter
+- confidence: 0.0-1.0 reflecting how much useful signal was in the page
+- If the page is empty or unreadable, set confidence below 0.4
 
-GOOD examples: "Investment banking recruiting", "AP Physics review materials", "Foldable iPhone rumors", "Professional basketball careers", "Venture capital fundraising", "NBA trade deadline analysis"
-BAD examples: "feed", "Patrick Curtis", "linkedin.com", "r/college", "Jobs on LinkedIn", "Home", "Profile", "cameronthornee"
-
+NEVER output: person names, usernames, platform names, domain names, words like "feed", "home", "profile"
 Never infer sensitive traits (health, religion, political views, sexuality).`,
       messages: [
         {
@@ -638,7 +633,14 @@ Never infer sensitive traits (health, religion, political views, sexuality).`,
       return null;
     }
 
-    return finalizeClassification(input, toolBlock.input as ClassificationResult);
+    const raw = toolBlock.input as ClassificationResult;
+    return {
+      category: raw.category,
+      topicLabel: raw.topicLabel,
+      topicTags: raw.topicTags?.slice(0, 6) ?? [raw.topicLabel],
+      confidence: raw.confidence,
+      reasoning: raw.reasoning
+    };
   } catch {
     return null;
   }

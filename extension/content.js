@@ -18,13 +18,8 @@ function collectHints() {
 }
 
 function collectPageContent() {
-  const preferred =
-    document.querySelector("main") ||
-    document.querySelector("article") ||
-    document.body;
-
-  const text = cleanText(preferred?.innerText || document.body?.innerText || "");
-  return text.slice(0, 12000);
+  const text = cleanText(document.body?.innerText || "");
+  return text.slice(0, 20000);
 }
 
 function collectStructuredSignals() {
