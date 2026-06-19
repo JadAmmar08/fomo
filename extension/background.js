@@ -15,6 +15,35 @@ const DEFAULTS = {
 };
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 
+// Dwell time tracking
+let activeTabId = null;
+let activeTabUrl = null;
+let focusStartTime = null;
+const dwellAccumulator = {}; // signalKey -> seconds
+
+function recordDwellEnd() {
+  if (activeTabId && focusStartTime && activeTabUrl) {
+    const signal = normalizeSignal(activeTabUrl, "");
+    const key = makeSignalKey(signal);
+    const seconds = Math.round((Date.now() - focusStartTime) / 1000);
+    if (seconds > 2) {
+      dwellAccumulator[key] = (dwellAccumulator[key] || 0) + seconds;
+    }
+  }
+  focusStartTime = null;
+}
+
+function startDwell(tabId, url) {
+  recordDwellEnd();
+  activeTabId = tabId;
+  activeTabUrl = url;
+  focusStartTime = Date.now();
+}
+
+function getDwellSeconds(signalKey) {
+  return dwellAccumulator[signalKey] || 0;
+}
+
 function isTrackableUrl(url) {
   return typeof url === "string" && /^https?:\/\//.test(url);
 }
@@ -30,10 +59,7 @@ function isInternalFomoPage(url) {
 }
 
 function wasRecentlySent(entry) {
-  if (!entry?.sentAt) {
-    return false;
-  }
-
+  if (!entry?.sentAt) return false;
   return Date.now() - new Date(entry.sentAt).getTime() < RESEND_COOLDOWN_MS;
 }
 
@@ -41,19 +67,33 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set(DEFAULTS);
 });
 
+// Track tab focus changes
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (tab?.url && isTrackableUrl(tab.url)) {
+    startDwell(tabId, tab.url);
     await autoTrackTab(tab);
   }
 });
 
 chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
-  if (changeInfo.status !== "complete" || !tab.url || !isTrackableUrl(tab.url)) {
-    return;
-  }
-
+  if (changeInfo.status !== "complete" || !tab.url || !isTrackableUrl(tab.url)) return;
+  if (tab.active) startDwell(tab.id, tab.url);
   await autoTrackTab(tab);
+});
+
+// When window loses focus, pause dwell tracking
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    recordDwellEnd();
+  } else {
+    chrome.tabs.query({ active: true, windowId }, (tabs) => {
+      const tab = tabs[0];
+      if (tab?.url && isTrackableUrl(tab.url)) {
+        startDwell(tab.id, tab.url);
+      }
+    });
+  }
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -86,7 +126,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ anonymousUserId, blockDomain: normalizedDomain })
         }).catch(() => undefined);
-
         sendResponse(await getCurrentPageState());
       });
     });
@@ -105,16 +144,12 @@ async function getCurrentPageState() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const store = await chrome.storage.local.get(DEFAULTS);
 
-  if (!tab?.url) {
-    return { ok: false, reason: "No active tab" };
-  }
-
-  if (!isTrackableUrl(tab.url)) {
-    return { ok: false, reason: "Only normal web pages can be tracked." };
-  }
+  if (!tab?.url) return { ok: false, reason: "No active tab" };
+  if (!isTrackableUrl(tab.url)) return { ok: false, reason: "Only normal web pages can be tracked." };
 
   const signal = normalizeSignal(tab.url, tab.title || "Untitled page");
   const blocked = shouldBlock(tab.url) || store.blockedDomains.includes(signal.normalizedDomain);
+
   if (isInternalFomoPage(tab.url)) {
     return {
       ok: true,
@@ -132,8 +167,11 @@ async function getCurrentPageState() {
       }
     };
   }
+
   const classification = await getAiClassificationForTab(tab.url, tab.title || "Untitled page", tab.id, store);
-  const alreadySent = wasRecentlySent(store.sentSignalKeys[makeSignalKey(signal)]);
+  const signalKey = makeSignalKey(signal);
+  const alreadySent = wasRecentlySent(store.sentSignalKeys[signalKey]);
+  const dwellSeconds = getDwellSeconds(signalKey);
 
   return {
     ok: true,
@@ -142,7 +180,8 @@ async function getCurrentPageState() {
     alreadySent,
     currentUrl: tab.url,
     signal,
-    classification
+    classification,
+    dwellSeconds
   };
 }
 
@@ -155,33 +194,20 @@ async function autoTrackUrl(url, title, tabId) {
 }
 
 async function ensureAnonymousUserId(store) {
-  if (store.anonymousUserId) {
-    return store.anonymousUserId;
-  }
-
+  if (store.anonymousUserId) return store.anonymousUserId;
   const response = await fetch(`${API_BASE_URL}/api/session`).catch(() => null);
-  if (!response?.ok) {
-    return null;
-  }
-
+  if (!response?.ok) return null;
   const data = await response.json();
   if (data?.anonymousUserId) {
     await chrome.storage.local.set({ anonymousUserId: data.anonymousUserId });
     return data.anonymousUserId;
   }
-
   return null;
 }
 
 async function getPageContext(tabId) {
-  if (typeof tabId !== "number") {
-    return { pageHints: [], pageContent: "" };
-  }
-
-  const response = await chrome.tabs.sendMessage(tabId, {
-    type: "FOMO_EXTRACT_CONTEXT"
-  }).catch(() => null);
-
+  if (typeof tabId !== "number") return { pageHints: [], pageContent: "" };
+  const response = await chrome.tabs.sendMessage(tabId, { type: "FOMO_EXTRACT_CONTEXT" }).catch(() => null);
   return {
     pageHints: Array.isArray(response?.pageHints) ? response.pageHints : [],
     pageContent: typeof response?.pageContent === "string" ? response.pageContent : ""
@@ -193,9 +219,7 @@ async function getAiClassificationForTab(url, title, tabId, existingStore) {
   const store = existingStore ?? (await chrome.storage.local.get(DEFAULTS));
   const signalKey = makeSignalKey(signal);
   const cached = store.aiClassifications?.[signalKey];
-  if (cached?.classification) {
-    return cached.classification;
-  }
+  if (cached?.classification) return cached.classification;
 
   const pageContext = await getPageContext(tabId);
   const localClassification = classifyPage(url, title);
@@ -220,10 +244,7 @@ async function getAiClassificationForTab(url, title, tabId, existingStore) {
   await chrome.storage.local.set({
     aiClassifications: {
       ...store.aiClassifications,
-      [signalKey]: {
-        classification,
-        cachedAt: new Date().toISOString()
-      }
+      [signalKey]: { classification, cachedAt: new Date().toISOString() }
     }
   });
 
@@ -231,9 +252,7 @@ async function getAiClassificationForTab(url, title, tabId, existingStore) {
 }
 
 async function sendSignalForTab(url, title, force, tabId) {
-  if (!isTrackableUrl(url)) {
-    return { ok: false, reason: "Only normal web pages can be tracked." };
-  }
+  if (!isTrackableUrl(url)) return { ok: false, reason: "Only normal web pages can be tracked." };
 
   const store = await chrome.storage.local.get(DEFAULTS);
   const anonymousUserId = await ensureAnonymousUserId(store);
@@ -241,24 +260,16 @@ async function sendSignalForTab(url, title, force, tabId) {
   const signalKey = makeSignalKey(signal);
   const blocked = shouldBlock(url) || store.blockedDomains.includes(signal.normalizedDomain);
 
-  if (!store.trackingEnabled) {
-    return { ok: false, reason: "Tracking is paused" };
-  }
-
-  if (blocked) {
-    return { ok: false, reason: "This site is excluded from tracking" };
-  }
-
-  if (isInternalFomoPage(url)) {
-    return { ok: false, reason: "FOMO does not track its own dashboard pages." };
-  }
-
+  if (!store.trackingEnabled) return { ok: false, reason: "Tracking is paused" };
+  if (blocked) return { ok: false, reason: "This site is excluded from tracking" };
+  if (isInternalFomoPage(url)) return { ok: false, reason: "FOMO does not track its own dashboard pages." };
   if (!force && wasRecentlySent(store.sentSignalKeys[signalKey])) {
     return { ok: true, skipped: true, reason: "Already synced this page recently." };
   }
 
   const pageContext = await getPageContext(tabId);
   const aiClassification = await getAiClassificationForTab(url, title, tabId, store);
+  const dwellSeconds = getDwellSeconds(signalKey);
 
   const response = await fetch(`${API_BASE_URL}/api/signals`, {
     method: "POST",
@@ -268,6 +279,7 @@ async function sendSignalForTab(url, title, force, tabId) {
       anonymousUserId,
       pageHints: pageContext.pageHints,
       pageContent: pageContext.pageContent,
+      dwellSeconds,
       localCategory: aiClassification.category,
       localTopicLabel: aiClassification.topicLabel,
       localTopicTags: aiClassification.topicTags,
@@ -278,9 +290,7 @@ async function sendSignalForTab(url, title, force, tabId) {
     })
   }).catch(() => null);
 
-  if (!response?.ok) {
-    return { ok: false, reason: "Backend rejected the signal" };
-  }
+  if (!response?.ok) return { ok: false, reason: "Backend rejected the signal" };
 
   await chrome.storage.local.set({
     sentSignalKeys: {
@@ -293,5 +303,5 @@ async function sendSignalForTab(url, title, force, tabId) {
     }
   });
 
-  return { ok: true, signal, classification: aiClassification };
+  return { ok: true, signal, classification: aiClassification, dwellSeconds };
 }

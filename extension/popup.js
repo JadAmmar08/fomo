@@ -28,7 +28,10 @@ async function loadState() {
       ? "Tracking"
       : "Paused";
 
-  topicLabel.textContent = currentState.classification?.topicLabel || currentState.classification?.category || "Unknown";
+  const label = currentState.classification?.topicLabel || currentState.classification?.category || "Unknown";
+  const dwell = currentState.dwellSeconds || 0;
+  const dwellText = dwell > 60 ? ` · ${Math.round(dwell / 60)}m` : dwell > 5 ? ` · ${dwell}s` : "";
+  topicLabel.textContent = label + dwellText;
   const tags = (currentState.classification?.topicTags || []).slice(0, 2);
   topicTags.innerHTML = "";
   tags.forEach((tag) => {
