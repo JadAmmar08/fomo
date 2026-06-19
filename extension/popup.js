@@ -3,7 +3,6 @@ const trackingStatus = document.getElementById("trackingStatus");
 const statusDot = document.getElementById("statusDot");
 const topicLabel = document.getElementById("topicLabel");
 const topicTags = document.getElementById("topicTags");
-const reason = document.getElementById("reason");
 
 let currentState = null;
 
@@ -12,8 +11,7 @@ async function loadState() {
 
   if (!currentState?.ok) {
     topicLabel.textContent = "Unavailable";
-    topicTags.innerHTML = "";
-    reason.textContent = currentState?.reason || "Could not inspect the current tab.";
+    if (topicTags) topicTags.style.display = "none";
     trackingStatus.textContent = "Unavailable";
     statusDot.classList.remove("active");
     return;
@@ -32,15 +30,18 @@ async function loadState() {
   const dwell = currentState.dwellSeconds || 0;
   const dwellText = dwell > 60 ? ` · ${Math.round(dwell / 60)}m` : dwell > 5 ? ` · ${dwell}s` : "";
   topicLabel.textContent = label + dwellText;
-  const tags = (currentState.classification?.topicTags || []).slice(0, 2);
-  topicTags.innerHTML = "";
-  tags.forEach((tag) => {
-    const span = document.createElement("span");
-    span.className = "tag";
-    span.textContent = tag;
-    topicTags.appendChild(span);
-  });
-  topicTags.style.display = tags.length ? "flex" : "none";
+
+  if (topicTags) {
+    const tags = (currentState.classification?.topicTags || []).slice(0, 2);
+    topicTags.innerHTML = "";
+    tags.forEach((tag) => {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = tag;
+      topicTags.appendChild(span);
+    });
+    topicTags.style.display = tags.length ? "flex" : "none";
+  }
 }
 
 trackingToggle.addEventListener("change", async () => {
