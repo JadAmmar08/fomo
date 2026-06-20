@@ -3,7 +3,7 @@
   "name": "FOMO MVP",
   "description": "Transparent social sensing with local-first page classification and privacy-safe metadata sharing.",
   "version": "0.1.0",
-  "permissions": ["storage", "tabs", "activeTab"],
+  "permissions": ["storage", "tabs", "activeTab", "cookies"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",

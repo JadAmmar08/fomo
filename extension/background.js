@@ -194,15 +194,32 @@ async function autoTrackUrl(url, title, tabId) {
 }
 
 async function ensureAnonymousUserId(store) {
-  if (store.anonymousUserId) return store.anonymousUserId;
+  if (store.anonymousUserId) {
+    await syncCookieToApp(store.anonymousUserId);
+    return store.anonymousUserId;
+  }
   const response = await fetch(`${API_BASE_URL}/api/session`).catch(() => null);
   if (!response?.ok) return null;
   const data = await response.json();
   if (data?.anonymousUserId) {
     await chrome.storage.local.set({ anonymousUserId: data.anonymousUserId });
+    await syncCookieToApp(data.anonymousUserId);
     return data.anonymousUserId;
   }
   return null;
+}
+
+async function syncCookieToApp(anonymousUserId) {
+  const appUrl = new URL(API_BASE_URL);
+  await chrome.cookies.set({
+    url: API_BASE_URL,
+    name: "fomo_anonymous_id",
+    value: anonymousUserId,
+    domain: appUrl.hostname,
+    path: "/",
+    sameSite: "lax",
+    secure: appUrl.protocol === "https:"
+  }).catch(() => undefined);
 }
 
 async function getPageContext(tabId) {
