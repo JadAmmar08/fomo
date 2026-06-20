@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { getMirror } from "@/lib/store";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
