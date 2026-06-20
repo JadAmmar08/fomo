@@ -442,8 +442,7 @@ function compressTopicLabel(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 
-  const words = cleaned.split(/\s+/).filter(Boolean);
-  return words.length > 6 ? words.slice(0, 6).join(" ") : cleaned;
+  return cleaned;
 }
 
 function finalizeTopicTags(input: ClassifierInput, category: Category, topicLabel: string, tags?: string[]) {
@@ -602,7 +601,7 @@ There are two places this label shows up:
 YOUR ONLY JOB: produce a topicLabel that would make someone on the pulse say "oh interesting, people are into that right now" — or make someone on the mirror say "yeah that sounds like me."
 
 LABEL RULES:
-- 2-5 words, noun phrase only. Never a sentence, never a verb, never a fragment.
+- A noun phrase — never a full sentence, never a verb phrase, never a fragment with a comma or trailing word.
 - Describe the actual subject matter — not the page title, not the platform, not the URL.
 - Use specifics when they add meaning: "Oxford business school lecture" beats "business lecture". "USC housing portal" beats "housing website".
 - For YouTube/TikTok/Twitch: use the channel and video context together to infer the real topic, then append the platform. "Saïd Business School lecture on YouTube" | "Philosophy of mind on YouTube" | "Depression biology on YouTube". Never use a single vague word like "Building on YouTube".
