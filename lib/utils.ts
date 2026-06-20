@@ -19,6 +19,6 @@ export function toHourBucket(input: Date | string) {
   return date.toISOString();
 }
 
-export function id(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+export function id(_prefix: string) {
+  return crypto.randomUUID();
 }
