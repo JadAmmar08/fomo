@@ -82,7 +82,6 @@ const categoryRules: Record<Category, WeightedRule[]> = {
     { pattern: "enrollment", weight: 2.6, source: "title", note: "enrollment language" },
     { pattern: "admission", weight: 2.6, source: "title", note: "admissions language" },
     { pattern: "schedule of classes", weight: 3.2, source: "title", note: "class schedule language" },
-    { pattern: "usc", weight: 2.4, source: "title", note: "USC school reference" },
     { pattern: "class", weight: 1.6, source: "path", note: "class-related path signal" }
   ],
   research: [

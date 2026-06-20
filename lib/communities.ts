@@ -19,7 +19,7 @@ export async function inferCommunities(interests: UserInterest[]): Promise<Infer
   if (interests.length === 0) return { communities: [], personalProfile: null };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return fallback(interests);
+  if (!apiKey) return { communities: [], personalProfile: null };
 
   try {
     const client = new Anthropic({ apiKey });
@@ -116,7 +116,7 @@ COMMUNITY RULES:
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");
-    if (!toolBlock || toolBlock.type !== "tool_use") return fallback(interests);
+    if (!toolBlock || toolBlock.type !== "tool_use") return { communities: [], personalProfile: null };
 
     const result = toolBlock.input as {
       personalProfile: { headline: string; description: string; evidenceTags: string[] };
@@ -136,38 +136,11 @@ COMMUNITY RULES:
         name: c.name,
         description: c.description,
         confidence: Math.min(0.97, Math.max(0.1, c.confidence)),
-        primaryCategories: c.primaryCategories as Category[],
+        primaryCategories: c.primaryCategories as CommunityPlacement["primaryCategories"],
         signal: c.signal
       }))
     };
   } catch {
-    return fallback(interests);
+    return { communities: [], personalProfile: null };
   }
-}
-
-function fallback(interests: UserInterest[]): InferenceResult {
-  const categoryCounts = new Map<string, number>();
-  for (const i of interests) {
-    categoryCounts.set(i.category, (categoryCounts.get(i.category) ?? 0) + i.signalCount);
-  }
-  const topCategory = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (!topCategory) return { communities: [], personalProfile: null };
-
-  const topTopics = interests.slice(0, 3).map((i) => i.topicLabel);
-
-  return {
-    personalProfile: {
-      headline: `${topCategory[0].charAt(0).toUpperCase() + topCategory[0].slice(1)} focused`,
-      description: `Your browsing is concentrated in ${topCategory[0]}. Browse more with the extension active to build a fuller picture.`,
-      evidenceTags: topTopics
-    },
-    communities: [{
-      id: `community_${topCategory[0]}`,
-      name: `People tracking ${topCategory[0]}`,
-      description: `Others whose attention is concentrated in ${topCategory[0]} content.`,
-      confidence: 0.5,
-      primaryCategories: [topCategory[0] as Category],
-      signal: `Most attention concentrated in ${topCategory[0]}.`
-    }]
-  };
 }
