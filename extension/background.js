@@ -5,7 +5,7 @@ import {
   shouldBlock
 } from "./classifier.js";
 
-const API_BASE_URL = "https://fomo-kappa-eight.vercel.app";
+const API_BASE_URL = "https://usefomo.co";
 const DEFAULTS = {
   trackingEnabled: true,
   blockedDomains: [],
@@ -195,7 +195,7 @@ async function autoTrackUrl(url, title, tabId) {
 
 async function ensureAnonymousUserId(store) {
   if (store.anonymousUserId) {
-    await syncCookieToApp(store.anonymousUserId);
+    syncCookieToApp(store.anonymousUserId);
     return store.anonymousUserId;
   }
   const response = await fetch(`${API_BASE_URL}/api/session`).catch(() => null);

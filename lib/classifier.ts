@@ -78,6 +78,11 @@ const categoryRules: Record<Category, WeightedRule[]> = {
     { pattern: "university", weight: 2.4, source: "title", note: "university language in title" },
     { pattern: "student", weight: 2.2, source: "title", note: "student language in title" },
     { pattern: "campus", weight: 2.2, source: "title", note: "campus language in title" },
+    { pattern: "housing", weight: 2.8, source: "title", note: "campus housing language" },
+    { pattern: "enrollment", weight: 2.6, source: "title", note: "enrollment language" },
+    { pattern: "admission", weight: 2.6, source: "title", note: "admissions language" },
+    { pattern: "schedule of classes", weight: 3.2, source: "title", note: "class schedule language" },
+    { pattern: "usc", weight: 2.4, source: "title", note: "USC school reference" },
     { pattern: "class", weight: 1.6, source: "path", note: "class-related path signal" }
   ],
   research: [
@@ -603,6 +608,16 @@ RULES:
 - topicTags: 3-5 short keyword tags about the subject matter — concepts, not words from the title
 - confidence: 0.0-1.0 reflecting how much useful signal was in the page
 - If the page is empty or unreadable, set confidence below 0.4
+
+CATEGORY GUIDANCE (pick the most specific match):
+- school/campus: university websites, course pages, housing portals, campus events, college applications, academic programs, student resources — anything related to school life
+- sports: team schedules, game scores, sports news, athletic programs, player stats
+- startups: startup news, founder content, product launches, VC/funding
+- finance: stock markets, investing, personal finance, banking, economic news
+- research: academic papers, scientific studies, lab content, scholarly articles
+- entertainment: movies, TV, music, gaming, celebrity content
+- technology: software tools, dev docs, tech products, programming — use this ONLY if none of the above fit
+- events: concerts, conferences, local events, ticketing
 
 NEVER output: person names, usernames, platform names, domain names, words like "feed", "home", "profile"
 Never infer sensitive traits (health, religion, political views, sexuality).`,
