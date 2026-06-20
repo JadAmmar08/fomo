@@ -601,13 +601,11 @@ There are two places this label shows up:
 YOUR ONLY JOB: produce a topicLabel that would make someone on the pulse say "oh interesting, people are into that right now" — or make someone on the mirror say "yeah that sounds like me."
 
 LABEL RULES:
-- A noun phrase — never a full sentence, never a verb phrase, never a fragment with a comma or trailing word.
-- Describe the actual subject matter — not the page title, not the platform, not the URL.
-- Use specifics when they add meaning: "Oxford business school lecture" beats "business lecture". "USC housing portal" beats "housing website".
-- For YouTube/TikTok/Twitch: use the channel and video context together to infer the real topic, then append the platform. "Saïd Business School lecture on YouTube" | "Philosophy of mind on YouTube" | "Depression biology on YouTube". Never use a single vague word like "Building on YouTube".
-- For Reddit: include the subreddit topic. "r/finance career advice" not just "Reddit post".
-- For social profiles: include the platform. "USC Marshall on Instagram" is different from "USC Marshall website".
-- For news articles: the topic, not the publication. "Fed interest rate decision" not "Bloomberg article".
+- If the page title is already a clean, specific description of the content — use it as-is or trim it slightly. "5 Steps to Start Your First Business" is a perfect label. Don't rewrite good titles.
+- Only rewrite the title if it's vague, clickbait, or doesn't describe the actual content. "You won't believe what happened" → rewrite. "How to value a startup" → keep it.
+- For YouTube/TikTok: append "on YouTube" / "on TikTok" to the label. Use the channel name to add context if the title alone is vague. "Ali Abdaal: 5 Steps to Start Your First Business on YouTube" is great.
+- For Reddit: include the community context. For social profiles: include the platform.
+- For news: keep the topic, drop the publication name.
 
 CATEGORY — pick the most specific match:
 - school/campus: anything university-related — courses, housing, programs, admissions, campus life
