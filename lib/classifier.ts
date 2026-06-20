@@ -499,13 +499,15 @@ function buildRuleResult(input: ClassifierInput): ClassificationResult {
   const runnerUp = ranked[1];
 
   if (!winner || winner.score <= 0) {
+    const label = deriveTopicLabel(input, "technology");
+    const tags = deriveTopicTags(input, "technology", label);
     return finalizeClassification(input, {
       category: "technology",
-      topicLabel: deriveTopicLabel(input, "technology"),
-      topicTags: deriveTopicTags(input, "technology", deriveTopicLabel(input, "technology")),
-      confidence: 0.38,
+      topicLabel: label,
+      topicTags: tags,
+      confidence: 0.1,
       reasoning:
-        "FOMO could not find a strong topic signature in the safe metadata, so it kept a low-confidence fallback category."
+        "No category match found — low confidence, will be overridden by AI classifier."
     });
   }
 
@@ -533,7 +535,7 @@ function buildRuleResult(input: ClassifierInput): ClassificationResult {
 }
 
 function shouldUseAiClassifier() {
-  return process.env.AI_CLASSIFIER_ENABLED === "true";
+  return true;
 }
 
 export function isWeakTopicLabel(label: string, input: Pick<ClassifierInput, "domain" | "urlPath">): boolean {
