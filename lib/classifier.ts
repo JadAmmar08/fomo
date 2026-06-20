@@ -246,6 +246,10 @@ function looksLikeUsername(label: string) {
   const cleaned = label.trim();
   // All-lowercase alphanumeric+underscore with no spaces = typical username/handle
   if (/^[a-z][a-z0-9_]{2,}$/.test(cleaned)) return true;
+  // "name 7a3f9b12" — name followed by a git hash or ID token
+  if (/^[a-z].*\s[a-f0-9]{7,}$/i.test(cleaned)) return true;
+  // Looks like a person's name only (2-3 words, all title case, no topic meaning)
+  if (/^[A-Z][a-z]+(\s[A-Z][a-z]+){1,2}$/.test(cleaned)) return true;
   return false;
 }
 

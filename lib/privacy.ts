@@ -1,3 +1,9 @@
+export const BLOCKED_DOMAINS = [
+  "usefomo.co",
+  "fomo-kappa-eight.vercel.app",
+  "localhost"
+];
+
 export const SENSITIVE_DOMAIN_PATTERNS = [
   "bank",
   "chase.com",
@@ -43,8 +49,12 @@ export function isSensitivePath(path: string) {
   return SENSITIVE_PATH_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
+export function isBlockedDomain(domain: string) {
+  return BLOCKED_DOMAINS.some((d) => domain.includes(d));
+}
+
 export function isSensitiveMetadata(domain: string, path: string) {
-  return isSensitiveDomain(domain) || isSensitivePath(path);
+  return isBlockedDomain(domain) || isSensitiveDomain(domain) || isSensitivePath(path);
 }
 
 export function sanitizePath(path: string) {
