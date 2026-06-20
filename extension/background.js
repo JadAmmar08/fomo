@@ -231,21 +231,39 @@ async function getPageContext(tabId) {
   };
 }
 
+function cleanTabTitle(title, url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    // Strip " - YouTube", " | Twitter", etc. platform suffixes browsers append
+    return title
+      .replace(/\s*[-|–]\s*YouTube\s*$/i, "")
+      .replace(/\s*[-|–]\s*Twitter\s*$/i, "")
+      .replace(/\s*[-|–]\s*Reddit\s*$/i, "")
+      .replace(/\s*[-|–]\s*LinkedIn\s*$/i, "")
+      .replace(/\s*[-|–]\s*Instagram\s*$/i, "")
+      .replace(/\s*[-|–]\s*TikTok\s*$/i, "")
+      .trim();
+  } catch {
+    return title;
+  }
+}
+
 async function getAiClassificationForTab(url, title, tabId, existingStore) {
-  const signal = normalizeSignal(url, title);
+  const cleanedTitle = cleanTabTitle(title, url);
+  const signal = normalizeSignal(url, cleanedTitle);
   const store = existingStore ?? (await chrome.storage.local.get(DEFAULTS));
   const signalKey = makeSignalKey(signal);
   const cached = store.aiClassifications?.[signalKey];
   if (cached?.classification) return cached.classification;
 
   const pageContext = await getPageContext(tabId);
-  const localClassification = classifyPage(url, title);
+  const localClassification = classifyPage(url, cleanedTitle);
   const response = await fetch(`${API_BASE_URL}/api/classify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...signal,
-      rawTitle: title,
+      rawTitle: cleanedTitle,
       pageHints: pageContext.pageHints,
       pageContent: pageContext.pageContent,
       localCategory: localClassification.category,
