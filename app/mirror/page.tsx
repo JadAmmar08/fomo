@@ -7,6 +7,7 @@ export default async function MirrorPage() {
 
   const topInterests = mirror.interests.slice(0, 5);
   const totalSignals = mirror.interests.reduce((sum, i) => sum + i.signalCount, 0);
+  const profile = mirror.personalProfile;
 
   return (
     <div className="stack">
@@ -14,13 +15,27 @@ export default async function MirrorPage() {
       {/* Hero */}
       <section className="panel" style={{ padding: "48px 36px" }}>
         <span className="eyebrow">Private Mirror</span>
-        <h1 style={{ maxWidth: 560 }}>This is how you appear on the pulse.</h1>
-        <p style={{ maxWidth: 500, marginBottom: 0 }}>
-          FOMO watches what you pay attention to and places you in communities. This mirror shows exactly how you're being represented — which communities you're in, and what's putting you there.
-        </p>
+        {profile ? (
+          <>
+            <h1 style={{ maxWidth: 560, marginTop: 12 }}>{profile.headline}</h1>
+            <p style={{ maxWidth: 500, marginBottom: 16 }}>{profile.description}</p>
+            <div className="tag-row">
+              {profile.evidenceTags.map((tag) => (
+                <span key={tag} className="pill">{tag}</span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 style={{ maxWidth: 560 }}>This is how you appear on the pulse.</h1>
+            <p style={{ maxWidth: 500, marginBottom: 0 }}>
+              FOMO watches what you pay attention to and builds your identity from it. Keep browsing — your profile emerges over time.
+            </p>
+          </>
+        )}
       </section>
 
-      {/* Community placement — the main thing */}
+      {/* Community placement */}
       {mirror.communities.length > 0 ? (
         <section className="panel">
           <span className="eyebrow">Your communities</span>
@@ -76,7 +91,7 @@ export default async function MirrorPage() {
           <span className="eyebrow">What's putting you there</span>
           <h2>Your top attention signals</h2>
           <p style={{ marginBottom: 24 }}>
-            These are the topics feeding your community placement. The more time you spend on something, the stronger the signal.
+            These are the topics feeding your profile. The more time you spend on something, the stronger the signal.
           </p>
           <div className="list">
             {topInterests.map((interest, i) => (

@@ -68,10 +68,12 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
     const state = await getDatabaseMirrorState(resolvedAnonymousUserId);
     if (state) {
       const visibleInterests = state.interests.filter((interest) => !interest.hidden);
+      const inference = await inferCommunities(visibleInterests);
       const mirror = {
         user: state.user,
         interests: visibleInterests,
-        communities: await inferCommunities(visibleInterests),
+        communities: inference.communities,
+        personalProfile: inference.personalProfile,
         recentSignals: state.ownSignals.slice(0, 10),
         privacy: state.privacySettings
       };
@@ -90,10 +92,12 @@ export async function getMirror(anonymousUserId?: string): Promise<MirrorRespons
 
   const state = getDemoState(resolvedAnonymousUserId);
   const visibleInterests = state.interests.filter((interest) => !interest.hidden);
+  const inference = await inferCommunities(visibleInterests);
   const mirror = {
     user: state.user,
     interests: visibleInterests,
-    communities: await inferCommunities(visibleInterests),
+    communities: inference.communities,
+    personalProfile: inference.personalProfile,
     recentSignals: state.ownSignals.slice(0, 10),
     privacy: state.privacySettings
   };
@@ -193,7 +197,9 @@ export async function createSignal(input: {
   };
 
   if (isDatabaseMode()) {
-    await insertDatabaseSignal(signal);
+    console.log("[store] inserting signal to DB:", signal.id, signal.normalizedDomain);
+    const result = await insertDatabaseSignal(signal);
+    console.log("[store] insert result:", result ? "ok" : "null");
   } else {
     addSignal(signal);
   }

@@ -102,10 +102,17 @@ export interface CommunityPlacement {
   signal: string;
 }
 
+export interface PersonalProfile {
+  headline: string;
+  description: string;
+  evidenceTags: string[];
+}
+
 export interface MirrorResponse {
   user: FomoUser;
   interests: UserInterest[];
   communities: CommunityPlacement[];
+  personalProfile: PersonalProfile | null;
   recentSignals: BrowsingSignal[];
   privacy: PrivacySettings;
   storageMode: "database" | "demo";

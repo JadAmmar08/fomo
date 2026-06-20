@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { UserInterest, Category } from "@/lib/types";
+import type { UserInterest, Category, PersonalProfile } from "@/lib/types";
 
 export interface CommunityPlacement {
   id: string;
@@ -10,11 +10,16 @@ export interface CommunityPlacement {
   signal: string;
 }
 
-export async function inferCommunities(interests: UserInterest[]): Promise<CommunityPlacement[]> {
-  if (interests.length === 0) return [];
+export interface InferenceResult {
+  communities: CommunityPlacement[];
+  personalProfile: PersonalProfile | null;
+}
+
+export async function inferCommunities(interests: UserInterest[]): Promise<InferenceResult> {
+  if (interests.length === 0) return { communities: [], personalProfile: null };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return fallbackCommunities(interests);
+  if (!apiKey) return fallback(interests);
 
   try {
     const client = new Anthropic({ apiKey });
@@ -36,21 +41,44 @@ export async function inferCommunities(interests: UserInterest[]): Promise<Commu
       max_tokens: 1024,
       tools: [
         {
-          name: "place_in_communities",
-          description: "Generate community placements for a user based on their attention patterns.",
+          name: "build_mirror",
+          description: "Generate a personal profile and community placements from a user's attention patterns.",
           input_schema: {
             type: "object" as const,
             properties: {
+              personalProfile: {
+                type: "object",
+                description: "A personal identity statement inferred from browsing behavior.",
+                properties: {
+                  headline: {
+                    type: "string",
+                    description: "A specific, personal description of who this person seems to be — like 'Finance student tracking startup markets' or 'Pre-med focused on neuroscience research'. 4–8 words. Never generic like 'Technology user'."
+                  },
+                  description: {
+                    type: "string",
+                    description: "1–2 sentences explaining what their browsing pattern reveals about them as a person — their apparent role, goals, or context."
+                  },
+                  evidenceTags: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "3–6 short tags pulled directly from their top topics that back up the headline. These are the reasons FOMO built this profile.",
+                    minItems: 2,
+                    maxItems: 6
+                  }
+                },
+                required: ["headline", "description", "evidenceTags"],
+                additionalProperties: false
+              },
               communities: {
                 type: "array",
                 items: {
                   type: "object",
                   properties: {
-                    name: { type: "string" },
-                    description: { type: "string" },
+                    name: { type: "string", description: "Specific group name like 'Early-stage founders in AI' or 'Pre-med students tracking research'. Never just a category." },
+                    description: { type: "string", description: "1–2 sentences on who else is in this community." },
                     confidence: { type: "number" },
                     primaryCategories: { type: "array", items: { type: "string" } },
-                    signal: { type: "string" }
+                    signal: { type: "string", description: "1 sentence on what browsing pattern led to this placement." }
                   },
                   required: ["name", "description", "confidence", "primaryCategories", "signal"],
                   additionalProperties: false
@@ -59,70 +87,87 @@ export async function inferCommunities(interests: UserInterest[]): Promise<Commu
                 maxItems: 4
               }
             },
-            required: ["communities"],
+            required: ["personalProfile", "communities"],
             additionalProperties: false
           }
         }
       ],
-      tool_choice: { type: "tool", name: "place_in_communities" },
-      system: `You analyze a person's browsing attention patterns and group them into communities they naturally belong to.
+      tool_choice: { type: "tool", name: "build_mirror" },
+      system: `You analyze a person's browsing attention patterns to build their personal profile and community placements for FOMO.
 
-RULES:
-- Generate 1–4 communities that genuinely reflect this person's attention fingerprint
-- Community names should be specific and evocative — not generic category names
-- Names should feel like real groups of people ("Pre-med students tracking research", "Early-stage founders in AI", "Finance students watching markets")
-- Description should be 1–2 sentences explaining who else is in this community
-- Signal should be 1 sentence explaining what in their attention data led to this placement
-- Confidence is 0.0–1.0 based on how strongly the data supports this placement
-- primaryCategories should list the broad content categories that drive this placement
-- If the data is thin (few signals, low confidence), generate fewer but more accurate communities — don't guess
-- Never invent communities not supported by the data`,
+PERSONAL PROFILE RULES:
+- The headline should read like how a person would describe themselves — role + focus area
+- Draw on real signals: if they browse AI tools + startup news → "Founder tracking AI tools and operators"
+- If they browse finance + campus news → "Business student watching markets and campus life"
+- Never use generic category words like "Technology enthusiast" or "Finance person"
+- The evidenceTags should be 2–6 word phrases pulled directly from their actual top topics
+
+COMMUNITY RULES:
+- Community names should feel like real groups of people ("Pre-med students tracking research", "Early-stage founders in AI")
+- Never just use a category as the name ("Technology", "Finance")
+- signal: 1 sentence on what in their data caused this placement
+- If data is thin, generate 1 accurate community instead of 4 guesses`,
       messages: [
         {
           role: "user",
-          content: `Here are this user's top attention topics. Generate community placements:\n\n${JSON.stringify(topInterests, null, 2)}`
+          content: `Build the mirror for this user based on their top attention topics:\n\n${JSON.stringify(topInterests, null, 2)}`
         }
       ]
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");
-    if (!toolBlock || toolBlock.type !== "tool_use") return fallbackCommunities(interests);
+    if (!toolBlock || toolBlock.type !== "tool_use") return fallback(interests);
 
-    const result = toolBlock.input as { communities: Array<{
-      name: string;
-      description: string;
-      confidence: number;
-      primaryCategories: string[];
-      signal: string;
-    }> };
+    const result = toolBlock.input as {
+      personalProfile: { headline: string; description: string; evidenceTags: string[] };
+      communities: Array<{
+        name: string;
+        description: string;
+        confidence: number;
+        primaryCategories: string[];
+        signal: string;
+      }>;
+    };
 
-    return result.communities.map((c) => ({
-      id: `community_${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
-      name: c.name,
-      description: c.description,
-      confidence: Math.min(0.97, Math.max(0.1, c.confidence)),
-      primaryCategories: c.primaryCategories as Category[],
-      signal: c.signal
-    }));
+    return {
+      personalProfile: result.personalProfile,
+      communities: result.communities.map((c) => ({
+        id: `community_${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+        name: c.name,
+        description: c.description,
+        confidence: Math.min(0.97, Math.max(0.1, c.confidence)),
+        primaryCategories: c.primaryCategories as Category[],
+        signal: c.signal
+      }))
+    };
   } catch {
-    return fallbackCommunities(interests);
+    return fallback(interests);
   }
 }
 
-function fallbackCommunities(interests: UserInterest[]): CommunityPlacement[] {
+function fallback(interests: UserInterest[]): InferenceResult {
   const categoryCounts = new Map<string, number>();
   for (const i of interests) {
     categoryCounts.set(i.category, (categoryCounts.get(i.category) ?? 0) + i.signalCount);
   }
   const topCategory = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (!topCategory) return [];
+  if (!topCategory) return { communities: [], personalProfile: null };
 
-  return [{
-    id: `community_${topCategory[0]}`,
-    name: topCategory[0].charAt(0).toUpperCase() + topCategory[0].slice(1),
-    description: `People paying close attention to ${topCategory[0]} content.`,
-    confidence: 0.5,
-    primaryCategories: [topCategory[0] as Category],
-    signal: `Most attention concentrated in ${topCategory[0]}.`
-  }];
+  const topTopics = interests.slice(0, 3).map((i) => i.topicLabel);
+
+  return {
+    personalProfile: {
+      headline: `${topCategory[0].charAt(0).toUpperCase() + topCategory[0].slice(1)} focused`,
+      description: `Your browsing is concentrated in ${topCategory[0]}. Browse more with the extension active to build a fuller picture.`,
+      evidenceTags: topTopics
+    },
+    communities: [{
+      id: `community_${topCategory[0]}`,
+      name: `People tracking ${topCategory[0]}`,
+      description: `Others whose attention is concentrated in ${topCategory[0]} content.`,
+      confidence: 0.5,
+      primaryCategories: [topCategory[0] as Category],
+      signal: `Most attention concentrated in ${topCategory[0]}.`
+    }]
+  };
 }
