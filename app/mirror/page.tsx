@@ -29,9 +29,9 @@ export default async function MirrorPage() {
           </>
         ) : (
           <>
-            <h1 style={{ maxWidth: 560 }}>This is how you appear on the pulse.</h1>
+            <h1 style={{ maxWidth: 560 }}>Your profile is building.</h1>
             <p style={{ maxWidth: 500, marginBottom: 0 }}>
-              FOMO watches what you pay attention to and builds your identity from it. Keep browsing — your profile emerges over time.
+              Browse normally for a bit — FOMO is watching your attention in the background. Come back in an hour and your profile will be here.
             </p>
           </>
         )}
@@ -80,9 +80,9 @@ export default async function MirrorPage() {
       ) : (
         <section className="panel" style={{ background: "var(--surface)" }}>
           <span className="eyebrow">Your communities</span>
-          <h2>No placement yet</h2>
+          <h2>Still watching...</h2>
           <p>
-            FOMO places you in communities as your attention patterns build up. Keep browsing with the extension active — your placement emerges over time.
+            Browse normally for an hour and FOMO will place you in communities based on what you actually pay attention to. The more you browse, the more accurate it gets.
           </p>
         </section>
       )}
