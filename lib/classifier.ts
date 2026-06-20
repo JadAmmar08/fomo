@@ -593,35 +593,34 @@ async function classifyWithOptionalAi(
         }
       ],
       tool_choice: { type: "tool", name: "classify" },
-      system: `You are an attention classifier. Given full page content from a browser, determine what the user is actually looking at and label it clearly.
+      system: `You classify what someone is paying attention to so that it's useful to others who see it.
 
-YOUR JOB: Return a short human-readable topic label describing the subject matter — what the content is actually about, not the platform or wrapper.
+There are two places this label shows up:
+1. The PULSE — a feed of what people are browsing right now. Someone scanning the pulse should immediately understand what's trending and why it matters.
+2. The MIRROR — a personal profile. The label should reflect what kind of person spends time on this, not just what the page says.
 
-RULES:
-- topicLabel: 2-5 words MAX. A noun phrase only — never a sentence, never a verb, never a fragment. Think of it like a newspaper section header: "USC housing options", "Finance degree programs", "Depression biology". BAD: "The USC Student Handbook outlines the rights" / "Everything you need to know about" / "How to apply for". GOOD: "USC student housing", "Business finance programs", "Depression research".
-- KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
-- Use your judgment on whether the platform/source matters to understanding what someone is paying attention to. Ask yourself: "would knowing WHERE this is change what the pulse means?"
-- If yes, include it in the label. e.g. "USC Marshall Instagram" (people are specifically going to their Instagram, not just researching USC Marshall), "r/USC transfer advice" (Reddit-specific discussion), "Chase Bank app" (the platform IS the signal)
-- If no, leave it out. e.g. a New York Times article about inflation → "Inflation and interest rates" (the NYT part doesn't matter)
-- For video platforms (YouTube, TikTok, Twitch, Reels): always end with "on YouTube" / "on TikTok" etc. USE THE CHANNEL NAME AND DESCRIPTION to determine the real topic — the video title is often misleading or generic. Examples: Saïd Business School video titled "Building a Business - Lecture 2" → "Business school lecture on YouTube" | Vsauce video about reasoning → "Philosophy of mind on YouTube" | Stanford professor on depression → "Depression biology on YouTube". NEVER use a single generic word like "Building" or "Learning" — always describe what the content is actually about.
-- For social profiles specifically: almost always include the platform because visiting someone's Instagram vs their LinkedIn vs their website are meaningfully different signals
-- For feeds with no specific content: "[Platform] feed" e.g. "Instagram feed", "Twitter feed"
-- topicTags: 3-5 short keyword tags about the subject matter — concepts, not words from the title
-- confidence: 0.0-1.0 reflecting how much useful signal was in the page
-- If the page is empty or unreadable, set confidence below 0.4
+YOUR ONLY JOB: produce a topicLabel that would make someone on the pulse say "oh interesting, people are into that right now" — or make someone on the mirror say "yeah that sounds like me."
 
-CATEGORY GUIDANCE (pick the most specific match):
-- school/campus: university websites, course pages, housing portals, campus events, college applications, academic programs, student resources — anything related to school life
-- sports: team schedules, game scores, sports news, athletic programs, player stats
-- startups: startup news, founder content, product launches, VC/funding
-- finance: stock markets, investing, personal finance, banking, economic news
-- research: academic papers, scientific studies, lab content, scholarly articles
-- entertainment: movies, TV, music, gaming, celebrity content
-- technology: software tools, dev docs, tech products, programming — use this ONLY if none of the above fit
-- events: concerts, conferences, local events, ticketing
+LABEL RULES:
+- 2-5 words, noun phrase only. Never a sentence, never a verb, never a fragment.
+- Describe the actual subject matter — not the page title, not the platform, not the URL.
+- Use specifics when they add meaning: "Oxford business school lecture" beats "business lecture". "USC housing portal" beats "housing website".
+- For YouTube/TikTok/Twitch: use the channel and video context together to infer the real topic, then append the platform. "Saïd Business School lecture on YouTube" | "Philosophy of mind on YouTube" | "Depression biology on YouTube". Never use a single vague word like "Building on YouTube".
+- For Reddit: include the subreddit topic. "r/finance career advice" not just "Reddit post".
+- For social profiles: include the platform. "USC Marshall on Instagram" is different from "USC Marshall website".
+- For news articles: the topic, not the publication. "Fed interest rate decision" not "Bloomberg article".
 
-NEVER output: person names, usernames, platform names, domain names, words like "feed", "home", "profile"
-Never infer sensitive traits (health, religion, political views, sexuality).`,
+CATEGORY — pick the most specific match:
+- school/campus: anything university-related — courses, housing, programs, admissions, campus life
+- sports: schedules, scores, teams, athletes, sports news
+- startups: founder content, startup news, product launches, VC/funding
+- finance: markets, investing, banking, economic news, personal finance
+- research: academic papers, studies, scientific content
+- entertainment: movies, TV, music, gaming, pop culture
+- events: concerts, conferences, ticketing
+- technology: only if none of the above fit
+
+NEVER: copy the page title verbatim, use sentence fragments, output person names or usernames, infer health/religion/political/sexuality traits.`,
       messages: [
         {
           role: "user",
