@@ -117,6 +117,23 @@ export function isDatabaseMode() {
   return Boolean(getPool());
 }
 
+async function notifyNewUser(anonymousUserId: string) {
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
+      to: "Jadammar08@gmail.com",
+      subject: "New FOMO user",
+      text: `Someone just installed FOMO.\n\nUser ID: ${anonymousUserId}\n\nCheck Supabase for their signals.`
+    });
+  } catch {
+    // non-critical, don't throw
+  }
+}
+
 export async function ensureDatabaseUser(anonymousUserId: string) {
   return withClient(async (client) => {
     const userResult = await client.query(
@@ -124,11 +141,14 @@ export async function ensureDatabaseUser(anonymousUserId: string) {
       insert into users (anonymous_user_id, name)
       values ($1, $2)
       on conflict (anonymous_user_id)
-      do update set anonymous_user_id = excluded.anonymous_user_id
+      do nothing
       returning *
       `,
       [anonymousUserId, "FOMO user"]
     );
+
+    const isNew = userResult.rows.length > 0;
+    if (isNew) notifyNewUser(anonymousUserId);
 
     await client.query(
       `
@@ -145,7 +165,9 @@ export async function ensureDatabaseUser(anonymousUserId: string) {
       [anonymousUserId, toPostgresArray(defaultPrivacySettings(anonymousUserId).shareableCategories)]
     );
 
-    return mapUser(userResult.rows[0]);
+    if (isNew) return mapUser(userResult.rows[0]);
+    const existing = await client.query(`select * from users where anonymous_user_id = $1 limit 1`, [anonymousUserId]);
+    return mapUser(existing.rows[0]);
   });
 }
 
