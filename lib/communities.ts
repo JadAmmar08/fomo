@@ -140,7 +140,8 @@ COMMUNITY RULES:
         signal: c.signal
       }))
     };
-  } catch {
+  } catch (err) {
+    console.error("[communities] inferCommunities error:", err);
     return { communities: [], personalProfile: null };
   }
 }

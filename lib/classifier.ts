@@ -623,7 +623,6 @@ NEVER: copy the page title verbatim, use sentence fragments, output person names
           role: "user",
           content: JSON.stringify({
             allowedCategories: CATEGORIES,
-            instruction: "The topicLabel MUST describe the topic in your own words — do NOT copy or paraphrase the page title. Summarize what it is actually about.",
             safeMetadata: {
               domain: input.domain,
               pageTitle: input.pageTitle,
