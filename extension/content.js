@@ -35,14 +35,16 @@ function collectPageContent() {
     }
   });
 
-  // YouTube: extract only what matters — title, channel, description
+  // YouTube: extract only what matters — channel and description (title comes from tab.title)
   if (host.includes("youtube.com")) {
-    const videoTitle = cleanText(document.querySelector("h1.ytd-watch-metadata, h1.title")?.textContent || "");
-    const channel = cleanText(document.querySelector("ytd-channel-name a, #channel-name a, #owner-name a")?.textContent || "");
-    const description = cleanText(document.querySelector("#description-inline-expander, #description ytd-text-inline-expander, ytd-expander #content")?.textContent || "").slice(0, 500);
-    if (videoTitle) parts.push("VIDEO TITLE: " + videoTitle);
+    const channel = cleanText(
+      document.querySelector("ytd-channel-name a, #channel-name a, #owner-name a, yt-formatted-string#owner-name a")?.textContent || ""
+    );
+    const description = cleanText(
+      document.querySelector("#description-inline-expander, ytd-expander #content, #snippet")?.textContent || ""
+    ).slice(0, 800);
     if (channel) parts.push("CHANNEL: " + channel);
-    if (description) parts.push("DESCRIPTION: " + description);
+    if (description) parts.push("VIDEO DESCRIPTION: " + description);
     return parts.join("\n\n").slice(0, 25000);
   }
 
