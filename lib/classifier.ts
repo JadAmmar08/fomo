@@ -598,7 +598,7 @@ async function classifyWithOptionalAi(
 YOUR JOB: Return a short human-readable topic label describing the subject matter — what the content is actually about, not the platform or wrapper.
 
 RULES:
-- topicLabel: 2-6 words describing the TOPIC in your own words. NEVER copy or paraphrase the video/article title. Summarize what it's actually about. e.g. "Stanford's Sapolsky On Depression in U.S." → "Depression biology on YouTube" | "Brian Cox: The terrifying possibility of the Great Filter" → "Fermi paradox on YouTube" | "How to build a startup" → "Startup advice on YouTube"
+- topicLabel: 2-5 words MAX. A noun phrase only — never a sentence, never a verb, never a fragment. Think of it like a newspaper section header: "USC housing options", "Finance degree programs", "Depression biology". BAD: "The USC Student Handbook outlines the rights" / "Everything you need to know about" / "How to apply for". GOOD: "USC student housing", "Business finance programs", "Depression research".
 - KEEP specific proper nouns: school names (USC, Harvard, MIT), programs (Marshall, Wharton, Ross), companies (Lazard, Google), sports teams, brands — these make the label more accurate, not less
 - Use your judgment on whether the platform/source matters to understanding what someone is paying attention to. Ask yourself: "would knowing WHERE this is change what the pulse means?"
 - If yes, include it in the label. e.g. "USC Marshall Instagram" (people are specifically going to their Instagram, not just researching USC Marshall), "r/USC transfer advice" (Reddit-specific discussion), "Chase Bank app" (the platform IS the signal)
