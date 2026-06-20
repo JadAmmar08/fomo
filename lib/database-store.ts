@@ -2,6 +2,10 @@ import type { PoolClient } from "pg";
 import { buildUserInterests } from "@/lib/interests";
 import { getPool } from "@/lib/postgres";
 import { buildCommunityTrends } from "@/lib/trends";
+
+function toPostgresArray(arr: string[]): string {
+  return "{" + arr.map(s => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",") + "}";
+}
 import type {
   BlockedDomain,
   BrowsingSignal,
@@ -100,7 +104,11 @@ async function withClient<T>(run: (client: PoolClient) => Promise<T>) {
     } finally {
       client.release();
     }
-  } catch {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const code = (err as Record<string, unknown>)?.code;
+    const detail = (err as Record<string, unknown>)?.detail;
+    console.error("[db] withClient error:", msg, "code:", code, "detail:", detail);
     return null;
   }
 }
@@ -131,10 +139,10 @@ export async function ensureDatabaseUser(anonymousUserId: string) {
         local_data_retention,
         account_data_retention
       )
-      values ($1, false, $2::text[], 'keep', 'keep')
+      values ($1, false, $2, 'keep', 'keep')
       on conflict (anonymous_user_id) do nothing
       `,
-      [anonymousUserId, defaultPrivacySettings(anonymousUserId).shareableCategories]
+      [anonymousUserId, toPostgresArray(defaultPrivacySettings(anonymousUserId).shareableCategories)]
     );
 
     return mapUser(userResult.rows[0]);
@@ -224,7 +232,7 @@ export async function insertDatabaseSignal(signal: BrowsingSignal) {
         reasoning,
         source
       )
-      values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text[],$10,$11,$12)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       `,
       [
         signal.id,
@@ -235,7 +243,7 @@ export async function insertDatabaseSignal(signal: BrowsingSignal) {
         signal.timestampBucket,
         signal.category,
         signal.topicLabel,
-        signal.topicTags,
+        toPostgresArray(signal.topicTags),
         signal.confidence,
         signal.reasoning,
         signal.source
@@ -294,7 +302,7 @@ export async function upsertDatabasePrivacySettings(
         local_data_retention,
         account_data_retention
       )
-      values ($1,$2,$3::text[],$4,$5)
+      values ($1,$2,$3,$4,$5)
       on conflict (anonymous_user_id)
       do update set
         tracking_paused = excluded.tracking_paused,
@@ -305,7 +313,7 @@ export async function upsertDatabasePrivacySettings(
       [
         anonymousUserId,
         next.trackingPaused,
-        next.shareableCategories,
+        toPostgresArray(next.shareableCategories),
         next.localDataRetention,
         next.accountDataRetention
       ]
@@ -373,12 +381,12 @@ export async function materializeDatabaseTrends() {
           change_pct,
           explanation
         )
-        values ($1,$2,$3::text[],$4,$5,$6,$7,$8,$9)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
         `,
         [
           trend.category,
           trend.topicLabel,
-          trend.topicTags,
+          toPostgresArray(trend.topicTags),
           trend.trendScore,
           trend.anonymousSignals,
           trend.uniqueUsers,
