@@ -437,11 +437,13 @@ function compressTopicLabel(value: string) {
     .replace(/^[[(]?\d+[)\]]?\s*/g, "")
     .replace(/\b(including|everything you need to know|background check|immigration screening)\b.*$/i, "")
     .replace(/\b(feed|overview|profile|comments)\b/gi, " ")
+    .replace(/[,;]+$/, "")
+    .replace(/\b(the|a|an|is|are|was|were|outlines|describes|explains|provides)\b.*$/i, (match, offset) => offset < 20 ? match : "")
     .replace(/\s+/g, " ")
     .trim();
 
   const words = cleaned.split(/\s+/).filter(Boolean);
-  return words.length > 7 ? words.slice(0, 7).join(" ") : cleaned;
+  return words.length > 6 ? words.slice(0, 6).join(" ") : cleaned;
 }
 
 function finalizeTopicTags(input: ClassifierInput, category: Category, topicLabel: string, tags?: string[]) {
