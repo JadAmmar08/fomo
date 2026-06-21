@@ -18,7 +18,7 @@ function defaultPrivacySettings(anonymousUserId: string): PrivacySettings {
   return {
     anonymousUserId,
     trackingPaused: false,
-    shareableCategories: ["startups", "technology", "research", "events", "finance"],
+    shareableCategories: ["startups", "technology", "research", "events", "finance", "sports", "entertainment", "school/campus", "healthcare", "fashion", "food"],
     localDataRetention: "keep",
     accountDataRetention: "keep"
   };
