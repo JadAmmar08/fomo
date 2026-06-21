@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 
 async function getStats() {
   const pool = getPool();
+  if (!pool) return null;
   const client = await pool.connect();
   try {
     const [usersRes, newUsersRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
@@ -15,11 +16,11 @@ async function getStats() {
       client.query(`SELECT anonymous_user_id, created_at FROM users ORDER BY created_at DESC LIMIT 20`)
     ]);
     return {
-      totalUsers: parseInt(usersRes.rows[0].count),
-      newUsersToday: parseInt(newUsersRes.rows[0].count),
-      totalSignals: parseInt(signalsRes.rows[0].count),
-      signals24h: parseInt(signals24hRes.rows[0].count),
-      recentUsers: recentUsersRes.rows
+      totalUsers: parseInt(String(usersRes.rows[0].count)),
+      newUsersToday: parseInt(String(newUsersRes.rows[0].count)),
+      totalSignals: parseInt(String(signalsRes.rows[0].count)),
+      signals24h: parseInt(String(signals24hRes.rows[0].count)),
+      recentUsers: recentUsersRes.rows as Array<{ anonymous_user_id: string; created_at: string }>
     };
   } finally {
     client.release();
@@ -63,7 +64,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <span className="eyebrow">Recent signups</span>
         <h2 style={{ marginBottom: 20 }}>Last 20 users</h2>
         <div className="list">
-          {stats?.recentUsers.map((user: { anonymous_user_id: string; created_at: string }) => (
+          {stats?.recentUsers.map((user) => (
             <div key={user.anonymous_user_id} className="item" style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px" }}>
               <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--subtle)" }}>{user.anonymous_user_id}</span>
               <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
