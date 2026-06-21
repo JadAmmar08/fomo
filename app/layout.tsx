@@ -25,6 +25,10 @@ export default function RootLayout({
             <Nav />
           </header>
           <main className="page-frame">{children}</main>
+          <footer style={{ textAlign: "center", padding: "24px 16px", fontSize: "0.8rem", color: "var(--subtle)", borderTop: "1px solid var(--line)" }}>
+            <Link href="/privacy" style={{ color: "var(--subtle)", marginRight: 16 }}>Privacy</Link>
+            <Link href="/terms" style={{ color: "var(--subtle)" }}>Terms</Link>
+          </footer>
         </div>
       </body>
     </html>

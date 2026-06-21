@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSignal } from "@/lib/store";
 import { isSensitiveMetadata } from "@/lib/privacy";
 import { attachAnonymousCookie, getRequestAnonymousUserId } from "@/lib/session";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+  if (!rateLimit(`signals:${ip}`, 60, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const body = await request.json();
   const domain = String(body.normalizedDomain ?? "");
   const anonymousUserId = getRequestAnonymousUserId(
