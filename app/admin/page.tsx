@@ -8,23 +8,35 @@ async function getStats() {
   if (!pool) return null;
   const client = await pool.connect();
   try {
-    const [activeRes, active24hRes, signupsRes, signups24hRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
+    const [activeRes, active24hRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
       client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals`),
       client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
-      client.query(`SELECT COUNT(*) FROM users`),
-      client.query(`SELECT COUNT(*) FROM users WHERE created_at > now() - interval '24 hours'`),
       client.query(`SELECT COUNT(*) FROM browsing_signals`),
       client.query(`SELECT COUNT(*) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
       client.query(`SELECT anonymous_user_id, created_at FROM users ORDER BY created_at DESC LIMIT 20`)
     ]);
+    let waitlistCount = 0;
+    let waitlistToday = 0;
+    let recentWaitlist: Array<{ email: string; name: string | null; created_at: string }> = [];
+    try {
+      const [wRes, wTodayRes, wRecentRes] = await Promise.all([
+        client.query(`SELECT COUNT(*) FROM waitlist`),
+        client.query(`SELECT COUNT(*) FROM waitlist WHERE created_at > now() - interval '24 hours'`),
+        client.query(`SELECT email, name, created_at FROM waitlist ORDER BY created_at DESC LIMIT 20`)
+      ]);
+      waitlistCount = parseInt(String(wRes.rows[0].count));
+      waitlistToday = parseInt(String(wTodayRes.rows[0].count));
+      recentWaitlist = wRecentRes.rows as Array<{ email: string; name: string | null; created_at: string }>;
+    } catch { /* table may not exist */ }
     return {
       activeUsers: parseInt(String(activeRes.rows[0].count)),
       activeToday: parseInt(String(active24hRes.rows[0].count)),
-      totalSignups: parseInt(String(signupsRes.rows[0].count)),
-      signupsToday: parseInt(String(signups24hRes.rows[0].count)),
       totalSignals: parseInt(String(signalsRes.rows[0].count)),
       signals24h: parseInt(String(signals24hRes.rows[0].count)),
-      recentUsers: recentUsersRes.rows as Array<{ anonymous_user_id: string; created_at: string }>
+      recentUsers: recentUsersRes.rows as Array<{ anonymous_user_id: string; created_at: string }>,
+      waitlistCount,
+      waitlistToday,
+      recentWaitlist
     };
   } finally {
     client.release();
@@ -47,12 +59,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <div className="grid two">
         <div className="card">
-          <span className="kicker">Sign-ups</span>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.totalSignups ?? 0}</div>
+          <span className="kicker">Waitlist</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.waitlistCount ?? 0}</div>
         </div>
         <div className="card">
-          <span className="kicker">Sign-ups today</span>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.signupsToday ?? 0}</div>
+          <span className="kicker">Waitlist today</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.waitlistToday ?? 0}</div>
         </div>
         <div className="card">
           <span className="kicker">Active users</span>
@@ -71,6 +83,26 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.signals24h ?? 0}</div>
         </div>
       </div>
+
+      {(stats?.recentWaitlist?.length ?? 0) > 0 && (
+        <section className="panel">
+          <span className="eyebrow">Waitlist</span>
+          <h2 style={{ marginBottom: 20 }}>Recent sign-ups</h2>
+          <div className="list">
+            {stats!.recentWaitlist.map((entry) => (
+              <div key={entry.email} className="item" style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px" }}>
+                <div>
+                  <span style={{ fontSize: "0.9rem", color: "var(--text)" }}>{entry.email}</span>
+                  {entry.name && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", marginLeft: 10 }}>{entry.name}</span>}
+                </div>
+                <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
+                  {new Date(entry.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <span className="eyebrow">Recent signups</span>
