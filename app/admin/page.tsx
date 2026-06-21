@@ -9,8 +9,8 @@ async function getStats() {
   const client = await pool.connect();
   try {
     const [usersRes, newUsersRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
-      client.query(`SELECT COUNT(*) FROM users`),
-      client.query(`SELECT COUNT(*) FROM users WHERE created_at > now() - interval '24 hours'`),
+      client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals`),
+      client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
       client.query(`SELECT COUNT(*) FROM browsing_signals`),
       client.query(`SELECT COUNT(*) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
       client.query(`SELECT anonymous_user_id, created_at FROM users ORDER BY created_at DESC LIMIT 20`)
@@ -43,11 +43,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <div className="grid two">
         <div className="card">
-          <span className="kicker">Total users</span>
+          <span className="kicker">Active users</span>
           <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.totalUsers ?? 0}</div>
         </div>
         <div className="card">
-          <span className="kicker">New today</span>
+          <span className="kicker">Active today</span>
           <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.newUsersToday ?? 0}</div>
         </div>
         <div className="card">
