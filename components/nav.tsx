@@ -6,7 +6,8 @@ import type { Route } from "next";
 
 const navItems: Array<{ href: Route; label: string }> = [
   { href: "/pulse", label: "Pulse" },
-  { href: "/mirror", label: "Mirror" }
+  { href: "/mirror", label: "Mirror" },
+  { href: "/privacy", label: "Privacy" }
 ];
 
 export function Nav() {
