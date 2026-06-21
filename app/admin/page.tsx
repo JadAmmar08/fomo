@@ -8,16 +8,20 @@ async function getStats() {
   if (!pool) return null;
   const client = await pool.connect();
   try {
-    const [usersRes, newUsersRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
+    const [activeRes, active24hRes, signupsRes, signups24hRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
       client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals`),
       client.query(`SELECT COUNT(DISTINCT anonymous_user_id) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
+      client.query(`SELECT COUNT(*) FROM users`),
+      client.query(`SELECT COUNT(*) FROM users WHERE created_at > now() - interval '24 hours'`),
       client.query(`SELECT COUNT(*) FROM browsing_signals`),
       client.query(`SELECT COUNT(*) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
       client.query(`SELECT anonymous_user_id, created_at FROM users ORDER BY created_at DESC LIMIT 20`)
     ]);
     return {
-      totalUsers: parseInt(String(usersRes.rows[0].count)),
-      newUsersToday: parseInt(String(newUsersRes.rows[0].count)),
+      activeUsers: parseInt(String(activeRes.rows[0].count)),
+      activeToday: parseInt(String(active24hRes.rows[0].count)),
+      totalSignups: parseInt(String(signupsRes.rows[0].count)),
+      signupsToday: parseInt(String(signups24hRes.rows[0].count)),
       totalSignals: parseInt(String(signalsRes.rows[0].count)),
       signals24h: parseInt(String(signals24hRes.rows[0].count)),
       recentUsers: recentUsersRes.rows as Array<{ anonymous_user_id: string; created_at: string }>
@@ -43,12 +47,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <div className="grid two">
         <div className="card">
+          <span className="kicker">Sign-ups</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.totalSignups ?? 0}</div>
+        </div>
+        <div className="card">
+          <span className="kicker">Sign-ups today</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.signupsToday ?? 0}</div>
+        </div>
+        <div className="card">
           <span className="kicker">Active users</span>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.totalUsers ?? 0}</div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.activeUsers ?? 0}</div>
         </div>
         <div className="card">
           <span className="kicker">Active today</span>
-          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.newUsersToday ?? 0}</div>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.activeToday ?? 0}</div>
         </div>
         <div className="card">
           <span className="kicker">Total signals</span>
