@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
-import { withClient } from "@/lib/postgres";
+import { getPool } from "@/lib/postgres";
 
 export const runtime = "nodejs";
 
 async function getStats() {
-  return withClient(async (client) => {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
     const [usersRes, newUsersRes, signalsRes, signals24hRes, recentUsersRes] = await Promise.all([
       client.query(`SELECT COUNT(*) FROM users`),
       client.query(`SELECT COUNT(*) FROM users WHERE created_at > now() - interval '24 hours'`),
@@ -12,7 +14,6 @@ async function getStats() {
       client.query(`SELECT COUNT(*) FROM browsing_signals WHERE timestamp_bucket > now() - interval '24 hours'`),
       client.query(`SELECT anonymous_user_id, created_at FROM users ORDER BY created_at DESC LIMIT 20`)
     ]);
-
     return {
       totalUsers: parseInt(usersRes.rows[0].count),
       newUsersToday: parseInt(newUsersRes.rows[0].count),
@@ -20,7 +21,9 @@ async function getStats() {
       signals24h: parseInt(signals24hRes.rows[0].count),
       recentUsers: recentUsersRes.rows
     };
-  });
+  } finally {
+    client.release();
+  }
 }
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
