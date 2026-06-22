@@ -70,7 +70,7 @@ export default function DownloadPage() {
               </div>
               <div>
                 <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem" }}>{step.title}</h3>
-                <p style={{ margin: 0, color: "var(--subtle)", lineHeight: 1.5 }}>{step.body}</p>
+                <p style={{ margin: 0, color: "var(--text)", lineHeight: 1.5 }}>{step.body}</p>
               </div>
             </div>
           ))}
