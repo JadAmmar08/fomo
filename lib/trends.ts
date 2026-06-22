@@ -10,7 +10,8 @@ const JUNK_LABELS = new Set([
   "feed", "home", "homepage", "overview", "profile", "explore", "discover",
   "trending", "search", "notifications", "messages", "inbox", "settings",
   "stories", "reels", "following", "followers", "dashboard", "login",
-  "signup", "sign up", "sign in", "new tab", "untitled page", "page title"
+  "signup", "sign up", "sign in", "new tab", "untitled page", "page title",
+  "chatgpt", "chat gpt", "claude", "gemini"
 ]);
 
 function isJunkLabel(label: string): boolean {
@@ -21,6 +22,9 @@ function isJunkLabel(label: string): boolean {
   if (/^(stories|browsing)\s*[•·\-–]\s*/i.test(cleaned) && /instagram|facebook|snapchat|tiktok/i.test(cleaned)) return true;
   if (/^\/?stories\//i.test(cleaned)) return true;
   if (/^https?:\/\//i.test(cleaned)) return true;
+  if (/\bfomo\b/i.test(cleaned)) return true;
+  if (/^i'm\s+a\b/i.test(cleaned)) return true;
+  if (/^browsing\s+(github|linkedin|twitter|reddit|youtube|facebook)/i.test(cleaned)) return true;
   return false;
 }
 
@@ -30,11 +34,15 @@ function normalizeTopicKey(label: string): string {
     .toLowerCase()
     .replace(/[•·\-–|:.]/g, " ")
     .replace(/\b(stories|browsing|on instagram|on facebook|on twitter|on tiktok|on youtube)\b/g, " ")
-    .replace(/\b(explained|overview|introduction|intro|guide|tutorial|review|extended|full|complete|managing|understanding|pathways?|basics?)\b/g, " ")
+    .replace(/\b(explained|overview|introduction|intro|guide|tutorial|review|extended|full|complete|managing|understanding|pathways?|basics?|syllabus|submission|dashboard|directory|faculty|staff|setting up|verifying|publishing|console|account|department)\b/g, " ")
     .replace(/\b(the|a|an|and|or|of|in|on|at|to|for|with|vs|how|what|why)\b/g, " ")
     .replace(/\b(\w{4,})s\b/g, "$1")
+    .replace(/[&]/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .split(" ")
+    .sort()
+    .join(" ");
 }
 
 export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[] {

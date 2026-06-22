@@ -49,15 +49,8 @@ export async function POST(request: NextRequest) {
   const platformSuffix = videoSites[normalizedDomain];
   if (platformSuffix && classification.topicLabel) {
     const label = classification.topicLabel.toLowerCase();
-    const title = rawTitle.toLowerCase().slice(0, 60);
-    const overlap = title.split(" ").filter(w => w.length > 3 && label.includes(w)).length;
-    const titleWords = title.split(" ").filter(w => w.length > 3).length;
-    if (titleWords > 0 && overlap / titleWords > 0.5) {
-      // Label is too close to the title — trim and append platform
-      const trimmed = classification.topicLabel.replace(/\s*[\|–-].*$/, "").trim();
-      const short = trimmed.split(" ").slice(0, 5).join(" ");
-      classification.topicLabel = short + " " + platformSuffix;
-    } else if (!label.includes("on youtube") && !label.includes("on tiktok") && !label.includes("on twitch")) {
+    const alreadyHasSuffix = label.includes("on youtube") || label.includes("on tiktok") || label.includes("on twitch");
+    if (!alreadyHasSuffix) {
       classification.topicLabel = classification.topicLabel + " " + platformSuffix;
     }
   }
