@@ -25,7 +25,7 @@ export function Nav() {
         </Link>
       ))}
       <Link
-        href="/signup"
+        href="/download"
         style={{ background: "var(--accent)", color: "white", borderRadius: 999, padding: "6px 14px" }}
       >
         Get started
