@@ -6,23 +6,28 @@ import { useState } from "react";
 const steps = [
   {
     n: "1",
-    title: "Download the extension",
-    body: 'Click the button above. Once downloaded, double-click the zip file to unzip it. You\'ll get a folder called "extension".'
+    title: "Download and unzip",
+    body: <>Click the button above. Once downloaded, <strong>double-click the zip file</strong> to unzip it. You&apos;ll get a folder called <strong>&quot;extension&quot;</strong>.</>
   },
   {
     n: "2",
     title: "Open Chrome extensions",
-    body: 'Paste chrome://extensions into your address bar and hit enter. Turn on "Developer mode" in the top right corner.'
+    body: <>Paste <strong>chrome://extensions</strong> into your address bar and hit enter. Turn on <strong>&quot;Developer mode&quot;</strong> in the top right corner.</>
   },
   {
     n: "3",
     title: "Load the extension",
-    body: 'Click "Load unpacked" and select the "extension" folder you just unzipped. FOMO will appear in your toolbar.'
+    body: <>Click <strong>&quot;Load unpacked&quot;</strong> and select the <strong>&quot;extension&quot;</strong> folder you just unzipped.</>
   },
   {
     n: "4",
+    title: "Pin it to your toolbar",
+    body: <>Click the <strong>puzzle piece icon</strong> (🧩) in the top right of Chrome, find <strong>FOMO</strong>, and click the <strong>pin icon</strong>. This keeps FOMO visible in your toolbar.</>
+  },
+  {
+    n: "5",
     title: "You're done",
-    body: "Start browsing. Your mirror and pulse build automatically. Come back in an hour to see your profile."
+    body: <>Start browsing. Your mirror and pulse build automatically. Come back in an hour to see your profile.</>
   }
 ];
 
