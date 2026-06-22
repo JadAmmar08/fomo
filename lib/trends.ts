@@ -28,8 +28,11 @@ function normalizeTopicKey(label: string): string {
   return label
     .trim()
     .toLowerCase()
-    .replace(/[•·\-–|]/g, " ")
+    .replace(/[•·\-–|:.]/g, " ")
     .replace(/\b(stories|browsing|on instagram|on facebook|on twitter|on tiktok|on youtube)\b/g, " ")
+    .replace(/\b(explained|overview|introduction|intro|guide|tutorial|review|extended|full|complete|managing|understanding|pathways?|basics?)\b/g, " ")
+    .replace(/\b(the|a|an|and|or|of|in|on|at|to|for|with|vs|how|what|why)\b/g, " ")
+    .replace(/\b(\w{4,})s\b/g, "$1")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -80,7 +83,7 @@ export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[
         uniqueUsers,
         timeWindow: "Last 24 hours",
         changePct,
-        explanation: `Interest in ${topicLabel} is rising because ${uniqueUsers} anonymous users generated ${recent} matching signals in the last 24 hours, ${previous === 0 ? "from a near-zero baseline" : `up ${Math.round(changePct)}% from the previous period`}.`
+        explanation: `Interest in ${topicLabel} is rising because ${uniqueUsers} anonymous ${uniqueUsers === 1 ? "user" : "users"} generated ${recent} matching ${recent === 1 ? "signal" : "signals"} in the last 24 hours, ${previous === 0 ? "from a near-zero baseline" : `up ${Math.round(changePct)}% from the previous period`}.`
       };
     })
     .filter((trend) => trend.anonymousSignals > 0)
