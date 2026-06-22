@@ -147,6 +147,13 @@ function cleanTopicText(value: string) {
     .replace(/^mirror\s*/i, "")
     .replace(/^community pulse\s*/i, "")
     .replace(/^private mirror\s*/i, "")
+    .replace(/^page\s*title\s*:?\s*/i, "")
+    .replace(/^browsing\s+/i, "")
+    .replace(/^i'm\s+a\s+/i, "")
+    .replace(/^watching\s+/i, "")
+    .replace(/^reading\s+/i, "")
+    .replace(/^viewing\s+/i, "")
+    .replace(/^looking\s+at\s+/i, "")
     .replace(/\br\/([a-z0-9_]+)/gi, "$1")
     .replace(/\b(u|user)\/([a-z0-9_-]+)/gi, "")
     .replace(/^full timeline hiring process\s*:?\s*/i, "")
@@ -297,6 +304,21 @@ function isLowQualityTopicLabel(label: string, input: ClassifierInput) {
 
   // Reject if the label is just the domain name with a TLD
   if (/^[a-z0-9-]+\.(com|net|org|io|co|edu|gov)$/.test(cleaned)) {
+    return true;
+  }
+
+  // Reject labels that are just a platform name + generic action
+  if (/^(browsing|viewing|checking|visiting|scrolling|using)\s+\w+$/i.test(cleaned)) {
+    return true;
+  }
+
+  // Reject labels that are just a URL path
+  if (/^\/[a-z0-9/_-]+$/i.test(cleaned)) {
+    return true;
+  }
+
+  // Reject labels that start with raw field names from the prompt
+  if (/^(page title|page content|domain|url path|safe metadata)/i.test(cleaned)) {
     return true;
   }
 
@@ -619,7 +641,16 @@ CATEGORY — pick the most specific match:
 - events: concerts, conferences, ticketing
 - technology: only if none of the above fit
 
-NEVER: copy the page title verbatim, use sentence fragments, output person names or usernames, infer health/religion/political/sexuality traits.`,
+NEVER:
+- Copy the page title verbatim
+- Use sentence fragments or first-person ("I'm a...", "My...")
+- Start with verbs like "Browsing", "Watching", "Viewing", "Reading", "Looking at"
+- Output person names, usernames, or URL paths
+- Echo raw field names like "PAGE TITLE:" or "domain:"
+- Use just a single generic word like "ChatGPT", "YouTube", "GitHub"
+- Infer health/religion/political/sexuality traits
+
+The label must be a concise noun phrase describing the TOPIC, not the action. "Hide and Seek Challenge" not "Watching Hide and Seek". "Organic Chemistry Lab" not "Browsing CHEM 3BL page".`,
       messages: [
         {
           role: "user",
