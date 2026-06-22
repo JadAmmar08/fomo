@@ -1,10 +1,29 @@
 export const runtime = "nodejs";
 
 import { getMirror } from "@/lib/store";
+import { hasExistingSession } from "@/lib/session";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
 
 export default async function MirrorPage() {
+  const sessionExists = await hasExistingSession();
+  if (!sessionExists) {
+    return (
+      <div className="stack">
+        <section className="panel" style={{ padding: "48px 36px" }}>
+          <span className="eyebrow">Private Mirror</span>
+          <h1 style={{ maxWidth: 560 }}>Install the extension to see your mirror.</h1>
+          <p style={{ maxWidth: 500, marginBottom: 16 }}>
+            Your mirror builds automatically from your browsing. Install the FOMO extension, browse for a bit, then come back here.
+          </p>
+          <Link href="/download" className="button" style={{ display: "inline-flex" }}>
+            Get the extension
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
   const mirror = await getMirror();
 
   const topInterests = mirror.interests.slice(0, 5);

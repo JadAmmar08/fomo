@@ -20,6 +20,13 @@ export async function getServerAnonymousUserId() {
   return cookieStore.get(SESSION_COOKIE)?.value ?? createAnonymousUserId();
 }
 
+export async function hasExistingSession() {
+  const headerStore = await headers();
+  if (headerStore.get(SESSION_HEADER)) return true;
+  const cookieStore = await cookies();
+  return Boolean(cookieStore.get(SESSION_COOKIE)?.value);
+}
+
 export function getRequestAnonymousUserId(request: NextRequest, fallback?: string) {
   return (
     fallback ||
@@ -33,7 +40,7 @@ export function attachAnonymousCookie(response: NextResponse, anonymousUserId: s
   response.cookies.set(SESSION_COOKIE, anonymousUserId, {
     httpOnly: false,
     sameSite: "lax",
-    secure: false,
+    secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 365
   });

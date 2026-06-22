@@ -63,12 +63,19 @@ function wasRecentlySent(entry) {
   return Date.now() - new Date(entry.sentAt).getTime() < RESEND_COOLDOWN_MS;
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set(DEFAULTS);
+chrome.runtime.onInstalled.addListener(async () => {
+  const store = await chrome.storage.local.get(DEFAULTS);
+  if (!store.anonymousUserId) {
+    await chrome.storage.local.set(DEFAULTS);
+  }
+  const updated = await chrome.storage.local.get(DEFAULTS);
+  await ensureAnonymousUserId(updated);
 });
 
 // Track tab focus changes
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  const store = await chrome.storage.local.get(DEFAULTS);
+  await ensureAnonymousUserId(store);
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (tab?.url && isTrackableUrl(tab.url)) {
     startDwell(tabId, tab.url);
@@ -195,7 +202,7 @@ async function autoTrackUrl(url, title, tabId) {
 
 async function ensureAnonymousUserId(store) {
   if (store.anonymousUserId) {
-    syncCookieToApp(store.anonymousUserId);
+    await syncCookieToApp(store.anonymousUserId);
     return store.anonymousUserId;
   }
   const response = await fetch(`${API_BASE_URL}/api/session`).catch(() => null);
