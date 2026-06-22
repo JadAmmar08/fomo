@@ -22,7 +22,8 @@ export const SENSITIVE_DOMAIN_PATTERNS = [
   "slack.com",
   "discord.com",
   "messages",
-  "outlook.office.com"
+  "outlook.office.com",
+  "instagram.com"
 ];
 
 export const SENSITIVE_PATH_PATTERNS = [

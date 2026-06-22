@@ -227,6 +227,7 @@ export async function getDatabasePulseState(_anonymousUserId: string) {
        where bs.timestamp_bucket >= now() - interval '48 hours'
          and ps.tracking_paused = false
          and bs.broad_category = any(ps.shareable_categories)
+         and bs.normalized_domain not like '%instagram.com%'
        order by bs.timestamp_bucket desc
        limit 2000`
     );

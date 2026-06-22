@@ -104,7 +104,8 @@ const SENSITIVE_PATTERNS = [
   "/inbox",
   "/checkout",
   "/billing",
-  "/payment"
+  "/payment",
+  "instagram.com"
 ];
 
 function normalizeText(value) {
