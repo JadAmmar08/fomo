@@ -6,29 +6,62 @@ function calculateTrendScore(recent: number, previous: number, uniqueUsers: numb
   return recent * 0.4 + growth * 20 + uniqueUsers * 0.5 + recencyBoost * 10;
 }
 
+const JUNK_LABELS = new Set([
+  "feed", "home", "homepage", "overview", "profile", "explore", "discover",
+  "trending", "search", "notifications", "messages", "inbox", "settings",
+  "stories", "reels", "following", "followers", "dashboard", "login",
+  "signup", "sign up", "sign in", "new tab", "untitled page", "page title"
+]);
+
+function isJunkLabel(label: string): boolean {
+  const cleaned = label.trim().toLowerCase();
+  if (!cleaned || cleaned.length < 4) return true;
+  if (JUNK_LABELS.has(cleaned)) return true;
+  if (/^page\s*title/i.test(cleaned)) return true;
+  if (/^(stories|browsing)\s*[•·\-–]\s*/i.test(cleaned) && /instagram|facebook|snapchat|tiktok/i.test(cleaned)) return true;
+  if (/^\/?stories\//i.test(cleaned)) return true;
+  if (/^https?:\/\//i.test(cleaned)) return true;
+  return false;
+}
+
+function normalizeTopicKey(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .replace(/[•·\-–|]/g, " ")
+    .replace(/\b(stories|browsing|on instagram|on facebook|on twitter|on tiktok|on youtube)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[] {
+  const cleaned = signals.filter((s) => !isJunkLabel(s.topicLabel));
+
   const now = Date.now();
-  const past24h = signals.filter((signal) => now - new Date(signal.timestampBucket).getTime() <= 24 * 60 * 60 * 1000);
-  const previous24h = signals.filter((signal) => {
+  const past24h = cleaned.filter((signal) => now - new Date(signal.timestampBucket).getTime() <= 24 * 60 * 60 * 1000);
+  const previous24h = cleaned.filter((signal) => {
     const age = now - new Date(signal.timestampBucket).getTime();
     return age > 24 * 60 * 60 * 1000 && age <= 48 * 60 * 60 * 1000;
   });
 
-  const topicLabels = Array.from(new Set(signals.map((signal) => signal.topicLabel.trim().toLowerCase())));
+  const groups = new Map<string, BrowsingSignal[]>();
+  for (const signal of past24h) {
+    const key = normalizeTopicKey(signal.topicLabel);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(signal);
+  }
 
-  return topicLabels
-    .map((topicKey) => {
-      const recentSignals = past24h.filter(
-        (signal) => signal.topicLabel.trim().toLowerCase() === topicKey
-      );
-      const previousSignals = previous24h.filter(
-        (signal) => signal.topicLabel.trim().toLowerCase() === topicKey
-      );
-      const representative = recentSignals[0] ?? previousSignals[0];
-      if (!representative) {
-        return null;
-      }
+  const previousGroups = new Map<string, BrowsingSignal[]>();
+  for (const signal of previous24h) {
+    const key = normalizeTopicKey(signal.topicLabel);
+    if (!previousGroups.has(key)) previousGroups.set(key, []);
+    previousGroups.get(key)!.push(signal);
+  }
 
+  return Array.from(groups.entries())
+    .map(([key, recentSignals]) => {
+      const previousSignals = previousGroups.get(key) ?? [];
+      const representative = recentSignals[0];
       const topicLabel = representative.topicLabel;
       const recent = recentSignals.length;
       const previous = previousSignals.length;
@@ -50,6 +83,6 @@ export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[
         explanation: `Interest in ${topicLabel} is rising because ${uniqueUsers} anonymous users generated ${recent} matching signals in the last 24 hours, ${previous === 0 ? "from a near-zero baseline" : `up ${Math.round(changePct)}% from the previous period`}.`
       };
     })
-    .filter((trend): trend is CommunityTrend => Boolean(trend && trend.anonymousSignals > 0))
+    .filter((trend) => trend.anonymousSignals > 0)
     .sort((a, b) => b.trendScore - a.trendScore);
 }
