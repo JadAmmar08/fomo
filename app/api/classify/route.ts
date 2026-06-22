@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { classifySignal } from "@/lib/classifier";
-import { isSensitiveMetadata } from "@/lib/privacy";
+import { isSensitiveMetadata, sanitizePath } from "@/lib/privacy";
+import { getCachedClassification, isDatabaseMode } from "@/lib/database-store";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -19,6 +20,11 @@ export async function POST(request: NextRequest) {
   }
 
   const rawTitle = String(body.rawTitle ?? body.pageTitle ?? "Untitled page");
+
+  if (isDatabaseMode()) {
+    const cached = await getCachedClassification(normalizedDomain, sanitizePath(urlPath));
+    if (cached) return NextResponse.json(cached);
+  }
 
   const classification = await classifySignal({
     domain: normalizedDomain,

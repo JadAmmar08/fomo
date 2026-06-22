@@ -18,6 +18,7 @@ import {
   insertDatabaseFeedback,
   insertDatabaseSignal,
   isDatabaseMode,
+  getCachedClassification,
   materializeDatabaseTrends,
   upsertDatabasePrivacySettings
 } from "@/lib/database-store";
@@ -160,26 +161,34 @@ export async function createSignal(input: {
     typeof input.localConfidence === "number" &&
     typeof input.localReasoning === "string";
 
-  const classification = canUsePreclassified
-    ? {
-        category: input.localCategory as Category,
-        topicLabel: input.localTopicLabel!,
-        topicTags: input.localTopicTags!,
-        confidence: input.localConfidence!,
-        reasoning: input.localReasoning!
-      }
-    : await classifySignal({
-        domain: input.normalizedDomain,
-        pageTitle: input.pageTitle,
-        urlPath: input.urlPath,
-        localCategory: input.localCategory,
-        localConfidence: input.localConfidence,
-        localReasoning: input.localReasoning,
-        localTopicLabel: input.localTopicLabel,
-        localTopicTags: input.localTopicTags,
-        pageHints: input.pageHints,
-        pageContent: input.pageContent
-      });
+  let classification;
+  if (canUsePreclassified) {
+    classification = {
+      category: input.localCategory as Category,
+      topicLabel: input.localTopicLabel!,
+      topicTags: input.localTopicTags!,
+      confidence: input.localConfidence!,
+      reasoning: input.localReasoning!
+    };
+  } else {
+    const cached = isDatabaseMode()
+      ? await getCachedClassification(input.normalizedDomain, sanitizePath(input.urlPath))
+      : null;
+    classification = cached
+      ? { ...cached, category: cached.category as Category }
+      : await classifySignal({
+          domain: input.normalizedDomain,
+          pageTitle: input.pageTitle,
+          urlPath: input.urlPath,
+          localCategory: input.localCategory,
+          localConfidence: input.localConfidence,
+          localReasoning: input.localReasoning,
+          localTopicLabel: input.localTopicLabel,
+          localTopicTags: input.localTopicTags,
+          pageHints: input.pageHints,
+          pageContent: input.pageContent
+        });
+  }
 
   const signal: BrowsingSignal = {
     id: id("signal"),

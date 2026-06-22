@@ -24,6 +24,27 @@ function defaultPrivacySettings(anonymousUserId: string): PrivacySettings {
   };
 }
 
+export async function getCachedClassification(domain: string, urlPath: string) {
+  return withClient(async (client) => {
+    const res = await client.query(
+      `select broad_category, topic_label, topic_tags, confidence, reasoning
+       from browsing_signals
+       where normalized_domain = $1 and url_path = $2
+       order by timestamp_bucket desc limit 1`,
+      [domain, urlPath]
+    );
+    if (res.rows.length === 0) return null;
+    const row = res.rows[0];
+    return {
+      category: String(row.broad_category),
+      topicLabel: String(row.topic_label),
+      topicTags: Array.isArray(row.topic_tags) ? row.topic_tags.map(String) : [String(row.topic_label)],
+      confidence: Number(row.confidence),
+      reasoning: String(row.reasoning)
+    };
+  });
+}
+
 function mapUser(row: Record<string, unknown>): FomoUser {
   return {
     id: String(row.id),
@@ -227,7 +248,7 @@ export async function getDatabasePulseState(_anonymousUserId: string) {
        where bs.timestamp_bucket >= now() - interval '48 hours'
          and ps.tracking_paused = false
          and bs.broad_category = any(ps.shareable_categories)
-         and bs.normalized_domain not like '%instagram.com%'
+         and bs.normalized_domain not in ('instagram.com', 'facebook.com', 'twitter.com', 'x.com', 'tiktok.com', 'snapchat.com', 'pinterest.com', 'threads.net', 'docs.google.com', 'drive.google.com', 'calendar.google.com', 'accounts.google.com')
        order by bs.timestamp_bucket desc
        limit 2000`
     );

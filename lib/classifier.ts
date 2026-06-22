@@ -570,7 +570,7 @@ async function classifyWithOptionalAi(
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey });
 
-    const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
+    const model = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
 
     const message = await client.messages.create({
       model,

@@ -23,7 +23,18 @@ export const SENSITIVE_DOMAIN_PATTERNS = [
   "discord.com",
   "messages",
   "outlook.office.com",
-  "instagram.com"
+  "instagram.com",
+  "facebook.com",
+  "twitter.com",
+  "x.com",
+  "tiktok.com",
+  "snapchat.com",
+  "pinterest.com",
+  "threads.net",
+  "docs.google.com",
+  "drive.google.com",
+  "calendar.google.com",
+  "accounts.google.com"
 ];
 
 export const SENSITIVE_PATH_PATTERNS = [
