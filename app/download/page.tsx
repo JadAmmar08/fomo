@@ -97,37 +97,37 @@ export default function DownloadPage() {
         )}
       </section>
 
-      <section className="panel" style={{ padding: "48px 36px" }}>
-        <span className="eyebrow">Install in 60 seconds</span>
-        <h2 style={{ fontSize: "1.5rem", marginTop: 8, marginBottom: 32 }}>Follow these steps</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <section className="panel" style={{ padding: "56px 40px", border: "2px solid var(--accent)", boxShadow: "0 0 60px rgba(58,184,170,0.08)" }}>
+        <span className="eyebrow" style={{ background: "rgba(58,184,170,0.15)", color: "var(--accent)", fontSize: "0.85rem", padding: "6px 14px" }}>Install in 60 seconds</span>
+        <h2 style={{ fontSize: "2rem", marginTop: 12, marginBottom: 40, letterSpacing: "-0.03em" }}>Follow these steps</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           {steps.map((step) => (
             <div key={step.n} style={{
               display: "flex",
-              gap: 20,
+              gap: 24,
               alignItems: "flex-start",
-              padding: 20,
+              padding: 28,
               background: "var(--surface)",
-              borderRadius: 12,
-              border: "1px solid rgba(240,237,232,0.06)"
+              borderRadius: 14,
+              border: "1px solid rgba(240,237,232,0.1)"
             }}>
               <div style={{
-                width: 44,
-                height: 44,
+                width: 56,
+                height: 56,
                 borderRadius: "50%",
                 background: "var(--accent)",
                 color: "var(--bg)",
                 display: "grid",
                 placeItems: "center",
                 fontWeight: 800,
-                fontSize: "1.1rem",
+                fontSize: "1.4rem",
                 flexShrink: 0
               }}>
                 {step.n}
               </div>
               <div>
-                <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem" }}>{step.title}</h3>
-                <p style={{ margin: 0, color: "var(--text)", lineHeight: 1.5 }}>{step.body}</p>
+                <h3 style={{ margin: "0 0 8px", fontSize: "1.3rem" }}>{step.title}</h3>
+                <p style={{ margin: 0, color: "var(--text)", lineHeight: 1.6, fontSize: "1.05rem" }}>{step.body}</p>
               </div>
             </div>
           ))}
