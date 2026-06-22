@@ -242,14 +242,15 @@ export async function getDatabasePulseState(_anonymousUserId: string) {
   return withClient(async (client) => {
     // Pull signals from ALL users who have sharing enabled for each category
     const signalsRes = await client.query(
-      `select bs.*
+      `select distinct on (bs.anonymous_user_id, bs.topic_label)
+         bs.*
        from browsing_signals bs
        join privacy_settings ps on ps.anonymous_user_id = bs.anonymous_user_id
        where bs.timestamp_bucket >= now() - interval '48 hours'
          and ps.tracking_paused = false
          and bs.broad_category = any(ps.shareable_categories)
          and bs.normalized_domain not in ('instagram.com', 'facebook.com', 'twitter.com', 'x.com', 'tiktok.com', 'snapchat.com', 'pinterest.com', 'threads.net', 'docs.google.com', 'drive.google.com', 'calendar.google.com', 'accounts.google.com')
-       order by bs.timestamp_bucket desc
+       order by bs.anonymous_user_id, bs.topic_label, bs.timestamp_bucket desc
        limit 2000`
     );
 
