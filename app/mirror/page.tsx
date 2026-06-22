@@ -5,8 +5,9 @@ import { hasExistingSession } from "@/lib/session";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
 
-export default async function MirrorPage() {
-  const sessionExists = await hasExistingSession();
+export default async function MirrorPage({ searchParams }: { searchParams: Promise<{ uid?: string }> }) {
+  const params = await searchParams;
+  const sessionExists = params.uid || await hasExistingSession();
   if (!sessionExists) {
     return (
       <div className="stack">
@@ -24,7 +25,7 @@ export default async function MirrorPage() {
     );
   }
 
-  const mirror = await getMirror();
+  const mirror = await getMirror(params.uid);
 
   const topInterests = mirror.interests.slice(0, 5);
   const totalSignals = mirror.interests.reduce((sum, i) => sum + i.signalCount, 0);
