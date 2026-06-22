@@ -1,7 +1,7 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = { title: "FOMO - Get the Extension" };
+import Link from "next/link";
+import { useState } from "react";
 
 const steps = [
   {
@@ -26,7 +26,33 @@ const steps = [
   }
 ];
 
+const inputStyle = {
+  padding: "12px 16px",
+  borderRadius: 10,
+  border: "1px solid rgba(240,237,232,0.12)",
+  background: "var(--surface)",
+  color: "var(--text)",
+  fontSize: "0.95rem",
+  outline: "none",
+  width: "100%"
+};
+
 export default function DownloadPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  async function handleDownload() {
+    if (email) {
+      fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name })
+      }).catch(() => {});
+    }
+    setSubmitted(true);
+  }
+
   return (
     <div className="stack">
       <section className="panel" style={{ padding: "48px 36px" }}>
@@ -35,9 +61,40 @@ export default function DownloadPage() {
         <p style={{ maxWidth: 480, marginBottom: 28 }}>
           Takes 2 minutes to install. No account needed.
         </p>
-        <a href="/fomo-extension.zip" download className="button">
-          Download extension
-        </a>
+        {!submitted ? (
+          <div style={{ maxWidth: 360, display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              type="text"
+              placeholder="Your name (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle}
+            />
+            <input
+              type="email"
+              placeholder="Your email (optional)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+            />
+            <a
+              href="/fomo-extension.zip"
+              download
+              className="button"
+              style={{ textAlign: "center", marginTop: 4 }}
+              onClick={handleDownload}
+            >
+              Download extension
+            </a>
+          </div>
+        ) : (
+          <div>
+            <p style={{ color: "var(--accent)", marginBottom: 12 }}>Download started! Follow the steps below.</p>
+            <a href="/fomo-extension.zip" download style={{ color: "var(--accent)", fontSize: "0.9rem" }}>
+              Click here if the download didn&apos;t start
+            </a>
+          </div>
+        )}
       </section>
 
       <section className="panel" style={{ padding: "48px 36px" }}>
