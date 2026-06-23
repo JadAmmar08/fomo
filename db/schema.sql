@@ -87,5 +87,7 @@ create table if not exists waitlist (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   name text,
+  anonymous_user_id text,
   created_at timestamptz not null default now()
 );
+create index if not exists idx_waitlist_anonymous_user_id on waitlist(anonymous_user_id);

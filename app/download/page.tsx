@@ -25,7 +25,7 @@ export default function DownloadPage() {
       fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name })
+        body: JSON.stringify({ email, name, anonymousUserId: document.cookie.match(/fomo_anonymous_id=([^;]+)/)?.[1] })
       }).catch(() => {});
     }
   }

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const { email, name } = await req.json();
+  const { email, name, anonymousUserId } = await req.json();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
@@ -28,8 +28,9 @@ export async function POST(req: NextRequest) {
   if (pool) {
     try {
       await pool.query(
-        `insert into waitlist (email, name) values ($1, $2) on conflict (email) do nothing`,
-        [email.toLowerCase().trim(), name?.trim() ?? null]
+        `insert into waitlist (email, name, anonymous_user_id) values ($1, $2, $3)
+         on conflict (email) do update set anonymous_user_id = coalesce(excluded.anonymous_user_id, waitlist.anonymous_user_id)`,
+        [email.toLowerCase().trim(), name?.trim() ?? null, anonymousUserId?.trim() ?? null]
       );
     } catch {
       // Table may not exist yet — non-fatal
