@@ -32,7 +32,10 @@ function mapSignal(row: Record<string, unknown>): BrowsingSignal {
 const JUNK_WORDS = new Set([
   "login", "sign in", "sign up", "signup", "account", "password", "checkout",
   "settings", "dashboard", "homepage", "home", "profile", "check-in",
-  "submission", "submit", "problem set", "office hours"
+  "submission", "submit", "problem set", "office hours", "microsoft",
+  "google", "chrome", "extension", "developer", "vercel", "deployment",
+  "resend", "email", "domain", "graphing calculator", "calculator",
+  "streaming service", "profile selection", "cookie", "notification"
 ]);
 
 function isJunkTrend(label: string): boolean {
@@ -40,19 +43,33 @@ function isJunkTrend(label: string): boolean {
   return Array.from(JUNK_WORDS).some(w => lower.includes(w));
 }
 
-function topicOverlap(userTopics: string[], trendLabel: string, trendTags: string[]): number {
-  const trendWords = new Set(
-    [...trendLabel.toLowerCase().split(/\s+/), ...trendTags.map(t => t.toLowerCase())]
-      .filter(w => w.length > 3)
-  );
-  let matches = 0;
-  for (const topic of userTopics) {
-    const words = topic.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    for (const word of words) {
-      if (trendWords.has(word)) matches++;
-    }
+async function curateWithHaiku(
+  userTopics: string[],
+  candidates: Array<{ topicLabel: string; category: string; uniqueUsers: number }>
+): Promise<string[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || candidates.length === 0) return candidates.map(c => c.topicLabel);
+
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey });
+
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      system: `You pick which trending topics are genuinely interesting and relevant for a specific person. You are extremely selective — only pick topics that would make this person say "oh that's interesting, I should check that out." Never pick generic, boring, or utility topics (logins, settings, tools, calculators). Return ONLY the topic labels you'd send, one per line. If nothing is good enough, return NONE.`,
+      messages: [{
+        role: "user",
+        content: `This person's top interests based on their browsing:\n${userTopics.slice(0, 10).join("\n")}\n\nCandidate trending topics from their community:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWhich of these candidates would this person actually find interesting? Be very selective. Max 5.`
+      }]
+    });
+
+    const text = message.content[0]?.type === "text" ? message.content[0].text : "";
+    if (text.trim() === "NONE") return [];
+    return text.split("\n").map(l => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
+  } catch {
+    return candidates.slice(0, 3).map(c => c.topicLabel);
   }
-  return matches;
 }
 
 function digestHtml(
@@ -157,26 +174,25 @@ export async function GET(req: NextRequest) {
     const userTopics = userTopicsRes.rows.map((r: Record<string, unknown>) => String(r.topic_label));
     if (userTopics.length === 0) continue;
 
-    // Score each community trend by how relevant it is to this user's actual topics
-    const scored = communityTrends
-      .filter(t => {
-        // Exclude trends this user generated themselves
-        const userSignals = allSignals.filter(s =>
-          s.anonymousUserId === user.anonymous_user_id &&
-          s.topicLabel.toLowerCase() === t.topicLabel.toLowerCase()
-        );
-        return userSignals.length === 0;
-      })
-      .map(t => ({
-        ...t,
-        relevance: topicOverlap(userTopics, t.topicLabel, t.topicTags) + (t.uniqueUsers >= 2 ? 3 : 0) + (t.trendScore > 40 ? 2 : 0)
-      }))
-      .sort((a, b) => b.relevance - a.relevance || b.trendScore - a.trendScore);
+    // Exclude trends this user generated themselves
+    const candidates = communityTrends.filter(t => {
+      const userSignals = allSignals.filter(s =>
+        s.anonymousUserId === user.anonymous_user_id &&
+        s.topicLabel.toLowerCase() === t.topicLabel.toLowerCase()
+      );
+      return userSignals.length === 0;
+    });
 
-    // Only send if we have at least 1 relevant trend (relevance > 0) or a strong community trend
-    const relevant = scored.filter(t => t.relevance > 0).slice(0, 5);
-    const strong = scored.filter(t => t.uniqueUsers >= 2).slice(0, 3);
-    const toSend = relevant.length >= 2 ? relevant : strong.length > 0 ? strong.slice(0, 1) : [];
+    if (candidates.length === 0) continue;
+
+    // Let Haiku pick what's actually interesting for this person
+    const pickedLabels = await curateWithHaiku(userTopics, candidates);
+    if (pickedLabels.length === 0) continue;
+
+    const toSend = pickedLabels
+      .map(label => candidates.find(c => c.topicLabel.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(c.topicLabel.toLowerCase())))
+      .filter((t): t is NonNullable<typeof t> => t != null)
+      .slice(0, 5);
 
     if (toSend.length === 0) continue;
 
