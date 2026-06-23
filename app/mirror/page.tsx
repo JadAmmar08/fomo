@@ -172,6 +172,28 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         </div>
       </section>
 
+      {/* Share */}
+      <section className="panel" style={{ textAlign: "center", padding: "40px 36px" }}>
+        <h2>Know someone who&apos;d find this interesting?</h2>
+        <p style={{ marginBottom: 24, color: "var(--subtle)" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
+        <div className="button-row" style={{ justifyContent: "center" }}>
+          <a
+            href={`sms:&body=Check out FOMO — it shows you what your community is actually paying attention to online. Install it here: https://usefomo.co/download`}
+            className="button"
+          >
+            Text a friend
+          </a>
+          <a
+            href={`https://twitter.com/intent/tweet?text=Just%20started%20using%20FOMO%20%E2%80%94%20it%20shows%20you%20what%20your%20community%20is%20actually%20paying%20attention%20to%20online.%20Try%20it%3A%20https%3A%2F%2Fusefomo.co`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button-secondary"
+          >
+            Share on X
+          </a>
+        </div>
+      </section>
+
     </div>
   );
 }
