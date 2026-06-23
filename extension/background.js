@@ -63,13 +63,17 @@ function wasRecentlySent(entry) {
   return Date.now() - new Date(entry.sentAt).getTime() < RESEND_COOLDOWN_MS;
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   const store = await chrome.storage.local.get(DEFAULTS);
   if (!store.anonymousUserId) {
     await chrome.storage.local.set(DEFAULTS);
   }
   const updated = await chrome.storage.local.get(DEFAULTS);
   await ensureAnonymousUserId(updated);
+
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: `${API_BASE_URL}/mirror` });
+  }
 });
 
 // Track tab focus changes
