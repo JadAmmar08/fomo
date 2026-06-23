@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const rawTitle = String(body.rawTitle ?? body.pageTitle ?? "Untitled page");
 
   if (isDatabaseMode()) {
-    const cached = await getCachedClassification(normalizedDomain, sanitizePath(urlPath));
+    const cached = await getCachedClassification(normalizedDomain, urlPath);
     if (cached) return NextResponse.json(cached);
   }
 

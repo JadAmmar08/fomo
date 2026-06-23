@@ -172,7 +172,7 @@ export async function createSignal(input: {
     };
   } else {
     const cached = isDatabaseMode()
-      ? await getCachedClassification(input.normalizedDomain, sanitizePath(input.urlPath))
+      ? await getCachedClassification(input.normalizedDomain, input.urlPath)
       : null;
     classification = cached
       ? { ...cached, category: cached.category as Category }
