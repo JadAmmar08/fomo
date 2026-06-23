@@ -29,51 +29,58 @@ function mapSignal(row: Record<string, unknown>): BrowsingSignal {
   };
 }
 
+const JUNK_WORDS = new Set([
+  "login", "sign in", "sign up", "signup", "account", "password", "checkout",
+  "settings", "dashboard", "homepage", "home", "profile", "check-in",
+  "submission", "submit", "problem set", "office hours"
+]);
+
+function isJunkTrend(label: string): boolean {
+  const lower = label.toLowerCase();
+  return Array.from(JUNK_WORDS).some(w => lower.includes(w));
+}
+
+function topicOverlap(userTopics: string[], trendLabel: string, trendTags: string[]): number {
+  const trendWords = new Set(
+    [...trendLabel.toLowerCase().split(/\s+/), ...trendTags.map(t => t.toLowerCase())]
+      .filter(w => w.length > 3)
+  );
+  let matches = 0;
+  for (const topic of userTopics) {
+    const words = topic.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    for (const word of words) {
+      if (trendWords.has(word)) matches++;
+    }
+  }
+  return matches;
+}
+
 function digestHtml(
   recipientName: string,
-  relevantTrends: Array<{ topicLabel: string; category: string; uniqueUsers: number }>,
-  communityTrends: Array<{ topicLabel: string; category: string; uniqueUsers: number }>
+  trends: Array<{ topicLabel: string; category: string; uniqueUsers: number }>
 ) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
   const greeting = recipientName ? `Hey ${recipientName.split(" ")[0]}` : "Hey";
 
-  const trendRow = (t: { topicLabel: string; category: string; uniqueUsers: number }) => `
-    <div style="padding:14px 16px;border-radius:10px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);margin-bottom:8px;">
+  const trendRows = trends.map(t => `
+    <div style="padding:16px 18px;border-radius:10px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong style="color:#f0ede8;font-size:0.95rem;">${t.topicLabel}</strong>
-        <span style="color:#3ab8aa;font-size:0.8rem;flex-shrink:0;margin-left:12px;">${t.uniqueUsers} ${t.uniqueUsers === 1 ? "person" : "people"}</span>
+        <strong style="color:#f0ede8;font-size:1rem;">${t.topicLabel}</strong>
+        <span style="color:#3ab8aa;font-size:0.85rem;flex-shrink:0;margin-left:12px;">${t.uniqueUsers} ${t.uniqueUsers === 1 ? "person" : "people"}</span>
       </div>
-      <span style="color:rgba(240,237,232,0.35);font-size:0.75rem;">${t.category}</span>
+      <span style="color:rgba(240,237,232,0.35);font-size:0.78rem;">${t.category}</span>
     </div>
-  `;
-
-  const forYouSection = relevantTrends.length > 0 ? `
-    <p style="color:#3ab8aa;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">Based on your interests</p>
-    <p style="color:rgba(240,237,232,0.5);font-size:0.9rem;margin:0 0 16px;line-height:1.5;">
-      People with similar attention patterns to yours were into these topics:
-    </p>
-    ${relevantTrends.slice(0, 5).map(trendRow).join("")}
-  ` : "";
-
-  const communitySection = communityTrends.length > 0 ? `
-    <p style="color:rgba(240,237,232,0.45);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px;">Trending across the community</p>
-    ${communityTrends.slice(0, 3).map(trendRow).join("")}
-  ` : "";
+  `).join("");
 
   return `
     <div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0d0d0f;color:#f0ede8;">
       <div style="width:20px;height:20px;border-radius:50%;border:3px solid #3ab8aa;margin-bottom:28px;"></div>
       <h1 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 8px;">Your attention briefing</h1>
-      <p style="color:rgba(240,237,232,0.5);margin:0 0 28px;line-height:1.6;">
-        ${greeting}, here's what people like you were paying attention to.
+      <p style="color:rgba(240,237,232,0.5);margin:0 0 6px;line-height:1.6;">
+        ${greeting}, people in your community were paying attention to this:
       </p>
-      ${forYouSection}
-      ${communitySection}
-      ${relevantTrends.length === 0 && communityTrends.length === 0 ? `
-        <div style="padding:24px;border-radius:12px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);text-align:center;">
-          <p style="color:rgba(240,237,232,0.45);margin:0;">Not enough signal yet. Keep browsing with the extension active.</p>
-        </div>
-      ` : ""}
+      <p style="color:rgba(240,237,232,0.35);font-size:0.85rem;margin:0 0 24px;">Based on your mirror profile</p>
+      ${trendRows}
       <div style="margin-top:28px;">
         <a href="${appUrl}/pulse" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-right:8px;">
           See full pulse
@@ -92,7 +99,6 @@ function digestHtml(
 }
 
 export async function GET(req: NextRequest) {
-  // Vercel cron auth
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -108,7 +114,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Database not configured" }, { status: 500 });
   }
 
-  // Get users with email + anonymous_user_id who have enough signals for a mirror
   const usersRes = await pool.query(`
     select w.email, w.name, w.anonymous_user_id
     from waitlist w
@@ -122,7 +127,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0, message: "No eligible users" });
   }
 
-  // Get community signals from last 48h
   const allSignalsRes = await pool.query(`
     select distinct on (bs.anonymous_user_id, bs.topic_label) bs.*
     from browsing_signals bs
@@ -136,33 +140,51 @@ export async function GET(req: NextRequest) {
   `).catch(() => ({ rows: [] }));
 
   const allSignals = allSignalsRes.rows.map(mapSignal);
-  const communityTrends = buildCommunityTrends(allSignals);
+  const communityTrends = buildCommunityTrends(allSignals)
+    .filter(t => !isJunkTrend(t.topicLabel));
 
   let sent = 0;
 
   for (const user of users) {
-    const userCatsRes = await pool.query(
-      `select broad_category, count(*) as cnt
-       from browsing_signals
-       where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '7 days'
-       group by broad_category order by cnt desc limit 5`,
+    // Get this user's actual topic labels — their real interests, not broad categories
+    const userTopicsRes = await pool.query(
+      `select topic_label from browsing_signals
+       where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '14 days'
+       group by topic_label order by count(*) desc limit 20`,
       [user.anonymous_user_id]
     ).catch(() => ({ rows: [] }));
 
-    const userCategories = userCatsRes.rows.map((r: Record<string, unknown>) => String(r.broad_category));
-    if (userCategories.length === 0) continue;
+    const userTopics = userTopicsRes.rows.map((r: Record<string, unknown>) => String(r.topic_label));
+    if (userTopics.length === 0) continue;
 
-    const relevantTrends = communityTrends.filter(t => userCategories.includes(t.category));
-    const discoveryTrends = communityTrends.filter(t => !userCategories.includes(t.category));
+    // Score each community trend by how relevant it is to this user's actual topics
+    const scored = communityTrends
+      .filter(t => {
+        // Exclude trends this user generated themselves
+        const userSignals = allSignals.filter(s =>
+          s.anonymousUserId === user.anonymous_user_id &&
+          s.topicLabel.toLowerCase() === t.topicLabel.toLowerCase()
+        );
+        return userSignals.length === 0;
+      })
+      .map(t => ({
+        ...t,
+        relevance: topicOverlap(userTopics, t.topicLabel, t.topicTags) + (t.uniqueUsers >= 2 ? 3 : 0) + (t.trendScore > 40 ? 2 : 0)
+      }))
+      .sort((a, b) => b.relevance - a.relevance || b.trendScore - a.trendScore);
 
-    // Skip if nothing interesting to send
-    if (relevantTrends.length === 0 && discoveryTrends.length === 0) continue;
+    // Only send if we have at least 1 relevant trend (relevance > 0) or a strong community trend
+    const relevant = scored.filter(t => t.relevance > 0).slice(0, 5);
+    const strong = scored.filter(t => t.uniqueUsers >= 2).slice(0, 3);
+    const toSend = relevant.length >= 2 ? relevant : strong.length > 0 ? strong.slice(0, 1) : [];
+
+    if (toSend.length === 0) continue;
 
     const result = await resendClient.emails.send({
       from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
       to: user.email,
-      subject: `${relevantTrends[0]?.topicLabel ?? "What your community noticed"} — and ${communityTrends.length - 1} more`,
-      html: digestHtml(user.name ?? "", relevantTrends, discoveryTrends)
+      subject: `${toSend[0].topicLabel} is trending in your community`,
+      html: digestHtml(user.name ?? "", toSend)
     });
 
     if (!result.error) sent++;
