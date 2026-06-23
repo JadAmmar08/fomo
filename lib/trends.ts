@@ -15,17 +15,34 @@ const JUNK_LABELS = new Set([
 ]);
 
 const JUNK_PATTERNS = [
-  "login", "sign in", "sign up", "account", "password", "checkout",
+  "login", "sign in", "sign up", "sign-in", "account", "password", "checkout",
   "cookie", "notification", "verification", "verify", "confirm",
   "streaming service", "profile selection", "graphing calculator",
   "office hours", "check-in", "check in", "submission", "submit",
-  "problem set", "grading", "gradebook",
+  "problem set", "grading", "gradebook", "prelab", "pre-lab",
+  "course roster", "course files", "course introduction", "course catalog",
+  "discussion board", "discussion", "syllabus", "assignments",
   "microsoft", "google docs", "google drive", "google calendar",
+  "google redirect", "google gemini", "m365 copilot",
   "deployment", "deploy", "vercel", "resend", "supabase",
   "developer console", "developer account", "chrome web store",
   "extension", "plugin", "add-on",
   "online store", "shopping cart", "order confirmation",
-  "unsubscribe", "email preferences", "privacy policy", "terms of service"
+  "unsubscribe", "email preferences", "privacy policy", "terms of service",
+  "linkedin profile", "linkedin feed", "linkedin people search",
+  "on linkedin", "profile on linkedin", "'s profile",
+  "linkedin learning", "adding education to linkedin",
+  "building", "network on linkedin",
+  "calendly", "scheduling a meeting", "booking a meeting",
+  "amazon sign", "amazon checkout",
+  "peacock streaming", "peacock home",
+  "google redirect",
+  "shampoo", "conditioner", "cleanser", "twin pack",
+  "applicant portal", "admission status", "admission portal",
+  "student portal", "undergraduate application",
+  "shopping on", "end of season sale",
+  "hotel search", "hotel deals", "travel booking", "flight deals",
+  "wikipedia"
 ];
 
 function isJunkLabel(label: string): boolean {
@@ -40,6 +57,10 @@ function isJunkLabel(label: string): boolean {
   if (/\bfomo\b/i.test(cleaned)) return true;
   if (/^i'm\s+a\b/i.test(cleaned)) return true;
   if (/^browsing\s+(github|linkedin|twitter|reddit|youtube|facebook)/i.test(cleaned)) return true;
+  // Person name patterns — "Name's Profile", "Name on LinkedIn", "CEO of X"
+  if (/^[A-Z][a-z]+ [A-Z][a-z]+('s| on )/i.test(label.trim())) return true;
+  if (/^(ceo|cfo|cto|coo|founder|director|vp|president)\s+(of|and|profile)/i.test(cleaned)) return true;
+  if (/\bprofile\b/i.test(cleaned) && /\blinkedin\b/i.test(cleaned)) return true;
   return false;
 }
 

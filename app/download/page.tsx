@@ -41,28 +41,31 @@ export default function DownloadPage() {
         <div style={{ maxWidth: 360, display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="text"
-            placeholder="Your name (optional)"
+            placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={inputStyle}
           />
           <input
             type="email"
-            placeholder="Your email (optional)"
+            placeholder="Your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={inputStyle}
           />
           {CHROME_STORE_URL ? (
             <a
-              href={CHROME_STORE_URL}
-              target="_blank"
+              href={!name || !email ? "#" : CHROME_STORE_URL}
+              target={!name || !email ? undefined : "_blank"}
               rel="noopener noreferrer"
               className="button"
-              style={{ textAlign: "center", marginTop: 4, fontSize: "1.05rem", padding: "14px 24px" }}
-              onClick={handleInstall}
+              style={{ textAlign: "center", marginTop: 4, fontSize: "1.05rem", padding: "14px 24px", opacity: !name || !email ? 0.5 : 1 }}
+              onClick={(e) => {
+                if (!name || !email) { e.preventDefault(); return; }
+                handleInstall();
+              }}
             >
-              Add to Chrome — it&apos;s free
+              {!name || !email ? "Enter your name and email first" : "Add to Chrome — it's free"}
             </a>
           ) : (
             <a
