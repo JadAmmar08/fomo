@@ -37,7 +37,7 @@ export async function inferCommunities(interests: UserInterest[]): Promise<Infer
       }));
 
     const message = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8",
+      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       tools: [
         {
