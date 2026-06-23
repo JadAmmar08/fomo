@@ -322,6 +322,21 @@ function isLowQualityTopicLabel(label: string, input: ClassifierInput) {
     return true;
   }
 
+  // Reject utility/admin labels that aren't interesting to anyone
+  const boringPatterns = [
+    "login", "sign in", "sign up", "account", "password", "checkout",
+    "cookie", "verification", "verify", "confirm email",
+    "streaming service", "profile selection", "graphing calculator",
+    "office hours", "check-in", "submission", "problem set",
+    "developer console", "developer account", "chrome web store",
+    "shopping cart", "order confirmation", "unsubscribe",
+    "email preferences", "privacy policy", "terms of service",
+    "deployment", "vercel", "supabase", "resend"
+  ];
+  if (boringPatterns.some(p => cleaned.includes(p))) {
+    return true;
+  }
+
   return false;
 }
 

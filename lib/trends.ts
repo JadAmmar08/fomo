@@ -14,10 +14,25 @@ const JUNK_LABELS = new Set([
   "chatgpt", "chat gpt", "claude", "gemini"
 ]);
 
+const JUNK_PATTERNS = [
+  "login", "sign in", "sign up", "account", "password", "checkout",
+  "cookie", "notification", "verification", "verify", "confirm",
+  "streaming service", "profile selection", "graphing calculator",
+  "office hours", "check-in", "check in", "submission", "submit",
+  "problem set", "grading", "gradebook",
+  "microsoft", "google docs", "google drive", "google calendar",
+  "deployment", "deploy", "vercel", "resend", "supabase",
+  "developer console", "developer account", "chrome web store",
+  "extension", "plugin", "add-on",
+  "online store", "shopping cart", "order confirmation",
+  "unsubscribe", "email preferences", "privacy policy", "terms of service"
+];
+
 function isJunkLabel(label: string): boolean {
   const cleaned = label.trim().toLowerCase();
   if (!cleaned || cleaned.length < 4) return true;
   if (JUNK_LABELS.has(cleaned)) return true;
+  if (JUNK_PATTERNS.some(p => cleaned.includes(p))) return true;
   if (/^page\s*title/i.test(cleaned)) return true;
   if (/^(stories|browsing)\s*[•·\-–]\s*/i.test(cleaned) && /instagram|facebook|snapchat|tiktok/i.test(cleaned)) return true;
   if (/^\/?stories\//i.test(cleaned)) return true;
