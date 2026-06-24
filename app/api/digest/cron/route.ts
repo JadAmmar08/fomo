@@ -43,12 +43,13 @@ function isJunkTrend(label: string): boolean {
   return Array.from(JUNK_WORDS).some(w => lower.includes(w));
 }
 
-async function curateWithHaiku(
+async function writeBriefingWithHaiku(
+  userName: string,
   userTopics: string[],
   candidates: Array<{ topicLabel: string; category: string; uniqueUsers: number }>
-): Promise<string[]> {
+): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || candidates.length === 0) return candidates.map(c => c.topicLabel);
+  if (!apiKey || candidates.length === 0) return null;
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -56,48 +57,54 @@ async function curateWithHaiku(
 
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 256,
-      system: `You pick which trending topics are genuinely interesting and relevant for a specific person. You are extremely selective — only pick topics that would make this person say "oh that's interesting, I should check that out." Never pick generic, boring, or utility topics (logins, settings, tools, calculators). Return ONLY the topic labels you'd send, one per line. If nothing is good enough, return NONE.`,
+      max_tokens: 512,
+      system: `You write a short, personalized attention briefing email for a specific person. You see their interests and what's trending in their community.
+
+RULES:
+- Write 2-4 short bullet points, each one a conversational insight like: "3 people in your community were deep in organic chemistry research yesterday" or "Someone's been exploring YC startup roles — you might want to check that out"
+- Group similar topics into one bullet — don't list "CHEM 3BL" and "Organic Chemistry Lab" separately
+- Use the actual numbers (how many people) to make it feel real
+- Be casual and direct, like a smart friend texting you
+- Skip anything boring, generic, or utility-related (logins, tools, settings)
+- If nothing is genuinely interesting, respond with exactly: SKIP
+- Do NOT use markdown. Just plain text with line breaks between bullets.
+- Start each bullet with a dash (-)`,
       messages: [{
         role: "user",
-        content: `This person's top interests based on their browsing:\n${userTopics.slice(0, 10).join("\n")}\n\nCandidate trending topics from their community:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWhich of these candidates would this person actually find interesting? Be very selective. Max 5.`
+        content: `Person: ${userName || "this user"}\nTheir top interests:\n${userTopics.slice(0, 10).join("\n")}\n\nTrending in their community right now:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite their briefing.`
       }]
     });
 
-    const text = message.content[0]?.type === "text" ? message.content[0].text : "";
-    if (text.trim() === "NONE") return [];
-    return text.split("\n").map(l => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
+    const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
+    if (text === "SKIP" || !text) return null;
+    return text;
   } catch {
-    return candidates.slice(0, 3).map(c => c.topicLabel);
+    return null;
   }
 }
 
-function digestHtml(
-  recipientName: string,
-  trends: Array<{ topicLabel: string; category: string; uniqueUsers: number }>
-) {
+function digestHtml(recipientName: string, briefing: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
   const greeting = recipientName ? `Hey ${recipientName.split(" ")[0]}` : "Hey";
 
-  const trendRows = trends.map(t => `
-    <div style="padding:16px 18px;border-radius:10px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong style="color:#f0ede8;font-size:1rem;">${t.topicLabel}</strong>
-        <span style="color:#3ab8aa;font-size:0.85rem;flex-shrink:0;margin-left:12px;">${t.uniqueUsers} ${t.uniqueUsers === 1 ? "person" : "people"}</span>
+  const bulletHtml = briefing
+    .split("\n")
+    .map(line => line.replace(/^[-•*]\s*/, "").trim())
+    .filter(Boolean)
+    .map(line => `
+      <div style="padding:16px 18px;border-radius:10px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);margin-bottom:10px;">
+        <p style="color:#f0ede8;font-size:0.95rem;line-height:1.5;margin:0;">${line}</p>
       </div>
-      <span style="color:rgba(240,237,232,0.35);font-size:0.78rem;">${t.category}</span>
-    </div>
-  `).join("");
+    `).join("");
 
   return `
     <div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0d0d0f;color:#f0ede8;">
       <div style="width:20px;height:20px;border-radius:50%;border:3px solid #3ab8aa;margin-bottom:28px;"></div>
       <h1 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 8px;">Your attention briefing</h1>
-      <p style="color:rgba(240,237,232,0.5);margin:0 0 6px;line-height:1.6;">
-        ${greeting}, people in your community were paying attention to this:
+      <p style="color:rgba(240,237,232,0.5);margin:0 0 24px;line-height:1.6;">
+        ${greeting}, here's what's happening in your community:
       </p>
-      <p style="color:rgba(240,237,232,0.35);font-size:0.85rem;margin:0 0 24px;">Based on your mirror profile</p>
-      ${trendRows}
+      ${bulletHtml}
       <div style="margin-top:28px;">
         <a href="${appUrl}/pulse" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-right:8px;">
           See full pulse
@@ -185,22 +192,18 @@ export async function GET(req: NextRequest) {
 
     if (candidates.length === 0) continue;
 
-    // Let Haiku pick what's actually interesting for this person
-    const pickedLabels = await curateWithHaiku(userTopics, candidates);
-    if (pickedLabels.length === 0) continue;
+    // Let Haiku write a personalized briefing
+    const briefing = await writeBriefingWithHaiku(user.name ?? "", userTopics, candidates);
+    if (!briefing) continue;
 
-    const toSend = pickedLabels
-      .map(label => candidates.find(c => c.topicLabel.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(c.topicLabel.toLowerCase())))
-      .filter((t): t is NonNullable<typeof t> => t != null)
-      .slice(0, 5);
-
-    if (toSend.length === 0) continue;
+    const firstLine = briefing.split("\n").find(l => l.replace(/^[-•*]\s*/, "").trim())?.replace(/^[-•*]\s*/, "").trim() ?? "Your community is active";
+    const subject = firstLine.length > 60 ? firstLine.slice(0, 57) + "..." : firstLine;
 
     const result = await resendClient.emails.send({
       from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
       to: user.email,
-      subject: `${toSend[0].topicLabel} is trending in your community`,
-      html: digestHtml(user.name ?? "", toSend)
+      subject,
+      html: digestHtml(user.name ?? "", briefing)
     });
 
     if (!result.error) sent++;
