@@ -58,17 +58,16 @@ async function writeBriefingWithHaiku(
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
-      system: `You write a short, personalized attention briefing email for a specific person. You see their interests and what's trending in their community.
+      system: `You write a short personalized message to someone about what's happening in their community. You sound like a friend who noticed something interesting, not a newsletter.
 
 RULES:
-- Write 2-4 short bullet points, each one a conversational insight like: "3 people in your community were deep in organic chemistry research yesterday" or "Someone's been exploring YC startup roles — you might want to check that out"
-- Group similar topics into one bullet — don't list "CHEM 3BL" and "Organic Chemistry Lab" separately
-- Use the actual numbers (how many people) to make it feel real
-- Be casual and direct, like a smart friend texting you
-- Skip anything boring, generic, or utility-related (logins, tools, settings)
-- If nothing is genuinely interesting, respond with exactly: SKIP
-- Do NOT use markdown. Just plain text with line breaks between bullets.
-- Start each bullet with a dash (-)`,
+- Write 2-3 sentences max. Natural, casual, like a text from a friend.
+- Summarize what's interesting — don't just repeat signal names. "A few people are diving into biotech research" not "Palisade Bio: Precision Therapies for Inflammatory Disease"
+- Connect it to why THEY would care based on their interests
+- Mention specific numbers only if they're impressive (not "1 person")
+- Never mention categories, labels, or technical terms like "signals" or "pulse"
+- If nothing is genuinely worth mentioning, respond with exactly: SKIP
+- No bullet points, no dashes, no lists. Just a short natural paragraph.`,
       messages: [{
         role: "user",
         content: `Person: ${userName || "this user"}\nTheir top interests:\n${userTopics.slice(0, 10).join("\n")}\n\nTrending in their community right now:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite their briefing.`
@@ -85,37 +84,20 @@ RULES:
 
 function digestHtml(recipientName: string, briefing: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
-  const greeting = recipientName ? `Hey ${recipientName.split(" ")[0]}` : "Hey";
-
-  const bulletHtml = briefing
-    .split("\n")
-    .map(line => line.replace(/^[-•*]\s*/, "").trim())
-    .filter(Boolean)
-    .map(line => `
-      <div style="padding:16px 18px;border-radius:10px;background:#1e1e21;border:1px solid rgba(255,255,255,0.07);margin-bottom:10px;">
-        <p style="color:#f0ede8;font-size:0.95rem;line-height:1.5;margin:0;">${line}</p>
-      </div>
-    `).join("");
+  const firstName = recipientName ? recipientName.split(" ")[0] : "";
 
   return `
     <div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0d0d0f;color:#f0ede8;">
       <div style="width:20px;height:20px;border-radius:50%;border:3px solid #3ab8aa;margin-bottom:28px;"></div>
-      <h1 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;margin:0 0 8px;">Your attention briefing</h1>
-      <p style="color:rgba(240,237,232,0.5);margin:0 0 24px;line-height:1.6;">
-        ${greeting}, here's what's happening in your community:
+      <p style="color:#f0ede8;font-size:1.05rem;line-height:1.7;margin:0 0 28px;">
+        ${firstName ? `Hey ${firstName}, ` : ""}${briefing}
       </p>
-      ${bulletHtml}
-      <div style="margin-top:28px;">
-        <a href="${appUrl}/pulse" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-right:8px;">
-          See full pulse
-        </a>
-        <a href="${appUrl}/mirror" style="display:inline-block;padding:12px 20px;background:transparent;color:#3ab8aa;border:1px solid #3ab8aa;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;">
-          Your mirror
-        </a>
-      </div>
+      <a href="${appUrl}/pulse" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;">
+        See what else is trending
+      </a>
       <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07);">
         <p style="color:rgba(240,237,232,0.25);font-size:0.75rem;margin:0;">
-          FOMO · Your attention briefing · <a href="${appUrl}/privacy" style="color:rgba(240,237,232,0.35);">Privacy</a>
+          FOMO · <a href="${appUrl}/mirror" style="color:rgba(240,237,232,0.35);">Your mirror</a> · <a href="${appUrl}/privacy" style="color:rgba(240,237,232,0.35);">Privacy</a>
         </p>
       </div>
     </div>
@@ -196,8 +178,8 @@ export async function GET(req: NextRequest) {
     const briefing = await writeBriefingWithHaiku(user.name ?? "", userTopics, candidates);
     if (!briefing) continue;
 
-    const firstLine = briefing.split("\n").find(l => l.replace(/^[-•*]\s*/, "").trim())?.replace(/^[-•*]\s*/, "").trim() ?? "Your community is active";
-    const subject = firstLine.length > 60 ? firstLine.slice(0, 57) + "..." : firstLine;
+    const subjectText = briefing.slice(0, 80).replace(/["\n]/g, "").trim();
+    const subject = subjectText.length > 60 ? subjectText.slice(0, 57) + "..." : subjectText;
 
     const result = await resendClient.emails.send({
       from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
