@@ -64,10 +64,10 @@ RULES:
 - Write 2-3 sentences max. Natural, casual, like a text from a friend.
 - Summarize what's interesting — don't just repeat signal names. "A few people are diving into biotech research" not "Palisade Bio: Precision Therapies for Inflammatory Disease"
 - Connect it to why THEY would care based on their interests
-- Mention specific numbers only if they're impressive (not "1 person")
+- Make even small trends sound intriguing — "someone in your community is researching X, thought you'd want to know"
 - Never mention categories, labels, or technical terms like "signals" or "pulse"
-- If nothing is genuinely worth mentioning, respond with exactly: SKIP
-- No bullet points, no dashes, no lists. Just a short natural paragraph.`,
+- No bullet points, no dashes, no lists. Just a short natural paragraph.
+- Always write something. Find the most interesting angle even if the data is thin.`,
       messages: [{
         role: "user",
         content: `Person: ${userName || "this user"}\nTheir top interests:\n${userTopics.slice(0, 10).join("\n")}\n\nTrending in their community right now:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite their briefing.`
@@ -75,7 +75,7 @@ RULES:
     });
 
     const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
-    if (text === "SKIP" || !text) return null;
+    if (!text) return null;
     return text;
   } catch {
     return null;
