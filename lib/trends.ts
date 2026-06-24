@@ -57,20 +57,27 @@ function isJunkLabel(label: string): boolean {
 }
 
 function normalizeTopicKey(label: string): string {
-  return label
+  let key = label
     .trim()
     .toLowerCase()
-    .replace(/[•·\-–|:.]/g, " ")
-    .replace(/\b(stories|browsing|on instagram|on facebook|on twitter|on tiktok|on youtube)\b/g, " ")
-    .replace(/\b(explained|overview|introduction|intro|guide|tutorial|review|extended|full|complete|managing|understanding|pathways?|basics?|syllabus|submission|dashboard|directory|faculty|staff|setting up|verifying|publishing|console|account|department)\b/g, " ")
-    .replace(/\b(the|a|an|and|or|of|in|on|at|to|for|with|vs|how|what|why)\b/g, " ")
+    .replace(/[•·\-–|:.()\/,'"?!]/g, " ")
+    .replace(/\bon youtube\b/g, " ")
+    .replace(/\bon tiktok\b/g, " ")
+    .replace(/\b(summer|fall|spring|winter)\s*\d{4}\b/g, " ")
+    .replace(/\b(20\d{2})\b/g, " ")
+    .replace(/\b(course|schedule|planner|catalog|materials?|section|lecture|slides?|announcements?|enrollment|session|highlights?|gameplay|quiz(?:zes)?|weekly|midterm|assignments?|syllabus|submission|dashboard|roster)\b/g, " ")
+    .replace(/\b(uc berkeley|berkeley|ucla|usc|tulane|stanford)\b/g, "campus")
+    .replace(/\b(the|a|an|and|or|of|in|on|at|to|for|with|vs|how|what|why|is|are|was|were|new|your|use|own|can|get|out|no)\b/g, " ")
+    .replace(/\b(platform|tool|service|system|information|data|analytics|database)\b/g, " ")
+    .replace(/\b(finding|using|becoming?|earning?|getting|escaping|browsing|managing)\b/g, " ")
     .replace(/\b(\w{4,})s\b/g, "$1")
-    .replace(/[&]/g, " ")
+    .replace(/[&$]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .sort()
-    .join(" ");
+    .trim();
+
+  // Extract the core subject — first 2 meaningful words
+  const words = key.split(" ").filter(w => w.length > 2);
+  return words.slice(0, 2).sort().join(" ");
 }
 
 export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[] {
