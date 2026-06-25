@@ -24,6 +24,12 @@ export const SENSITIVE_DOMAIN_PATTERNS = [
   "messages",
   "outlook.office.com",
   "instagram.com",
+  "linkedin.com",
+  "desmos.com",
+  "rocketreach.com",
+  "costar.com",
+  "peacocktv.com",
+  "fakeyourdrank",
   "facebook.com",
   "twitter.com",
   "x.com",
@@ -49,7 +55,11 @@ export const SENSITIVE_PATH_PATTERNS = [
   "/payment",
   "/patient",
   "/portal",
-  "/shorts"
+  "/shorts",
+  "/search/results",
+  "/oauth",
+  "/auth",
+  "/sso"
 ];
 
 export function isSensitiveDomain(domain: string) {

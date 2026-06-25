@@ -324,14 +324,24 @@ function isLowQualityTopicLabel(label: string, input: ClassifierInput) {
 
   // Reject utility/admin labels that aren't interesting to anyone
   const boringPatterns = [
-    "login", "sign in", "sign up", "account", "password", "checkout",
-    "cookie", "verification", "verify", "confirm email",
-    "streaming service", "profile selection", "graphing calculator",
-    "office hours", "check-in", "submission", "problem set",
+    "login", "sign in", "sign up", "sign-in", "oauth", "account",
+    "password", "checkout", "cookie", "verification", "verify",
+    "confirm email", "streaming service", "profile selection",
+    "graphing calculator", "calculator", "office hours", "check-in",
+    "check in", "submission", "problem set", "prelab", "pre-lab",
     "developer console", "developer account", "chrome web store",
     "shopping cart", "order confirmation", "unsubscribe",
     "email preferences", "privacy policy", "terms of service",
-    "deployment", "vercel", "supabase", "resend"
+    "deployment", "vercel", "supabase", "resend",
+    "linkedin profile", "linkedin people", "people search",
+    "contact info", "professional profile", "profile on linkedin",
+    "'s profile", "demo request", "oauth login",
+    "sandals", "heels", "bodycon", "thong", "sequin",
+    "shampoo", "conditioner", "cleanser", "twin pack",
+    "fakeyourdrank", "fake id",
+    "streaming home", "peacock", "desmos",
+    "supabase studio", "chrome extension",
+    "cashnet", "student payment"
   ];
   if (boringPatterns.some(p => cleaned.includes(p))) {
     return true;
