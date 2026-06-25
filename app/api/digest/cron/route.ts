@@ -82,9 +82,11 @@ RULES:
   }
 }
 
-function digestHtml(recipientName: string, briefing: string) {
+function digestHtml(recipientName: string, briefing: string, anonymousUserId: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
   const firstName = recipientName ? recipientName.split(" ")[0] : "";
+  const pulseLink = `${appUrl}/api/digest/click?to=pulse&uid=${anonymousUserId}`;
+  const mirrorLink = `${appUrl}/api/digest/click?to=mirror&uid=${anonymousUserId}`;
 
   return `
     <div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0d0d0f;color:#f0ede8;">
@@ -92,12 +94,12 @@ function digestHtml(recipientName: string, briefing: string) {
       <p style="color:#f0ede8;font-size:1.05rem;line-height:1.7;margin:0 0 28px;">
         ${firstName ? `Hey ${firstName}, ` : ""}${briefing}
       </p>
-      <a href="${appUrl}/pulse" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;">
+      <a href="${pulseLink}" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;">
         See what else is trending
       </a>
       <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07);">
         <p style="color:rgba(240,237,232,0.25);font-size:0.75rem;margin:0;">
-          FOMO · <a href="${appUrl}/mirror" style="color:rgba(240,237,232,0.35);">Your mirror</a> · <a href="${appUrl}/privacy" style="color:rgba(240,237,232,0.35);">Privacy</a>
+          FOMO · <a href="${mirrorLink}" style="color:rgba(240,237,232,0.35);">Your mirror</a> · <a href="${appUrl}/privacy" style="color:rgba(240,237,232,0.35);">Privacy</a>
         </p>
       </div>
     </div>
@@ -185,7 +187,7 @@ export async function GET(req: NextRequest) {
       from: `FOMO <${process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev"}>`,
       to: user.email,
       subject,
-      html: digestHtml(user.name ?? "", briefing)
+      html: digestHtml(user.name ?? "", briefing, user.anonymous_user_id)
     });
 
     if (!result.error) sent++;

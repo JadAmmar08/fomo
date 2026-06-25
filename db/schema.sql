@@ -91,3 +91,10 @@ create table if not exists waitlist (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_waitlist_anonymous_user_id on waitlist(anonymous_user_id);
+
+create table if not exists digest_clicks (
+  id uuid primary key default gen_random_uuid(),
+  anonymous_user_id text not null,
+  destination text not null,
+  clicked_at timestamptz not null default now()
+);
