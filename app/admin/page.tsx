@@ -18,6 +18,9 @@ async function getStats() {
     let waitlistCount = 0;
     let waitlistToday = 0;
     let recentWaitlist: Array<{ email: string; name: string | null; created_at: string }> = [];
+    let digestClicks = 0;
+    let digestClicks24h = 0;
+    let recentClicks: Array<{ anonymous_user_id: string; destination: string; clicked_at: string }> = [];
     try {
       const [wRes, wTodayRes, wRecentRes] = await Promise.all([
         client.query(`SELECT COUNT(*) FROM waitlist`),
@@ -28,6 +31,16 @@ async function getStats() {
       waitlistToday = parseInt(String(wTodayRes.rows[0].count));
       recentWaitlist = wRecentRes.rows as Array<{ email: string; name: string | null; created_at: string }>;
     } catch { /* table may not exist */ }
+    try {
+      const [dcRes, dc24hRes, dcRecentRes] = await Promise.all([
+        client.query(`SELECT COUNT(*) FROM digest_clicks`),
+        client.query(`SELECT COUNT(*) FROM digest_clicks WHERE clicked_at > now() - interval '24 hours'`),
+        client.query(`SELECT anonymous_user_id, destination, clicked_at FROM digest_clicks ORDER BY clicked_at DESC LIMIT 10`)
+      ]);
+      digestClicks = parseInt(String(dcRes.rows[0].count));
+      digestClicks24h = parseInt(String(dc24hRes.rows[0].count));
+      recentClicks = dcRecentRes.rows as Array<{ anonymous_user_id: string; destination: string; clicked_at: string }>;
+    } catch { /* table may not exist */ }
     return {
       activeUsers: parseInt(String(activeRes.rows[0].count)),
       activeToday: parseInt(String(active24hRes.rows[0].count)),
@@ -36,7 +49,10 @@ async function getStats() {
       recentUsers: recentUsersRes.rows as Array<{ anonymous_user_id: string; created_at: string }>,
       waitlistCount,
       waitlistToday,
-      recentWaitlist
+      recentWaitlist,
+      digestClicks,
+      digestClicks24h,
+      recentClicks
     };
   } finally {
     client.release();
@@ -83,6 +99,37 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.signals24h ?? 0}</div>
         </div>
       </div>
+
+      <div className="grid two">
+        <div className="card">
+          <span className="kicker">Digest clicks</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.digestClicks ?? 0}</div>
+        </div>
+        <div className="card">
+          <span className="kicker">Digest clicks 24h</span>
+          <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--accent)", marginTop: 8 }}>{stats?.digestClicks24h ?? 0}</div>
+        </div>
+      </div>
+
+      {(stats?.recentClicks?.length ?? 0) > 0 && (
+        <section className="panel">
+          <span className="eyebrow">Digest</span>
+          <h2 style={{ marginBottom: 20 }}>Recent digest clicks</h2>
+          <div className="list">
+            {stats!.recentClicks.map((click, i) => (
+              <div key={i} className="item" style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px" }}>
+                <div>
+                  <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--subtle)" }}>{click.anonymous_user_id.slice(0, 18)}</span>
+                  <span style={{ fontSize: "0.85rem", color: "var(--accent)", marginLeft: 10 }}>{click.destination}</span>
+                </div>
+                <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
+                  {new Date(click.clicked_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {(stats?.recentWaitlist?.length ?? 0) > 0 && (
         <section className="panel">
