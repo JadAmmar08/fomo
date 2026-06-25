@@ -61,7 +61,8 @@ async function getStats() {
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
   const params = await searchParams;
-  const adminKey = process.env.ADMIN_KEY ?? "fomo-admin";
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey) redirect("/");
   if (params.key !== adminKey) redirect("/");
 
   const stats = await getStats();
