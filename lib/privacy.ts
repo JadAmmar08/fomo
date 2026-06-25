@@ -24,7 +24,6 @@ export const SENSITIVE_DOMAIN_PATTERNS = [
   "messages",
   "outlook.office.com",
   "instagram.com",
-  "linkedin.com",
   "desmos.com",
   "rocketreach.com",
   "costar.com",
