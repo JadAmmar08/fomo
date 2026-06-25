@@ -48,7 +48,8 @@ export const SENSITIVE_PATH_PATTERNS = [
   "/billing",
   "/payment",
   "/patient",
-  "/portal"
+  "/portal",
+  "/shorts"
 ];
 
 export function isSensitiveDomain(domain: string) {

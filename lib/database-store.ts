@@ -250,6 +250,7 @@ export async function getDatabasePulseState(_anonymousUserId: string) {
          and ps.tracking_paused = false
          and bs.broad_category = any(ps.shareable_categories)
          and bs.normalized_domain not in ('instagram.com', 'facebook.com', 'twitter.com', 'x.com', 'tiktok.com', 'snapchat.com', 'pinterest.com', 'threads.net', 'docs.google.com', 'drive.google.com', 'calendar.google.com', 'accounts.google.com')
+         and bs.url_path not like '/shorts%'
        order by bs.anonymous_user_id, bs.topic_label, bs.timestamp_bucket desc
        limit 2000`
     );
