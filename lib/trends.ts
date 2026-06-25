@@ -1,12 +1,23 @@
 import type { BrowsingSignal, CommunityTrend } from "@/lib/types";
 
-function calculateTrendScore(recent: number, previous: number, uniqueUsers: number) {
+const HIGH_VALUE_CATEGORIES = new Set(["research", "startups", "finance", "healthcare"]);
+const LOW_VALUE_PATTERNS = [
+  "shopping", "shein", "revolve", "dress", "skirt", "sandal", "heel",
+  "top rated", "sale", "new arrivals", "collection", "clothing",
+  "accessories", "bodycon", "camisole", "outfit", "bikini", "swimwear",
+  "dashboard", "guided notes", "worksheet", "exercises", "assignment",
+  "course schedule", "enrollment", "student portal"
+];
+
+function calculateTrendScore(recent: number, previous: number, uniqueUsers: number, category: string, topicLabel: string) {
   const growth = previous === 0 ? recent : (recent - previous) / previous;
   const recencyBoost = recent > 0 ? Math.min(recent / 30, 1) : 0;
   const base = recent * 0.4 + growth * 20 + uniqueUsers * 5 + recencyBoost * 10;
-  if (uniqueUsers >= 3) return base + 100;
-  if (uniqueUsers >= 2) return base + 50;
-  return base * 0.3;
+  const multiUserBoost = uniqueUsers >= 3 ? 100 : uniqueUsers >= 2 ? 50 : 0;
+  const categoryBoost = HIGH_VALUE_CATEGORIES.has(category) ? 30 : 0;
+  const lower = topicLabel.toLowerCase();
+  const lowValuePenalty = LOW_VALUE_PATTERNS.some(p => lower.includes(p)) ? 0.2 : 1;
+  return (base + multiUserBoost + categoryBoost) * lowValuePenalty;
 }
 
 const JUNK_LABELS = new Set([
@@ -116,7 +127,7 @@ export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[
       const previous = previousSignals.length;
       const uniqueUsers = new Set(recentSignals.map((signal) => signal.anonymousUserId)).size;
       const changePct = previous === 0 ? recent * 100 : ((recent - previous) / previous) * 100;
-      const trendScore = calculateTrendScore(recent, previous, uniqueUsers);
+      const trendScore = calculateTrendScore(recent, previous, uniqueUsers, representative.category, topicLabel);
       const topicTags = Array.from(new Set(recentSignals.flatMap((signal) => signal.topicTags))).slice(0, 6);
 
       return {
