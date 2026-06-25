@@ -3,7 +3,10 @@ import type { BrowsingSignal, CommunityTrend } from "@/lib/types";
 function calculateTrendScore(recent: number, previous: number, uniqueUsers: number) {
   const growth = previous === 0 ? recent : (recent - previous) / previous;
   const recencyBoost = recent > 0 ? Math.min(recent / 30, 1) : 0;
-  return recent * 0.4 + growth * 20 + uniqueUsers * 0.5 + recencyBoost * 10;
+  const base = recent * 0.4 + growth * 20 + uniqueUsers * 5 + recencyBoost * 10;
+  if (uniqueUsers >= 3) return base + 100;
+  if (uniqueUsers >= 2) return base + 50;
+  return base * 0.3;
 }
 
 const JUNK_LABELS = new Set([
