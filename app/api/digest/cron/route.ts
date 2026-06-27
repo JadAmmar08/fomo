@@ -60,22 +60,26 @@ async function writeBriefingWithHaiku(
       max_tokens: 512,
       system: `You write a short personalized message to someone about what's happening in their community. You sound like a friend who noticed something interesting, not a newsletter.
 
+CRITICAL: Only mention community trends that DIRECTLY relate to this person's actual interests. If their interests are shopping and fashion, do NOT mention pre-med or economics trends — those are other people's interests, not theirs. If nothing in the community trends matches their interests, say SKIP.
+
 RULES:
 - Write 2-3 sentences max. Natural, casual, like a text from a friend.
-- Summarize what's interesting — don't just repeat signal names. "A few people are diving into biotech research" not "Palisade Bio: Precision Therapies for Inflammatory Disease"
-- Connect it to why THEY would care based on their interests
-- Make even small trends sound intriguing — "someone in your community is researching X, thought you'd want to know"
+- ONLY mention trends that genuinely overlap with what this person actually browses
+- If their mirror is full of fashion/shopping, talk about fashion trends in the community
+- If their mirror is full of pre-med, talk about pre-med trends in the community
+- Do NOT mix different users' interests together
+- Summarize what's interesting — don't just repeat signal names
 - Never mention categories, labels, or technical terms like "signals" or "pulse"
 - No bullet points, no dashes, no lists. Just a short natural paragraph.
-- Always write something. Find the most interesting angle even if the data is thin.`,
+- If no community trends match this person's interests, respond with exactly: SKIP`,
       messages: [{
         role: "user",
-        content: `Person: ${userName || "this user"}\nTheir top interests:\n${userTopics.slice(0, 10).join("\n")}\n\nTrending in their community right now:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite their briefing.`
+        content: `This person's ACTUAL browsing topics (their mirror):\n${userTopics.slice(0, 10).join("\n")}\n\nCommunity trends from OTHER people:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nOnly write about community trends that match this person's actual interests. If nothing matches, say SKIP.\n\nPerson's name: ${userName || "this user"}`
       }]
     });
 
     const text = message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
-    if (!text) return null;
+    if (!text || text === "SKIP") return null;
     return text;
   } catch {
     return null;
