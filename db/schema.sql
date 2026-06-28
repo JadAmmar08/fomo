@@ -98,3 +98,28 @@ create table if not exists digest_clicks (
   destination text not null,
   clicked_at timestamptz not null default now()
 );
+
+-- ROOMS
+create table if not exists rooms (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  description text,
+  invite_code text not null unique default encode(gen_random_bytes(6), 'hex'),
+  created_by text not null,
+  max_members integer default 500,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists room_members (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references rooms(id) on delete cascade,
+  anonymous_user_id text not null,
+  role text not null default 'member',
+  joined_at timestamptz not null default now(),
+  unique (room_id, anonymous_user_id)
+);
+
+create index if not exists idx_room_members_user on room_members(anonymous_user_id);
+create index if not exists idx_room_members_room on room_members(room_id);
