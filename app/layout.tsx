@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default function RootLayout({
             <Link href="/terms" style={{ color: "var(--subtle)" }}>Terms</Link>
           </footer>
         </div>
+        <Analytics />
       </body>
     </html>
   );
