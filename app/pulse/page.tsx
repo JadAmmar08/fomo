@@ -45,7 +45,7 @@ export default async function PulsePage() {
           background: "white", borderRadius: 20, border: "1px solid var(--line)",
           boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "56px 48px", textAlign: "center"
         }}>
-          <h2>Nothing yet — <span style={{ color: "var(--accent)" }}>you&apos;re early.</span></h2>
+          <h2>Nothing yet — <span>you&apos;re early.</span></h2>
           <p style={{ maxWidth: 420, margin: "0 auto" }}>
             Browse a few pages with the extension active, then refresh. Trends appear once enough signal accumulates across the community.
           </p>

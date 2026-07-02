@@ -69,7 +69,7 @@ export default function RoomsPage() {
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", margin: "0 auto 6px", lineHeight: 1.02 }}>
-          Your people. <span style={{ color: "var(--accent)" }}>Your pulse.</span>
+          Your people. <span>Your pulse.</span>
         </h1>
         <p style={{ maxWidth: 460, margin: "20px auto 36px", fontSize: "1.05rem", lineHeight: 1.7 }}>
           Invite a group into a private room and see what they&apos;re paying attention to — separate from the public pulse.
@@ -134,7 +134,7 @@ export default function RoomsPage() {
         </section>
       ) : rooms.length === 0 && !showCreate ? (
         <section className="panel" style={{ background: "var(--surface)" }}>
-          <h2>No rooms <span style={{ color: "var(--accent)" }}>yet.</span></h2>
+          <h2>No rooms <span>yet.</span></h2>
           <p>Create one and send the invite link to your group — their shared pulse starts the moment they join.</p>
         </section>
       ) : (

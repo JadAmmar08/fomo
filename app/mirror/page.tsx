@@ -34,7 +34,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
           </div>
           <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", maxWidth: 700, margin: "0 auto 24px", lineHeight: 1.02 }}>
-            Install the extension to <span style={{ color: "var(--accent)" }}>meet your mirror.</span>
+            Install the extension to <span>meet your mirror.</span>
           </h1>
           <p style={{ maxWidth: 440, margin: "0 auto 40px", fontSize: "1.05rem", lineHeight: 1.7 }}>
             Your mirror builds automatically from your browsing. Install the FOMO extension, browse for a bit, then come back here.
@@ -80,7 +80,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         ) : (
           <>
             <h1 style={{ fontSize: "clamp(2.6rem, 5.5vw, 4.2rem)", maxWidth: 700, margin: "0 auto 20px", lineHeight: 1.05 }}>
-              Your profile is <span style={{ color: "var(--accent)" }}>building.</span>
+              Your profile is <span>building.</span>
             </h1>
             <p style={{ maxWidth: 460, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
               Browse normally for a bit — FOMO is watching your attention in the background. Come back in an hour and your profile will be here.
@@ -94,7 +94,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
           <SectionLabel>Your communities</SectionLabel>
           <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>
-            Where FOMO <span style={{ color: "var(--accent)" }}>places you.</span>
+            Where FOMO <span>places you.</span>
           </h2>
           <p style={{ marginBottom: 28, maxWidth: 560 }}>
             Inferred from your attention — never self-reported. These determine whose pulse you share and who shares yours.
@@ -133,7 +133,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         </section>
       ) : (
         <section data-reveal style={{ ...cardStyle, padding: "48px 44px", textAlign: "center" }}>
-          <h2>Still <span style={{ color: "var(--accent)" }}>watching...</span></h2>
+          <h2>Still <span>watching...</span></h2>
           <p style={{ maxWidth: 460, margin: "0 auto" }}>
             Browse normally for an hour and FOMO will place you in communities based on what you actually pay attention to.
           </p>
@@ -202,7 +202,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
       {/* Share */}
       <section data-reveal style={{ padding: "56px 0 24px", textAlign: "center" }}>
         <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", marginBottom: 12 }}>
-          Know someone who&apos;d <span style={{ color: "var(--accent)" }}>find this interesting?</span>
+          Know someone who&apos;d <span>find this interesting?</span>
         </h2>
         <p style={{ marginBottom: 32, fontSize: "1rem" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
