@@ -37,7 +37,7 @@ function JoinInner() {
   if (manual) {
     return (
       <div className="stack">
-        <section className="panel" style={{ padding: "48px 36px", maxWidth: 480 }}>
+        <section className="panel" style={{ padding: "48px 36px" }}>
           <span className="eyebrow">Rooms</span>
           <h1 style={{ fontSize: "2rem" }}>Join a room</h1>
           <p style={{ marginBottom: 24 }}>Enter the invite code you received.</p>
