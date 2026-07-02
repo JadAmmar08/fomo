@@ -37,6 +37,8 @@ body {
   font-family: var(--font-sans);
   color: var(--text);
   background: var(--bg);
+  background-image: radial-gradient(rgba(26, 26, 24, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
 }
@@ -49,17 +51,19 @@ button, input, select { font: inherit; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 
 .topbar {
-  width: 100%;
-  padding: 0 40px;
-  height: 60px;
-  background: rgba(247, 246, 243, 0.92);
+  width: min(calc(100% - 40px), 980px);
+  margin: 20px auto 0;
+  padding: 10px 12px 10px 24px;
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
-  top: 0;
+  top: 16px;
   z-index: 20;
 }
 
@@ -87,10 +91,10 @@ button, input, select { font: inherit; }
 }
 
 .topnav a {
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 500;
   transition: color 0.12s, background 0.12s;
 }
