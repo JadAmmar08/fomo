@@ -106,8 +106,10 @@ button, input, select { font: inherit; }
 }
 
 .page-frame {
-  width: min(calc(100% - 80px), var(--max-width));
+  width: 100%;
+  max-width: var(--max-width);
   margin: 40px auto 80px;
+  padding: 0 40px;
   flex: 1;
 }
 

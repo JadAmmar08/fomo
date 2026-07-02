@@ -5,7 +5,7 @@ export default function LandingPage() {
     <div className="stack">
 
       {/* Hero */}
-      <section className="panel" style={{ padding: "72px 56px", textAlign: "center" }}>
+      <section style={{ padding: "80px 0 60px", textAlign: "center" }}>
         <span className="eyebrow">Early access</span>
         <h1 style={{ maxWidth: 720, margin: "0 auto 20px" }}>
           Your community is paying attention.<br />
@@ -39,7 +39,7 @@ export default function LandingPage() {
       </div>
 
       {/* Privacy */}
-      <section className="panel" style={{ padding: "40px 56px" }}>
+      <section className="panel" style={{ padding: "40px" }}>
         <h2 style={{ marginBottom: 24 }}>Built on privacy.</h2>
         <div className="grid two">
           <div>
