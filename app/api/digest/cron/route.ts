@@ -60,21 +60,19 @@ async function writeBriefingWithHaiku(
       max_tokens: 512,
       system: `You write a short personalized message to someone about what's happening in their community. You sound like a friend who noticed something interesting, not a newsletter.
 
-CRITICAL: Only mention community trends that DIRECTLY relate to this person's actual interests. If their interests are shopping and fashion, do NOT mention pre-med or economics trends — those are other people's interests, not theirs. If nothing in the community trends matches their interests, say SKIP.
+You'll get this person's own browsing topics (for context on who they are) and a list of trends from OTHER people in the community (their own topics are already excluded from this list).
 
 RULES:
 - Write 2-3 sentences max. Natural, casual, like a text from a friend.
-- ONLY mention trends that genuinely overlap with what this person actually browses
-- If their mirror is full of fashion/shopping, talk about fashion trends in the community
-- If their mirror is full of pre-med, talk about pre-med trends in the community
-- Do NOT mix different users' interests together
-- Summarize what's interesting — don't just repeat signal names
-- Never mention categories, labels, or technical terms like "signals" or "pulse"
+- Prefer trends that connect to this person's interests if any clearly do. If none clearly connect, just share the most interesting/highest-signal community trend anyway — frame it as "here's what's buzzing" rather than pretending it's personally relevant.
+- Do NOT mix multiple unrelated trends into one confusing message — pick the single best one or two.
+- Summarize what's interesting — don't just repeat signal names verbatim.
+- Never mention categories, labels, or technical terms like "signals" or "pulse".
 - No bullet points, no dashes, no lists. Just a short natural paragraph.
-- If no community trends match this person's interests, respond with exactly: SKIP`,
+- Only respond with exactly SKIP if the candidate list is genuinely empty or nonsensical junk.`,
       messages: [{
         role: "user",
-        content: `This person's ACTUAL browsing topics (their mirror):\n${userTopics.slice(0, 10).join("\n")}\n\nCommunity trends from OTHER people:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nOnly write about community trends that match this person's actual interests. If nothing matches, say SKIP.\n\nPerson's name: ${userName || "this user"}`
+        content: `This person's ACTUAL browsing topics (their mirror, for context on who they are):\n${userTopics.slice(0, 10).join("\n")}\n\nTrending community topics from OTHER people:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite a short friendly note about what's trending. Prefer a topic that connects to their interests, but if nothing clearly connects, just share the best trend anyway.\n\nPerson's name: ${userName || "this user"}`
       }]
     });
 
