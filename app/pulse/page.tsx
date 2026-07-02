@@ -16,7 +16,7 @@ export default async function PulsePage() {
         <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", maxWidth: 760, margin: "0 auto 6px", lineHeight: 1.02 }}>
           What your community is
         </h1>
-        <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", margin: "0 auto 24px", lineHeight: 1.05, fontStyle: "italic", color: "var(--accent)" }}>
+        <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", margin: "0 auto 24px", lineHeight: 1.05 }}>
           paying attention to.
         </h1>
         <p style={{ maxWidth: 480, margin: "0 auto 28px", fontSize: "1.05rem", lineHeight: 1.7 }}>
