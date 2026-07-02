@@ -69,7 +69,7 @@ export default function LandingPage() {
             The mirror
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            We show you <em style={{ color: "var(--accent)" }}>who you actually are.</em>
+            We show you who you actually are.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
             Not who you say you are. Your mirror builds itself from where your attention really goes — and it&apos;s private to you.
@@ -143,7 +143,7 @@ export default function LandingPage() {
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
           </div>
           <h2 style={{ fontSize: "clamp(2.4rem, 5vw, 4rem)", lineHeight: 1.05 }}>
-            Three steps. <em style={{ color: "var(--accent)" }}>No friction.</em>
+            Three steps. No friction.
           </h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
@@ -159,7 +159,7 @@ export default function LandingPage() {
               boxShadow: "0 16px 48px rgba(0,0,0,0.07)",
               padding: "44px 36px",
             }}>
-              <div style={{ fontFamily: "var(--font-serif)", fontSize: "4.5rem", fontStyle: "italic", color: "var(--accent)", opacity: 0.35, lineHeight: 1, marginBottom: 28 }}>{step.n}</div>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: "4.5rem", color: "var(--line-strong)", lineHeight: 1, marginBottom: 28 }}>{step.n}</div>
               <h3 style={{ fontSize: "1.35rem", marginBottom: 12, letterSpacing: "-0.02em", fontWeight: 600 }}>{step.title}</h3>
               <p style={{ fontSize: "0.98rem", lineHeight: 1.75 }}>{step.body}</p>
             </div>
@@ -175,7 +175,7 @@ export default function LandingPage() {
             Privacy
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Anonymous by design.<br /><em style={{ color: "var(--accent)" }}>Not by accident.</em>
+            Anonymous by design.<br />Not by accident.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.85, maxWidth: 400 }}>
             Your identity is never attached to your signals. FOMO tracks what you browse — never who you are.
@@ -183,7 +183,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "grid", gap: 18 }}>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
-            <h3 style={{ color: "var(--accent)", marginBottom: 10, fontSize: "1.1rem" }}>What FOMO sees</h3>
+            <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>What FOMO sees</h3>
             <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and content — used only to classify your attention. Nothing else.</p>
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
@@ -196,7 +196,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section data-reveal style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
         <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
-          Ready to see what<br /><em style={{ color: "var(--accent)" }}>you&apos;re missing?</em>
+          Ready to see what<br />you&apos;re missing?
         </h2>
         <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Install the extension. Browse for an hour. Come back.</p>
         <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
