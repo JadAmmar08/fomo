@@ -97,12 +97,9 @@ export default function LandingPage() {
           overflow: "hidden"
         }}>
           <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ width: 36, height: 36, borderRadius: 10, background: "var(--text)", color: "white", display: "grid", placeItems: "center", fontFamily: "var(--font-serif)", fontSize: "1.1rem" }}>M</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Private Mirror</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Built from your attention</div>
-              </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Private Mirror</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Built from your attention</div>
             </div>
             <span className="pill" style={{ fontSize: "0.75rem" }}>● Live</span>
           </div>
