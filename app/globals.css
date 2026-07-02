@@ -64,7 +64,8 @@ button, input, select { font: inherit; }
   align-items: center;
   position: sticky;
   top: 16px;
-  z-index: 20;
+  z-index: 500;
+  isolation: isolate;
 }
 
 .brand {
@@ -435,7 +436,7 @@ p {
 
 [data-reveal].revealed {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

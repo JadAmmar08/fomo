@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeroCta, BottomCta } from "@/components/hero-cta";
 
 export default function LandingPage() {
   return (
@@ -20,14 +21,7 @@ export default function LandingPage() {
         <p style={{ maxWidth: 520, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
           FOMO watches what you actually browse and shows you what people like you are focused on — before it becomes obvious.
         </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 18 }}>
-          <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
-            Get the extension →
-          </Link>
-          <Link href="/pulse" className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
-            See the live pulse
-          </Link>
-        </div>
+        <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. No account. No feed to post to.</p>
       </section>
 
@@ -190,16 +184,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section data-reveal style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
-        <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
-          Ready to see what<br />you&apos;re missing?
-        </h2>
-        <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Install the extension. Browse for an hour. Come back.</p>
-        <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
-          Get started — it&apos;s free
-        </Link>
-      </section>
+      <BottomCta />
 
     </div>
   );
