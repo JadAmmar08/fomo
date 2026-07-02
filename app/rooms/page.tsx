@@ -134,8 +134,8 @@ export default function RoomsPage() {
         </section>
       ) : rooms.length === 0 && !showCreate ? (
         <section className="panel" style={{ background: "var(--surface)" }}>
-          <h2>No rooms yet</h2>
-          <p>Create a room and share the invite link with people you want to see a private pulse with.</p>
+          <h2>No rooms <em style={{ color: "var(--accent)" }}>yet.</em></h2>
+          <p>Create one and send the invite link to your group — their shared pulse starts the moment they join.</p>
         </section>
       ) : (
         <div className="list">

@@ -417,6 +417,11 @@ p {
   margin-top: 14px;
 }
 
+/* Instrument Serif has no bold — stop the browser from faking one */
+[style*="--font-serif"] {
+  font-weight: 400;
+}
+
 /* ── Scroll reveal ───────────────────────────────────── */
 
 [data-reveal] {
