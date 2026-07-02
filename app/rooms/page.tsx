@@ -68,9 +68,14 @@ export default function RoomsPage() {
         <p style={{ maxWidth: 500, marginBottom: 24 }}>
           Invite a group of people into a private room and see what they&apos;re paying attention to — separate from the public pulse.
         </p>
-        <button className="button" onClick={() => setShowCreate(true)}>
-          Create a room
-        </button>
+        <div className="button-row">
+          <button className="button" onClick={() => setShowCreate(true)}>
+            Create a room
+          </button>
+          <Link href={"/rooms/join" as Route} className="button-secondary">
+            Join with a code
+          </Link>
+        </div>
       </section>
 
       {showCreate && (
