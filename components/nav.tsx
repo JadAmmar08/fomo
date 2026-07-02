@@ -20,14 +20,22 @@ export function Nav() {
         <Link
           key={item.href}
           href={item.href}
-          style={pathname === item.href ? { color: "var(--text)", background: "var(--surface-raised)" } : undefined}
+          className={pathname === item.href ? "active" : ""}
         >
           {item.label}
         </Link>
       ))}
       <Link
         href="/download"
-        style={{ background: "var(--accent)", color: "white", borderRadius: 999, padding: "6px 14px" }}
+        style={{
+          background: "var(--text)",
+          color: "var(--bg)",
+          borderRadius: 999,
+          padding: "7px 18px",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          marginLeft: 8
+        }}
       >
         Get started
       </Link>

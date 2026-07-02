@@ -8,8 +8,8 @@ const CHROME_STORE_URL = process.env.NEXT_PUBLIC_CHROME_STORE_URL || "";
 const inputStyle = {
   padding: "12px 16px",
   borderRadius: 10,
-  border: "1px solid rgba(240,237,232,0.12)",
-  background: "var(--surface)",
+  border: "1px solid var(--line-strong)",
+  background: "var(--surface-raised)",
   color: "var(--text)",
   fontSize: "0.95rem",
   outline: "none",
@@ -95,16 +95,16 @@ export default function DownloadPage() {
               gap: 20,
               alignItems: "flex-start",
               padding: 24,
-              background: "var(--surface)",
+              background: "var(--surface-raised)",
               borderRadius: 12,
-              border: "1px solid rgba(240,237,232,0.06)"
+              border: "1px solid var(--line)"
             }}>
               <div style={{
                 width: 48,
                 height: 48,
                 borderRadius: "50%",
                 background: "var(--accent)",
-                color: "var(--bg)",
+                color: "white",
                 display: "grid",
                 placeItems: "center",
                 fontWeight: 800,
