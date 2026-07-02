@@ -62,17 +62,23 @@ export default function RoomsPage() {
 
   return (
     <div className="stack">
-      <section className="panel" style={{ padding: "40px 36px" }}>
-        <span className="eyebrow">Rooms</span>
-        <h1>Private rooms.</h1>
-        <p style={{ maxWidth: 500, marginBottom: 24 }}>
-          Invite a group of people into a private room and see what they&apos;re paying attention to — separate from the public pulse.
+      <section style={{ padding: "64px 0 48px", textAlign: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 28, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          Rooms
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+        </div>
+        <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", margin: "0 auto 6px", lineHeight: 1.02 }}>
+          Your people. <em style={{ color: "var(--accent)" }}>Your pulse.</em>
+        </h1>
+        <p style={{ maxWidth: 460, margin: "20px auto 36px", fontSize: "1.05rem", lineHeight: 1.7 }}>
+          Invite a group into a private room and see what they&apos;re paying attention to — separate from the public pulse.
         </p>
-        <div className="button-row">
-          <button className="button" onClick={() => setShowCreate(true)}>
+        <div className="button-row" style={{ justifyContent: "center" }}>
+          <button className="button" onClick={() => setShowCreate(true)} style={{ fontSize: "0.95rem", padding: "14px 30px", boxShadow: "0 12px 32px rgba(26,26,24,0.22)" }}>
             Create a room
           </button>
-          <Link href={"/rooms/join" as Route} className="button-secondary">
+          <Link href={"/rooms/join" as Route} className="button-secondary" style={{ fontSize: "0.95rem", padding: "14px 26px", background: "white" }}>
             Join with a code
           </Link>
         </div>
@@ -134,7 +140,7 @@ export default function RoomsPage() {
       ) : (
         <div className="list">
           {rooms.map(room => (
-            <div key={room.id} className="panel glow-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            <div key={room.id} style={{ background: "white", borderRadius: 20, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "28px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                   <h3 style={{ marginBottom: 0 }}>{room.name}</h3>

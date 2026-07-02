@@ -32,13 +32,19 @@ export default function DownloadPage() {
 
   return (
     <div className="stack">
-      <section className="panel" style={{ padding: "56px 40px" }}>
-        <span className="eyebrow">Get started</span>
-        <h1 style={{ maxWidth: 520, marginTop: 12 }}>Add FOMO to Chrome.</h1>
-        <p style={{ maxWidth: 480, marginBottom: 28, fontSize: "1.05rem" }}>
+      <section style={{ padding: "70px 0 56px", textAlign: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 28, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          Get started
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+        </div>
+        <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", margin: "0 auto 6px", lineHeight: 1.02 }}>
+          Add FOMO to Chrome.
+        </h1>
+        <p style={{ maxWidth: 440, margin: "20px auto 36px", fontSize: "1.05rem", lineHeight: 1.7 }}>
           One click. No account needed. Your mirror and pulse start building the moment you browse.
         </p>
-        <div style={{ maxWidth: 360, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ maxWidth: 380, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
           <input
             type="text"
             placeholder="Your name"

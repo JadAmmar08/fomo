@@ -5,19 +5,41 @@ import { hasExistingSession } from "@/lib/session";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+      <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+      {children}
+    </div>
+  );
+}
+
+const cardStyle = {
+  background: "white",
+  borderRadius: 20,
+  border: "1px solid var(--line)",
+  boxShadow: "0 16px 48px rgba(0,0,0,0.07)",
+} as const;
+
 export default async function MirrorPage({ searchParams }: { searchParams: Promise<{ uid?: string }> }) {
   const params = await searchParams;
   const sessionExists = params.uid || await hasExistingSession();
   if (!sessionExists) {
     return (
-      <div className="stack">
-        <section className="panel" style={{ padding: "48px 36px" }}>
-          <span className="eyebrow">Private Mirror</span>
-          <h1 style={{ maxWidth: 560 }}>Install the extension to see your mirror.</h1>
-          <p style={{ maxWidth: 500, marginBottom: 16 }}>
+      <div>
+        <section style={{ padding: "90px 0", textAlign: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 28, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+            Private mirror
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          </div>
+          <h1 style={{ fontSize: "clamp(2.8rem, 6vw, 4.6rem)", maxWidth: 700, margin: "0 auto 24px", lineHeight: 1.02 }}>
+            Install the extension to <em style={{ color: "var(--accent)" }}>meet your mirror.</em>
+          </h1>
+          <p style={{ maxWidth: 440, margin: "0 auto 40px", fontSize: "1.05rem", lineHeight: 1.7 }}>
             Your mirror builds automatically from your browsing. Install the FOMO extension, browse for a bit, then come back here.
           </p>
-          <Link href="/download" className="button" style={{ display: "inline-flex" }}>
+          <Link href="/download" className="button" style={{ fontSize: "1rem", padding: "16px 36px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
             Get the extension
           </Link>
         </section>
@@ -32,16 +54,24 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
   const profile = mirror.personalProfile;
 
   return (
-    <div className="stack">
+    <div className="stack" style={{ gap: 24 }}>
 
       {/* Hero */}
-      <section className="panel" style={{ padding: "48px 36px" }}>
-        <span className="eyebrow">Private Mirror</span>
+      <section style={{ padding: "64px 0 24px", textAlign: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 28, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          Private mirror
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+        </div>
         {profile ? (
           <>
-            <h1 style={{ maxWidth: 560, marginTop: 12 }}>{profile.headline}</h1>
-            <p style={{ maxWidth: 500, marginBottom: 16 }}>{profile.description}</p>
-            <div className="tag-row">
+            <h1 style={{ fontSize: "clamp(2.6rem, 5.5vw, 4.2rem)", maxWidth: 820, margin: "0 auto 20px", lineHeight: 1.05 }}>
+              {profile.headline}
+            </h1>
+            <p style={{ maxWidth: 540, margin: "0 auto 24px", fontSize: "1.1rem", lineHeight: 1.75, fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--muted)" }}>
+              {profile.description}
+            </p>
+            <div className="tag-row" style={{ justifyContent: "center" }}>
               {profile.evidenceTags.map((tag) => (
                 <span key={tag} className="pill">{tag}</span>
               ))}
@@ -49,99 +79,103 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
           </>
         ) : (
           <>
-            <h1 style={{ maxWidth: 560 }}>Your profile is building.</h1>
-            <p style={{ maxWidth: 500, marginBottom: 0 }}>
+            <h1 style={{ fontSize: "clamp(2.6rem, 5.5vw, 4.2rem)", maxWidth: 700, margin: "0 auto 20px", lineHeight: 1.05 }}>
+              Your profile is <em style={{ color: "var(--accent)" }}>building.</em>
+            </h1>
+            <p style={{ maxWidth: 460, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
               Browse normally for a bit — FOMO is watching your attention in the background. Come back in an hour and your profile will be here.
             </p>
           </>
         )}
       </section>
 
-      {/* Community placement */}
+      {/* Communities */}
       {mirror.communities.length > 0 ? (
-        <section className="panel">
-          <span className="eyebrow">Your communities</span>
-          <h2>Where FOMO places you on the pulse</h2>
-          <p style={{ marginBottom: 24 }}>
-            These communities are inferred from your attention — never self-reported. They determine whose pulse you share and who shares yours.
+        <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
+          <SectionLabel>Your communities</SectionLabel>
+          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>
+            Where FOMO <em style={{ color: "var(--accent)" }}>places you.</em>
+          </h2>
+          <p style={{ marginBottom: 28, maxWidth: 560 }}>
+            Inferred from your attention — never self-reported. These determine whose pulse you share and who shares yours.
           </p>
           <div className="grid two">
             {mirror.communities.map((community) => (
-              <div key={community.id} className="card" style={{ borderColor: "rgba(58,184,170,0.2)", background: "var(--surface)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                  <h3 style={{ marginBottom: 0, fontSize: "1rem" }}>{community.name}</h3>
-                  <strong style={{ color: "var(--accent)", flexShrink: 0, fontSize: "0.9rem" }}>
+              <div key={community.id} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 16, padding: "22px 24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
+                  <h3 style={{ marginBottom: 0, fontSize: "1.05rem" }}>{community.name}</h3>
+                  <strong style={{ fontFamily: "var(--font-serif)", color: "var(--accent)", flexShrink: 0, fontSize: "1.2rem" }}>
                     {formatPercent(community.confidence)}
                   </strong>
                 </div>
-                <div className="progress" style={{ marginBottom: 10 }}>
+                <div className="progress" style={{ marginBottom: 12 }}>
                   <span style={{ width: `${community.confidence * 100}%` }} />
                 </div>
-                <p style={{ fontSize: "0.85rem", color: "var(--subtle)", marginBottom: 10 }}>{community.description}</p>
+                <p style={{ fontSize: "0.88rem", marginBottom: 12 }}>{community.description}</p>
                 <div className="tag-row">
                   {community.primaryCategories.map((cat) => (
-                    <span key={cat} className="pill">{cat}</span>
+                    <span key={cat} className="chip">{cat}</span>
                   ))}
                 </div>
                 {community.signal && (
-                  <p style={{ fontSize: "0.78rem", color: "var(--subtle)", marginTop: 10, marginBottom: 0 }}>
+                  <p style={{ fontSize: "0.8rem", color: "var(--subtle)", marginTop: 12, marginBottom: 0 }}>
                     {community.signal}
                   </p>
                 )}
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 24 }}>
             <Link href="/pulse" className="button-secondary" style={{ display: "inline-flex" }}>
-              See your pulse
+              See your pulse →
             </Link>
           </div>
         </section>
       ) : (
-        <section className="panel" style={{ background: "var(--surface)" }}>
-          <span className="eyebrow">Your communities</span>
-          <h2>Still watching...</h2>
-          <p>
-            Browse normally for an hour and FOMO will place you in communities based on what you actually pay attention to. The more you browse, the more accurate it gets.
+        <section data-reveal style={{ ...cardStyle, padding: "48px 44px", textAlign: "center" }}>
+          <h2>Still <em style={{ color: "var(--accent)" }}>watching...</em></h2>
+          <p style={{ maxWidth: 460, margin: "0 auto" }}>
+            Browse normally for an hour and FOMO will place you in communities based on what you actually pay attention to.
           </p>
         </section>
       )}
 
-      {/* What's driving your placement */}
+      {/* Top signals */}
       {topInterests.length > 0 && (
-        <section className="panel">
-          <span className="eyebrow">What's putting you there</span>
-          <h2>Your top attention signals</h2>
-          <p style={{ marginBottom: 24 }}>
-            These are the topics feeding your profile. The more time you spend on something, the stronger the signal.
+        <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
+          <SectionLabel>What&apos;s putting you there</SectionLabel>
+          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>
+            Your top attention signals.
+          </h2>
+          <p style={{ marginBottom: 28, maxWidth: 560 }}>
+            The topics feeding your profile. The more time you spend on something, the stronger the signal.
           </p>
           <div className="list">
             {topInterests.map((interest, i) => (
-              <div key={interest.id} className="item">
+              <div key={interest.id} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
                     <span style={{
-                      width: 28, height: 28, borderRadius: "50%",
-                      background: "var(--accent-soft)", border: "1px solid var(--accent)",
-                      color: "var(--accent)", fontWeight: 700, fontSize: "0.8rem",
-                      display: "grid", placeItems: "center", flexShrink: 0
-                    }}>{i + 1}</span>
+                      fontFamily: "var(--font-serif)", fontStyle: "italic",
+                      fontSize: "1.4rem", color: "var(--accent)", opacity: 0.5,
+                      width: 30, flexShrink: 0
+                    }}>{String(i + 1).padStart(2, "0")}</span>
                     <div style={{ minWidth: 0 }}>
-                      <h3 style={{ marginBottom: 2, fontSize: "0.95rem" }}>{interest.topicLabel}</h3>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <span className="kicker">{interest.signalCount} visits</span>
-                        <span className="kicker" style={{ color: interest.change === "rising" ? "var(--accent)" : "var(--subtle)" }}>
+                      <h3 style={{ marginBottom: 2, fontSize: "0.98rem" }}>{interest.topicLabel}</h3>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <span className="kicker" style={{ marginBottom: 0 }}>{interest.signalCount} visits</span>
+                        <span className="kicker" style={{ marginBottom: 0, color: interest.change === "rising" ? "var(--accent)" : "var(--subtle)" }}>
                           {interest.change}
                         </span>
-                        <span className="kicker">{interest.shareable ? "On the pulse" : "Mirror only"}</span>
+                        <span className="kicker" style={{ marginBottom: 0 }}>{interest.shareable ? "On the pulse" : "Mirror only"}</span>
                       </div>
                     </div>
                   </div>
-                  <strong style={{ color: "var(--accent)", flexShrink: 0 }}>
+                  <strong style={{ fontFamily: "var(--font-serif)", fontSize: "1.2rem", color: "var(--accent)", flexShrink: 0 }}>
                     {formatPercent(interest.confidence)}
                   </strong>
                 </div>
-                <div className="progress" style={{ margin: "10px 0" }}>
+                <div className="progress" style={{ marginTop: 12 }}>
                   <span style={{ width: `${interest.confidence * 100}%` }} />
                 </div>
               </div>
@@ -151,31 +185,26 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
       )}
 
       {/* Stats strip */}
-      <section className="panel">
-        <div className="status-strip">
-          <div className="status-tile">
-            <span className="kicker">Member since</span>
-            <div>{new Date(mirror.user.createdAt).toLocaleDateString([], { month: "short", year: "numeric" })}</div>
+      <section data-reveal style={{ ...cardStyle, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", overflow: "hidden" }}>
+        {[
+          { label: "Member since", value: new Date(mirror.user.createdAt).toLocaleDateString([], { month: "short", year: "numeric" }) },
+          { label: "Total signals", value: String(totalSignals) },
+          { label: "Communities", value: String(mirror.communities.length) },
+          { label: "Mode", value: mirror.storageMode === "database" ? "Persistent" : "Demo" },
+        ].map((s, i) => (
+          <div key={s.label} style={{ padding: "28px 20px", textAlign: "center", borderRight: i < 3 ? "1px solid var(--line)" : undefined }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.7rem", marginBottom: 4 }}>{s.value}</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--subtle)" }}>{s.label}</div>
           </div>
-          <div className="status-tile">
-            <span className="kicker">Total signals</span>
-            <div>{totalSignals}</div>
-          </div>
-          <div className="status-tile">
-            <span className="kicker">Communities</span>
-            <div>{mirror.communities.length}</div>
-          </div>
-          <div className="status-tile">
-            <span className="kicker">Mode</span>
-            <div>{mirror.storageMode === "database" ? "Persistent" : "Demo"}</div>
-          </div>
-        </div>
+        ))}
       </section>
 
       {/* Share */}
-      <section className="panel" style={{ textAlign: "center", padding: "40px 36px" }}>
-        <h2>Know someone who&apos;d find this interesting?</h2>
-        <p style={{ marginBottom: 24, color: "var(--subtle)" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
+      <section data-reveal style={{ padding: "56px 0 24px", textAlign: "center" }}>
+        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", marginBottom: 12 }}>
+          Know someone who&apos;d <em style={{ color: "var(--accent)" }}>find this interesting?</em>
+        </h2>
+        <p style={{ marginBottom: 32, fontSize: "1rem" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
           <a
             href={`sms:&body=Check out FOMO — it shows you what your community is actually paying attention to online. Install it here: https://usefomo.co/download`}
@@ -188,6 +217,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
+            style={{ background: "white" }}
           >
             Share on X
           </a>

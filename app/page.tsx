@@ -32,7 +32,7 @@ export default function LandingPage() {
       </section>
 
       {/* Floating stats card */}
-      <section style={{ marginBottom: 110 }}>
+      <section data-reveal style={{ marginBottom: 110 }}>
         <div style={{
           background: "white",
           borderRadius: 24,
@@ -62,7 +62,7 @@ export default function LandingPage() {
       </section>
 
       {/* The mirror — text left, product card right */}
-      <section style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+      <section data-reveal style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
@@ -135,7 +135,7 @@ export default function LandingPage() {
       </section>
 
       {/* How it works — full-bleed band */}
-      <section style={{ padding: "90px 0 100px", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal style={{ padding: "90px 0 100px", borderTop: "1px solid var(--line)" }}>
         <div style={{ textAlign: "center", marginBottom: 72 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
@@ -168,7 +168,7 @@ export default function LandingPage() {
       </section>
 
       {/* Privacy */}
-      <section style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
@@ -194,7 +194,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
         <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
           Ready to see what<br /><em style={{ color: "var(--accent)" }}>you&apos;re missing?</em>
         </h2>
