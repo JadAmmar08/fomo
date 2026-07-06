@@ -51,7 +51,7 @@ const JUNK_PATTERNS = [
   "wikipedia"
 ];
 
-function isJunkLabel(label: string): boolean {
+export function isJunkLabel(label: string): boolean {
   const cleaned = label.trim().toLowerCase();
   if (!cleaned || cleaned.length < 4) return true;
   if (JUNK_LABELS.has(cleaned)) return true;

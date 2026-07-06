@@ -4,7 +4,7 @@ import type { PresentedTrend } from "@/lib/trends";
 
 export default async function PulsePage() {
   const pulse = await getPulseResponse();
-  const trends = pulse.trends as PresentedTrend[];
+  const trends = (pulse.trends as PresentedTrend[]).slice(0, 10);
 
   return (
     <div>
