@@ -1,8 +1,10 @@
 import { FeedbackActions } from "@/components/feedback-actions";
 import { getPulseResponse } from "@/lib/store";
+import type { PresentedTrend } from "@/lib/trends";
 
 export default async function PulsePage() {
   const pulse = await getPulseResponse();
+  const trends = pulse.trends as PresentedTrend[];
 
   return (
     <div>
@@ -40,63 +42,60 @@ export default async function PulsePage() {
         </div>
       </section>
 
-      {pulse.trends.length === 0 ? (
+      {trends.length === 0 ? (
         <section data-reveal style={{
           background: "white", borderRadius: 20, border: "1px solid var(--line)",
           boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "56px 48px", textAlign: "center"
         }}>
-          <h2>Nothing yet — <span>you&apos;re early.</span></h2>
+          <h2>Nothing yet — you&apos;re early.</h2>
           <p style={{ maxWidth: 420, margin: "0 auto" }}>
             Browse a few pages with the extension active, then refresh. Trends appear once enough signal accumulates across the community.
           </p>
         </section>
       ) : (
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20 }}>
-          {pulse.trends.map((trend, i) => (
-            <div key={trend.id} data-reveal data-reveal-delay={`${(i % 2) * 90}`} style={{
+        <div className="stack" style={{ gap: 20 }}>
+          {trends.map((trend, i) => (
+            <div key={trend.id} data-reveal data-reveal-delay={`${Math.min(i, 4) * 60}`} style={{
               background: "white",
               borderRadius: 20,
               border: "1px solid var(--line)",
               boxShadow: "0 16px 48px rgba(0,0,0,0.07)",
-              padding: "32px 34px",
-              display: "flex",
-              flexDirection: "column"
+              padding: "36px 40px",
             }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className="kicker" style={{ marginBottom: 8 }}>{trend.timeWindow} · {trend.category}</span>
-                  <h2 style={{ marginBottom: 0, fontSize: "1.5rem", lineHeight: 1.2 }}>{trend.topicLabel}</h2>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  {trend.isPersonalized && (
+                    <span className="pill" style={{ fontSize: "0.72rem" }}>close to your interests</span>
+                  )}
+                  <span className="kicker" style={{ marginBottom: 0 }}>{trend.category}</span>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "var(--font-serif)", fontSize: "2.4rem", color: "var(--accent)", lineHeight: 1 }}>
-                    {trend.trendScore.toFixed(0)}
-                  </div>
-                  <div className="score-note">score</div>
+                  <span style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "var(--accent)" }}>{trend.trendScore.toFixed(0)}</span>
+                  <span className="score-note" style={{ marginLeft: 6 }}>score</span>
                 </div>
               </div>
 
-              {trend.topicTags.length > 0 && (
-                <div className="tag-row" style={{ marginBottom: 18 }}>
-                  {trend.topicTags.map((tag) => (
-                    <span key={tag} className="chip">{tag}</span>
-                  ))}
-                </div>
-              )}
+              <h2 style={{ fontSize: "clamp(1.8rem, 3.2vw, 2.6rem)", lineHeight: 1.1, marginBottom: 14 }}>
+                {trend.topicLabel}
+              </h2>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-                <div className="meta-card">
-                  <span className="kicker">Signals</span>
-                  <strong style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem" }}>{trend.anonymousSignals}</strong>
-                </div>
-                <div className="meta-card">
-                  <span className="kicker">Growth</span>
-                  <strong style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem", color: trend.changePct > 0 ? "var(--accent)" : "var(--muted)" }}>
+              <p style={{ fontSize: "1.02rem", lineHeight: 1.7, color: "var(--muted)", marginBottom: 20, maxWidth: 640 }}>
+                {trend.narrative}
+              </p>
+
+              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
+                  <strong style={{ color: "var(--text)" }}>{trend.uniqueUsers}</strong> {trend.uniqueUsers === 1 ? "person" : "people"}
+                </span>
+                <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
+                  <strong style={{ color: "var(--text)" }}>{trend.anonymousSignals}</strong> signals
+                </span>
+                <span style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>
+                  <strong style={{ color: trend.changePct > 0 ? "var(--accent)" : "var(--text)" }}>
                     {trend.changePct > 0 ? "+" : ""}{Math.round(trend.changePct)}%
-                  </strong>
-                </div>
+                  </strong> growth
+                </span>
               </div>
-
-              <p style={{ marginBottom: 18, fontSize: "0.92rem", lineHeight: 1.7, flex: 1 }}>{trend.explanation}</p>
 
               <FeedbackActions
                 targetType="pulse"
@@ -105,7 +104,7 @@ export default async function PulsePage() {
               />
             </div>
           ))}
-        </section>
+        </div>
       )}
     </div>
   );

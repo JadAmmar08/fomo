@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { buildUserInterests } from "@/lib/interests";
 import { getPool } from "@/lib/postgres";
-import { buildCommunityTrends } from "@/lib/trends";
+import { buildCommunityTrends, presentTrendsForViewer } from "@/lib/trends";
 
 function toPostgresArray(arr: string[]): string {
   return "{" + arr.map(s => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",") + "}";
@@ -238,7 +238,7 @@ export async function getDatabaseMirrorState(anonymousUserId: string) {
   });
 }
 
-export async function getDatabasePulseState(_anonymousUserId: string) {
+export async function getDatabasePulseState(anonymousUserId: string) {
   return withClient(async (client) => {
     // Pull signals from ALL users who have sharing enabled for each category
     const signalsRes = await client.query(
@@ -255,7 +255,20 @@ export async function getDatabasePulseState(_anonymousUserId: string) {
        limit 2000`
     );
 
-    return buildCommunityTrends(signalsRes.rows.map(mapSignal));
+    const trends = buildCommunityTrends(signalsRes.rows.map(mapSignal));
+
+    if (!anonymousUserId) return trends;
+
+    const viewerRes = await client.query(
+      `select topic_label, broad_category from browsing_signals
+       where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '14 days'
+       group by topic_label, broad_category order by count(*) desc limit 20`,
+      [anonymousUserId]
+    );
+    const viewerTopics = viewerRes.rows.map((r) => String(r.topic_label));
+    const viewerCategories = viewerRes.rows.map((r) => String(r.broad_category));
+
+    return presentTrendsForViewer(trends, viewerTopics, viewerCategories);
   });
 }
 

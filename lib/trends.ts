@@ -146,3 +146,92 @@ export function buildCommunityTrends(signals: BrowsingSignal[]): CommunityTrend[
     .filter((trend) => trend.anonymousSignals > 0)
     .sort((a, b) => b.trendScore - a.trendScore);
 }
+
+const PERSONAL_OPENERS = [
+  "People close to your interests are quietly deep in {topic} right now.",
+  "A pocket of your circle just discovered {topic} — very on-brand for them.",
+  "{topic} is having a moment with people near your interests.",
+  "Some of your people are unusually into {topic} today.",
+];
+
+const GENERAL_OPENERS = [
+  "{topic} is trending across the community right now.",
+  "A cluster of people are quietly obsessed with {topic}.",
+  "{topic} just started picking up steam — worth a look.",
+  "Somewhere in your community, {topic} is the thing right now.",
+];
+
+const MULTI_USER_TAILS = [
+  "You're either ahead of it or behind — check it out.",
+  "Might be worth peeking before everyone else catches on.",
+  "Could be nothing. Could be the next thing.",
+];
+
+const SINGLE_USER_TAILS = [
+  "Early days, but worth watching.",
+  "Just one signal so far — could be the start of something.",
+];
+
+function pick<T>(arr: T[], seed: number): T {
+  return arr[Math.abs(seed) % arr.length];
+}
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+/** Loose relevance: does the viewer's own topic/category world overlap with this trend? */
+function computeRelevance(trend: CommunityTrend, viewerCategories: Set<string>, viewerWords: Set<string>): number {
+  let score = 0;
+  if (viewerCategories.has(trend.category)) score += 40;
+  const trendWords = normalizeTopicKey(trend.topicLabel).split(" ");
+  for (const w of trendWords) {
+    if (w.length > 2 && viewerWords.has(w)) score += 25;
+  }
+  for (const tag of trend.topicTags) {
+    if (viewerWords.has(tag.toLowerCase())) score += 15;
+  }
+  return score;
+}
+
+export interface PresentedTrend extends CommunityTrend {
+  narrative: string;
+  isPersonalized: boolean;
+}
+
+/**
+ * Ranks trends with a loose personalization boost (shared category or topic words with the
+ * viewer's own recent signals), then attaches a short editorial narrative line — no AI call,
+ * template-based so this is free to run on every pulse view.
+ */
+export function presentTrendsForViewer(
+  trends: CommunityTrend[],
+  viewerTopicLabels: string[],
+  viewerCategories: string[]
+): PresentedTrend[] {
+  const viewerCategorySet = new Set(viewerCategories);
+  const viewerWordSet = new Set(
+    viewerTopicLabels.flatMap((label) => normalizeTopicKey(label).split(" ")).filter((w) => w.length > 2)
+  );
+
+  const withRelevance = trends.map((trend) => ({
+    trend,
+    relevance: computeRelevance(trend, viewerCategorySet, viewerWordSet)
+  }));
+
+  withRelevance.sort((a, b) => (b.relevance + b.trend.trendScore * 0.1) - (a.relevance + a.trend.trendScore * 0.1));
+
+  return withRelevance.map(({ trend, relevance }) => {
+    const isPersonalized = relevance >= 25;
+    const seed = hashString(trend.id);
+    const opener = pick(isPersonalized ? PERSONAL_OPENERS : GENERAL_OPENERS, seed).replace("{topic}", trend.topicLabel);
+    const tail = pick(trend.uniqueUsers >= 2 ? MULTI_USER_TAILS : SINGLE_USER_TAILS, seed + 1);
+    return {
+      ...trend,
+      isPersonalized,
+      narrative: `${opener} ${tail}`
+    };
+  });
+}
