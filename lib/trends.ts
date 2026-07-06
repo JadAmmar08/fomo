@@ -10,14 +10,20 @@ const LOW_VALUE_PATTERNS = [
 ];
 
 function calculateTrendScore(recent: number, previous: number, uniqueUsers: number, category: string, topicLabel: string) {
-  const growth = previous === 0 ? recent : (recent - previous) / previous;
+  // Cap growth's influence — a topic going from 0 to 2 signals is not a "500% spike,"
+  // it's one person searching twice. Uncapped growth used to let single-user noise
+  // outscore real multi-person trends.
+  const growthRatio = previous === 0 ? Math.min(recent, 4) : Math.min(Math.max((recent - previous) / previous, 0), 4);
   const recencyBoost = recent > 0 ? Math.min(recent / 30, 1) : 0;
-  const base = recent * 0.4 + growth * 20 + uniqueUsers * 5 + recencyBoost * 10;
+  const base = recent * 1.5 + growthRatio * 5 + uniqueUsers * 20 + recencyBoost * 10;
   const multiUserBoost = uniqueUsers >= 3 ? 100 : uniqueUsers >= 2 ? 50 : 0;
-  const categoryBoost = HIGH_VALUE_CATEGORIES.has(category) ? 30 : 0;
+  const categoryBoost = HIGH_VALUE_CATEGORIES.has(category) ? 20 : 0;
+  // A single person isn't a community trend, no matter how many times they revisit it —
+  // always rank below anything 2+ people are actually sharing.
+  const soloNoisePenalty = uniqueUsers <= 1 ? 0.35 : 1;
   const lower = topicLabel.toLowerCase();
   const lowValuePenalty = LOW_VALUE_PATTERNS.some(p => lower.includes(p)) ? 0.2 : 1;
-  return (base + multiUserBoost + categoryBoost) * lowValuePenalty;
+  return (base + multiUserBoost + categoryBoost) * lowValuePenalty * soloNoisePenalty;
 }
 
 const JUNK_LABELS = new Set([
@@ -48,7 +54,9 @@ const JUNK_PATTERNS = [
   "google redirect",
   "applicant portal", "admission status",
   "hotel search", "hotel deals", "travel booking",
-  "wikipedia"
+  "wikipedia",
+  "college board", "student search service", "ap exam", "exam scores",
+  "exam prep", "company profile admin", "admin panel", "admin dashboard"
 ];
 
 export function isJunkLabel(label: string): boolean {
@@ -67,6 +75,9 @@ export function isJunkLabel(label: string): boolean {
   if (/^[A-Z][a-z]+ [A-Z][a-z]+('s| on )/i.test(label.trim())) return true;
   if (/^(ceo|cfo|cto|coo|founder|director|vp|president)\s+(of|and|profile)/i.test(cleaned)) return true;
   if (/\bprofile\b/i.test(cleaned) && /\blinkedin\b/i.test(cleaned)) return true;
+  // Raw search-autocomplete fragments — all lowercase, ends in a stray single letter
+  // (e.g. "benjamin ma ucsf e"), which is a broken query string, not a real topic
+  if (/^[a-z]+(\s[a-z]+){2,4}\s[a-z]$/.test(cleaned)) return true;
   return false;
 }
 
