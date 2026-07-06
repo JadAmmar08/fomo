@@ -11,19 +11,20 @@ const LOW_VALUE_PATTERNS = [
 
 function calculateTrendScore(recent: number, previous: number, uniqueUsers: number, category: string, topicLabel: string) {
   // Cap growth's influence — a topic going from 0 to 2 signals is not a "500% spike,"
-  // it's one person searching twice. Uncapped growth used to let single-user noise
-  // outscore real multi-person trends.
+  // it's one person searching twice.
   const growthRatio = previous === 0 ? Math.min(recent, 4) : Math.min(Math.max((recent - previous) / previous, 0), 4);
   const recencyBoost = recent > 0 ? Math.min(recent / 30, 1) : 0;
-  const base = recent * 1.5 + growthRatio * 5 + uniqueUsers * 20 + recencyBoost * 10;
-  const multiUserBoost = uniqueUsers >= 3 ? 100 : uniqueUsers >= 2 ? 50 : 0;
-  const categoryBoost = HIGH_VALUE_CATEGORIES.has(category) ? 20 : 0;
-  // A single person isn't a community trend, no matter how many times they revisit it —
-  // always rank below anything 2+ people are actually sharing.
-  const soloNoisePenalty = uniqueUsers <= 1 ? 0.35 : 1;
+  // Overlap (multiple people, growth) is a minor signal now — quality of the topic itself
+  // and fit to the viewer (handled in presentTrendsForViewer) matter far more than how many
+  // people happened to share it.
+  const base = recent * 1.5 + growthRatio * 3 + uniqueUsers * 8 + recencyBoost * 10;
+  const multiUserBoost = uniqueUsers >= 3 ? 25 : uniqueUsers >= 2 ? 12 : 0;
+  // Quality of subject matter is the main lever — a single person deep in real research
+  // or a startup idea is worth more than five people idly on the same YouTube video.
+  const categoryBoost = HIGH_VALUE_CATEGORIES.has(category) ? 55 : 0;
   const lower = topicLabel.toLowerCase();
   const lowValuePenalty = LOW_VALUE_PATTERNS.some(p => lower.includes(p)) ? 0.2 : 1;
-  return (base + multiUserBoost + categoryBoost) * lowValuePenalty * soloNoisePenalty;
+  return (base + multiUserBoost + categoryBoost) * lowValuePenalty;
 }
 
 const JUNK_LABELS = new Set([
@@ -232,7 +233,10 @@ export function presentTrendsForViewer(
     relevance: computeRelevance(trend, viewerCategorySet, viewerWordSet)
   }));
 
-  withRelevance.sort((a, b) => (b.relevance + b.trend.trendScore * 0.1) - (a.relevance + a.trend.trendScore * 0.1));
+  // Personalization leads — a real match to the viewer's own interests should surface
+  // well above a higher-scored but unrelated trend. trendScore mostly breaks ties within
+  // (or across, when nothing matches) the personalization tier.
+  withRelevance.sort((a, b) => (b.relevance * 3 + b.trend.trendScore) - (a.relevance * 3 + a.trend.trendScore));
 
   return withRelevance.map(({ trend, relevance }) => {
     const isPersonalized = relevance >= 25;
