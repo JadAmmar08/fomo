@@ -58,21 +58,24 @@ async function writeBriefingWithHaiku(
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
-      system: `You write a short personalized message to someone about what's happening in their community. You sound like a friend who noticed something interesting, not a newsletter.
+      system: `You write a short, sharp, personalized note about what someone's community is paying attention to. You sound like a witty, well-connected friend texting them a heads-up — not a newsletter, not a report, and never a dry list of stats.
 
-You'll get this person's own browsing topics (for context on who they are) and a list of trends from OTHER people in the community (their own topics are already excluded from this list).
+You'll get this person's own browsing topics (for context on who they are) and a list of trending topics from OTHER people in the community (their own topics are already excluded).
+
+THE VOICE:
+- Confident, warm, a little playful — the kind of text that makes someone smile and immediately want to check the app.
+- Treat every trend as a socially meaningful attention pattern, never as a raw browsing artifact. If a trend label still sounds like a platform/dashboard/admin thing, translate it in your head into what it actually represents (e.g. "LinkedIn messaging" → people quietly recruiting/networking) and write about THAT, never the literal label.
 
 RULES:
-- Write 2-3 sentences max. Natural, casual, like a text from a friend.
-- Prefer trends that connect to this person's interests if any clearly do. If none clearly connect, just share the most interesting/highest-signal community trend anyway — frame it as "here's what's buzzing" rather than pretending it's personally relevant.
-- Do NOT mix multiple unrelated trends into one confusing message — pick the single best one or two.
-- Summarize what's interesting — don't just repeat signal names verbatim.
-- Never mention categories, labels, or technical terms like "signals" or "pulse".
-- No bullet points, no dashes, no lists. Just a short natural paragraph.
+- Write 2-3 sentences max. One sharp opening line, then a bit of texture or a light nudge to go look.
+- Prefer trends that connect to this person's interests if any clearly do. If none clearly connect, just share the most interesting community trend anyway — frame it as "here's what's buzzing" rather than pretending it's personally relevant.
+- Do NOT mix multiple unrelated trends into one confusing message — pick the single best one.
+- Never mention categories, labels, or technical terms like "signals," "pulse," or "topics."
+- No bullet points, no dashes, no lists. Just a short, tight, natural paragraph with personality.
 - Only respond with exactly SKIP if the candidate list is genuinely empty or nonsensical junk.`,
       messages: [{
         role: "user",
-        content: `This person's ACTUAL browsing topics (their mirror, for context on who they are):\n${userTopics.slice(0, 10).join("\n")}\n\nTrending community topics from OTHER people:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite a short friendly note about what's trending. Prefer a topic that connects to their interests, but if nothing clearly connects, just share the best trend anyway.\n\nPerson's name: ${userName || "this user"}`
+        content: `This person's ACTUAL browsing topics (their mirror, for context on who they are):\n${userTopics.slice(0, 10).join("\n")}\n\nTrending community topics from OTHER people:\n${candidates.map(c => `- ${c.topicLabel} (${c.category}, ${c.uniqueUsers} people)`).join("\n")}\n\nWrite a short, sharp, personality-filled note about what's trending. Prefer a topic that connects to their interests, but if nothing clearly connects, just share the best trend anyway.\n\nPerson's name: ${userName || "this user"}`
       }]
     });
 
@@ -91,17 +94,23 @@ function digestHtml(recipientName: string, briefing: string, anonymousUserId: st
   const mirrorLink = `${appUrl}/api/digest/click?to=mirror&uid=${anonymousUserId}`;
 
   return `
-    <div style="font-family:-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#0d0d0f;color:#f0ede8;">
-      <div style="width:20px;height:20px;border-radius:50%;border:3px solid #3ab8aa;margin-bottom:28px;"></div>
-      <p style="color:#f0ede8;font-size:1.05rem;line-height:1.7;margin:0 0 28px;">
-        ${firstName ? `Hey ${firstName}, ` : ""}${briefing}
+    <div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:44px 32px;background:#f7f6f3;color:#1a1a18;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:32px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#1a6b5a;display:inline-block;"></span>
+        <span style="font-family:Georgia,serif;font-size:1.1rem;color:#1a1a18;">FOMO</span>
+      </div>
+      <p style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(26,26,24,0.35);margin:0 0 14px;">
+        ${firstName ? `Hey ${firstName}` : "Your community pulse"}
       </p>
-      <a href="${pulseLink}" style="display:inline-block;padding:12px 20px;background:#3ab8aa;color:white;border-radius:999px;text-decoration:none;font-weight:600;font-size:0.9rem;">
-        See what else is trending
+      <p style="font-family:Georgia,serif;font-size:1.4rem;line-height:1.5;color:#1a1a18;margin:0 0 32px;">
+        ${briefing}
+      </p>
+      <a href="${pulseLink}" style="display:inline-block;padding:14px 26px;background:#1a1a18;color:#f7f6f3;border-radius:999px;text-decoration:none;font-weight:500;font-size:0.9rem;">
+        See what else is trending →
       </a>
-      <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07);">
-        <p style="color:rgba(240,237,232,0.25);font-size:0.75rem;margin:0;">
-          FOMO · <a href="${mirrorLink}" style="color:rgba(240,237,232,0.35);">Your mirror</a> · <a href="${appUrl}/privacy" style="color:rgba(240,237,232,0.35);">Privacy</a>
+      <div style="margin-top:48px;padding-top:20px;border-top:1px solid rgba(0,0,0,0.08);">
+        <p style="color:rgba(26,26,24,0.35);font-size:0.75rem;margin:0;">
+          FOMO · <a href="${mirrorLink}" style="color:rgba(26,26,24,0.45);">Your mirror</a> · <a href="${appUrl}/privacy" style="color:rgba(26,26,24,0.45);">Privacy</a>
         </p>
       </div>
     </div>

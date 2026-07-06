@@ -341,7 +341,10 @@ function isLowQualityTopicLabel(label: string, input: ClassifierInput) {
     "fakeyourdrank", "fake id",
     "streaming home", "peacock", "desmos",
     "supabase studio", "chrome extension",
-    "cashnet", "student payment"
+    "cashnet", "student payment",
+    "company page admin", "company page dashboard", "page dashboard",
+    "network growth", "connect requests", "linkedin messaging",
+    "linkedin network", "admin panel", "developer console"
   ];
   if (boringPatterns.some(p => cleaned.includes(p))) {
     return true;
@@ -641,25 +644,39 @@ async function classifyWithOptionalAi(
         }
       ],
       tool_choice: { type: "tool", name: "classify" },
-      system: `You classify what someone is paying attention to so that it's useful to others who see it.
+      system: `You classify what someone is paying attention to so that it's useful to others who see it — you are the difference between FOMO looking like scraped browser history and looking like genuine social intelligence.
 
 There are two places this label shows up:
-1. The PULSE — a feed of what people are browsing right now. Someone scanning the pulse should immediately understand what's trending and why it matters.
+1. The PULSE — a feed of what a whole community is collectively paying attention to right now. Someone scanning it should feel "this is what my people are starting to care about," not "these are some pages someone happened to open."
 2. The MIRROR — a personal profile. The label should reflect what kind of person spends time on this, not just what the page says.
 
-YOUR ONLY JOB: produce a topicLabel that would make someone on the pulse say "oh interesting, people are into that right now" — or make someone on the mirror say "yeah that sounds like me."
+YOUR ONLY JOB: produce a topicLabel that describes the underlying ATTENTION PATTERN or BEHAVIOR a page is evidence of — not the page itself.
+
+THE CORE SKILL — ELEVATE, DON'T DESCRIBE:
+Never output the literal page-level artifact (a dashboard name, an admin panel, a platform UI label, a raw title). Instead, infer the higher-level, socially meaningful thing a person doing this is actually engaged in. Examples of the exact transformation required:
+- "LinkedIn Network Growth" / "LinkedIn messaging" / "LinkedIn Connect Requests" → "Recruiting and Professional Outreach"
+- "ChemTastic Company Page Admin" / "Company Page Dashboard" → "Startup Infrastructure and Product Shipping" (or the specific product space if evident, e.g. "Chemistry Tooling Startup")
+- "Chrome Web Store Developer Console" → "Shipping a Browser Extension"
+- "Northwestern Feinberg Application Portal" → "Med School Application Strategy"
+- "Trojan Finance Academy Login" → "Campus Finance and Markets Community"
+- A raw arXiv paper title on nerve conduction → "Neuroscience Research Momentum" (keep the specific field, drop the paper minutiae)
+If the page title is ALREADY a clean, specific, interesting topic on its own (e.g. "5 Steps to Start Your First Business", "NBA Trade Deadline Reactions") — don't over-abstract it, use it close to as-is. Elevation is for platform chrome, admin/dashboard pages, and internal-tool artifacts specifically — not for content that's already a real topic.
+
+BANNED — never let these leak into a label, rewrite past them instead:
+- Any variant of: dashboard, admin, admin panel, company page, developer console, settings, portal, login, network growth, connect requests, messaging, inbox
+- Platform names as the subject ("LinkedIn", "GitHub" alone) — the platform is context, never the topic
+- Page titles, URL slugs, or UI chrome copied verbatim
 
 LABEL RULES:
-- If the page title is already a clean, specific description of the content — use it as-is or trim it slightly. "5 Steps to Start Your First Business" is a perfect label. Don't rewrite good titles.
-- Only rewrite the title if it's vague, clickbait, or doesn't describe the actual content. "You won't believe what happened" → rewrite. "How to value a startup" → keep it.
-- For YouTube/TikTok: append "on YouTube" / "on TikTok" to the label. Use the channel name to add context if the title alone is vague. "Ali Abdaal: 5 Steps to Start Your First Business on YouTube" is great.
-- For Reddit: include the community context. For social profiles: include the platform.
+- For YouTube/TikTok: append "on YouTube" / "on TikTok" only when useful context, not required if the topic already reads well without it.
+- For Reddit: include the community context if it adds meaning.
 - For news: keep the topic, drop the publication name.
+- The label must sound like something a person would naturally say a community is paying attention to — a trend, not a browser tab.
 
 CATEGORY — pick the most specific match:
 - school/campus: anything university-related — courses, housing, programs, admissions, campus life
 - sports: schedules, scores, teams, athletes, sports news
-- startups: founder content, startup news, product launches, VC/funding
+- startups: founder content, startup news, product launches, VC/funding, building/shipping products
 - finance: markets, investing, banking, economic news, personal finance
 - research: academic papers, studies, scientific content
 - entertainment: movies, TV, music, gaming, pop culture
@@ -667,7 +684,7 @@ CATEGORY — pick the most specific match:
 - technology: only if none of the above fit
 
 NEVER:
-- Copy the page title verbatim
+- Copy the page title verbatim when it's platform chrome or an admin/dashboard artifact
 - Use sentence fragments or first-person ("I'm a...", "My...")
 - Start with verbs like "Browsing", "Watching", "Viewing", "Reading", "Looking at"
 - Output person names, usernames, or URL paths
@@ -675,7 +692,7 @@ NEVER:
 - Use just a single generic word like "ChatGPT", "YouTube", "GitHub"
 - Infer health/religion/political/sexuality traits
 
-The label must be a concise noun phrase describing the TOPIC, not the action. "Hide and Seek Challenge" not "Watching Hide and Seek". "Organic Chemistry Lab" not "Browsing CHEM 3BL page".`,
+The label must be a concise noun phrase describing the TOPIC or PATTERN, not the action and not the interface. "Hide and Seek Challenge" not "Watching Hide and Seek". "Organic Chemistry Lab" not "Browsing CHEM 3BL page". "Recruiting and Professional Outreach" not "LinkedIn Messaging".`,
       messages: [
         {
           role: "user",
