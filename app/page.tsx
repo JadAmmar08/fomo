@@ -10,14 +10,14 @@ export default function LandingPage() {
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
-          Collaboration, without the meetings.
+Open it before your next meeting.
           <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO watches what everyone is separately researching, and surfaces the tensions, blind spots, and opportunities no one would have found alone.
+          Pull it up at the start of your sync. It already knows what everyone found, so the meeting starts at the decision, not the recap.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
@@ -27,7 +27,7 @@ export default function LandingPage() {
       <section data-reveal style={{ padding: "40px 0 90px", borderTop: "1px solid var(--line)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
-            { title: "Shorter meetings.", body: "Nobody has to spend the first ten minutes catching everyone up. The team already knows what everyone found." },
+            { title: "Shorter meetings.", body: "Open it at the start of the call. Nobody spends the first ten minutes catching everyone up, the team already knows what everyone found." },
             { title: "Fewer blind spots.", body: "See when two people are independently converging on the same problem, or missing something the other already knows." },
             { title: "Faster onboarding.", body: "A new hire reads the team's mental model and is caught up in minutes, not weeks of asking around." },
           ].map((v) => (
@@ -155,7 +155,7 @@ export default function LandingPage() {
           {[
             { n: "01", title: "Install. Work normally.", body: "A lightweight Chrome extension runs silently in the background. No setup, no forms, no logins." },
             { n: "02", title: "Invite your team.", body: "A private, invite-only team. Nobody sees who found what, only how it connects." },
-            { n: "03", title: "See what only a team can find.", body: "Real connections between separate research, plus an evolving model of what the team believes." },
+            { n: "03", title: "Open it at your next meeting.", body: "Real connections between separate research, plus an evolving model of what the team believes, ready before anyone says a word." },
           ].map((step) => (
             <div key={step.n} style={{
               background: "white",
