@@ -18,9 +18,18 @@ export interface IdeaConnection {
 type RawConnectionWithSources = Omit<IdeaConnection, "peopleCount"> & { sourceTopics: string[] };
 
 export interface RoomWebOfIdeas {
-  connections: IdeaConnection[];
+  connections: (IdeaConnection & { isNew: boolean })[];
   soloHighlights: string[];
   generatedAt: string;
+  // Meeting-glance state: lets the UI show "3 new since your last visit" instead of forcing
+  // a full re-read every time. previouslyViewedAt is null on someone's first-ever visit, in
+  // which case nothing is marked new (there's no "last time" to compare against).
+  newSinceLastView: number;
+  previouslyViewedAt: string | null;
+}
+
+function connectionKey(c: { from: string; to: string; insightType: InsightType }): string {
+  return `${c.insightType}:${c.from.trim().toLowerCase()}:${c.to.trim().toLowerCase()}`;
 }
 
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours — small pilot rooms don't need live recompute
@@ -41,10 +50,10 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
       [roomId]
     );
     if (cached.rows.length > 0) {
-      const generatedAt = new Date(String(cached.rows[0].generated_at)).getTime();
-      if (Date.now() - generatedAt < CACHE_TTL_MS) {
+      const generatedAtIso = new Date(cached.rows[0].generated_at as string | Date).toISOString();
+      if (Date.now() - new Date(generatedAtIso).getTime() < CACHE_TTL_MS) {
         const data = cached.rows[0].connections as { connections: IdeaConnection[]; soloHighlights: string[] };
-        return { ...data, generatedAt: String(cached.rows[0].generated_at) };
+        return attachViewState(pool, roomId, { ...data, generatedAt: generatedAtIso });
       }
     }
   }
@@ -69,10 +78,14 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   }
 
   const totalTopics = perMemberTopics.reduce((sum, t) => sum + t.length, 0);
-  if (totalTopics < 3) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
+  if (totalTopics < 3) {
+    return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
+  }
 
   const rawConnections = await computeConnectionsWithHaiku(perMemberTopics);
-  if (!rawConnections) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
+  if (!rawConnections) {
+    return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
+  }
 
   // peopleCount is computed from the actual data, not asked of the model — count distinct
   // members whose topic list contains at least one of the connection's verified sourceTopics.
@@ -129,7 +142,56 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     );
   }
 
-  return { ...connections, generatedAt: new Date().toISOString() };
+  return attachViewState(pool, roomId, { ...connections, generatedAt: new Date().toISOString() });
+}
+
+/**
+ * Attaches "new since your last visit" state so the pulse can be skimmed in a meeting instead
+ * of re-read in full every time. Reads the last time anyone loaded this team's pulse, diffs the
+ * current connections against whatever the history shows as of that visit, then bumps the
+ * viewed timestamp to now. On a first-ever visit there's no prior snapshot to diff against, so
+ * nothing is marked new rather than flagging everything.
+ */
+async function attachViewState(
+  pool: NonNullable<ReturnType<typeof getPool>>,
+  roomId: string,
+  data: { connections: IdeaConnection[]; soloHighlights: string[]; generatedAt: string }
+): Promise<RoomWebOfIdeas> {
+  const roomRes = await pool.query(`select pulse_last_viewed_at from rooms where id = $1`, [roomId]);
+  const previouslyViewedAt = roomRes.rows[0]?.pulse_last_viewed_at
+    ? new Date(roomRes.rows[0].pulse_last_viewed_at as string | Date).toISOString()
+    : null;
+
+  let previousKeys = new Set<string>();
+  if (previouslyViewedAt) {
+    const historyRes = await pool.query(
+      `select connections from team_connection_history
+       where room_id = $1 and captured_at <= $2
+       order by captured_at desc limit 1`,
+      [roomId, previouslyViewedAt]
+    );
+    if (historyRes.rows.length > 0) {
+      const prevConnections = historyRes.rows[0].connections as IdeaConnection[];
+      previousKeys = new Set(prevConnections.map(connectionKey));
+    }
+  }
+
+  const connectionsWithIsNew = data.connections.map((c) => ({
+    ...c,
+    isNew: previouslyViewedAt !== null && !previousKeys.has(connectionKey(c))
+  }));
+
+  await pool.query(
+    `update rooms set pulse_last_viewed_at = now() where id = $1`,
+    [roomId]
+  );
+
+  return {
+    ...data,
+    connections: connectionsWithIsNew,
+    newSinceLastView: connectionsWithIsNew.filter((c) => c.isNew).length,
+    previouslyViewedAt
+  };
 }
 
 const MAX_EXPLANATION_CHARS = 200;

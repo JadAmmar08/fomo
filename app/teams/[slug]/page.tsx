@@ -11,12 +11,15 @@ interface IdeaConnection {
   explanation: string;
   insightType: "implication" | "tension" | "question" | "opportunity" | "blind_spot";
   peopleCount: number;
+  isNew: boolean;
 }
 
 interface WebOfIdeasData {
   connections: IdeaConnection[];
   soloHighlights: string[];
   generatedAt: string;
+  newSinceLastView: number;
+  previouslyViewedAt: string | null;
 }
 
 async function getTeamPulse(slug: string) {
@@ -99,6 +102,19 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
           Web of ideas
         </div>
+
+        {hasWeb && webOfIdeas!.previouslyViewedAt && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 20,
+            background: webOfIdeas!.newSinceLastView > 0 ? "var(--accent-soft)" : "var(--surface-raised)",
+            color: webOfIdeas!.newSinceLastView > 0 ? "var(--accent)" : "var(--subtle)",
+            border: "1px solid var(--line)", borderRadius: 999, padding: "8px 16px", fontSize: "0.85rem", fontWeight: 500
+          }}>
+            {webOfIdeas!.newSinceLastView > 0
+              ? `${webOfIdeas!.newSinceLastView} new since your last visit`
+              : "Nothing new since your last visit"}
+          </div>
+        )}
 
         {hasWeb ? (
           <WebOfIdeas connections={webOfIdeas!.connections} soloHighlights={webOfIdeas!.soloHighlights} />

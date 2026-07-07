@@ -112,6 +112,7 @@ create table if not exists rooms (
   max_members integer default 500,
   is_active boolean not null default true,
   type text not null default 'room' check (type in ('room', 'team')),
+  pulse_last_viewed_at timestamptz,
   created_at timestamptz not null default now()
 );
 

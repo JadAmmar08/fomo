@@ -6,6 +6,7 @@ interface IdeaConnection {
   explanation: string;
   insightType: InsightType;
   peopleCount: number;
+  isNew?: boolean;
 }
 
 interface WebOfIdeasProps {
@@ -38,9 +39,16 @@ export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
                   {conn.peopleCount} people, independently
                 </span>
               </div>
-              <span className="pill" style={{ fontSize: "0.68rem", marginBottom: 8, display: "inline-flex" }}>
-                {INSIGHT_LABELS[conn.insightType] ?? "Insight"}
-              </span>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <span className="pill" style={{ fontSize: "0.68rem", display: "inline-flex" }}>
+                  {INSIGHT_LABELS[conn.insightType] ?? "Insight"}
+                </span>
+                {conn.isNew && (
+                  <span className="pill" style={{ fontSize: "0.68rem", display: "inline-flex", background: "var(--accent)", color: "white" }}>
+                    New
+                  </span>
+                )}
+              </div>
               <p style={{ fontSize: "0.85rem", margin: 0, lineHeight: 1.6 }}>{conn.explanation}</p>
             </div>
           ))}
