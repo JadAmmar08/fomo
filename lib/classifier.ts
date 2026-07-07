@@ -302,8 +302,8 @@ function isLowQualityTopicLabel(label: string, input: ClassifierInput) {
     return true;
   }
 
-  // Reject if the label is just the domain name with a TLD
-  if (/^[a-z0-9-]+\.(com|net|org|io|co|edu|gov)$/.test(cleaned)) {
+  // Reject if the label is just a bare domain/URL — with or without a "www." / subdomain prefix
+  if (/^([a-z0-9-]+\.)+(com|net|org|io|co|edu|gov)$/.test(cleaned)) {
     return true;
   }
 

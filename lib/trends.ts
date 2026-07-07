@@ -69,6 +69,8 @@ export function isJunkLabel(label: string): boolean {
   if (/^(stories|browsing)\s*[•·\-–]\s*/i.test(cleaned) && /instagram|facebook|snapchat|tiktok/i.test(cleaned)) return true;
   if (/^\/?stories\//i.test(cleaned)) return true;
   if (/^https?:\/\//i.test(cleaned)) return true;
+  // Bare domain/URL as the whole label — "www.google.com", "google.com" — never a real topic
+  if (/^([a-z0-9-]+\.)+(com|net|org|io|co|edu|gov)$/.test(cleaned)) return true;
   if (/\bfomo\b/i.test(cleaned)) return true;
   if (/^i'm\s+a\b/i.test(cleaned)) return true;
   if (/^browsing\s+(github|linkedin|twitter|reddit|youtube|facebook)/i.test(cleaned)) return true;
