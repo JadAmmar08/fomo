@@ -34,11 +34,11 @@ export function HeroCta() {
   if (isMember) {
     return (
       <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 18 }}>
-        <Link href="/mirror" className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
-          Open your mirror →
+        <Link href={"/teams" as Route} className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
+          Open your team →
         </Link>
-        <Link href={"/rooms" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
-          Join a room
+        <Link href="/mirror" className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
+          Your mirror
         </Link>
       </div>
     );
@@ -49,8 +49,8 @@ export function HeroCta() {
       <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
         Get the extension →
       </Link>
-      <Link href={"/rooms" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
-        See a room
+      <Link href={"/teams" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
+        See a team
       </Link>
     </div>
   );
@@ -63,11 +63,11 @@ export function BottomCta() {
     return (
       <section data-reveal style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
         <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
-          Your people are<br />already talking.
+          Your team is<br />finding things.
         </h2>
-        <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Check what your room is into right now.</p>
-        <Link href={"/rooms" as Route} className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
-          Go to your rooms
+        <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>See what's connected, and what your team currently believes.</p>
+        <Link href={"/teams" as Route} className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
+          Go to your teams
         </Link>
       </section>
     );
@@ -76,9 +76,9 @@ export function BottomCta() {
   return (
     <section data-reveal style={{ padding: "110px 0 90px", textAlign: "center", borderTop: "1px solid var(--line)" }}>
       <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
-        Ready to see what<br />you&apos;re missing?
+        Ready to see what<br />your team is missing?
       </h2>
-      <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Install the extension. Browse for an hour. Come back.</p>
+      <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Install the extension. Invite your team. Browse normally.</p>
       <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
         Get started, it&apos;s free
       </Link>
