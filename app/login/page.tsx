@@ -14,7 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 function LoginInner() {
   const searchParams = useSearchParams();
   const errorCode = searchParams.get("error");
-  const redirectTo = searchParams.get("redirect") ?? "/mirror";
+  const redirectTo = searchParams.get("redirect") ?? "/teams";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

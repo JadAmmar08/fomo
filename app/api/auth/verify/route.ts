@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   await pool.query(`update magic_link_tokens set used_at = now() where token = $1`, [token]);
 
-  const redirectTo = typeof row.redirect_to === "string" && row.redirect_to.startsWith("/") ? row.redirect_to : "/mirror";
+  const redirectTo = typeof row.redirect_to === "string" && row.redirect_to.startsWith("/") ? row.redirect_to : "/teams";
   const response = NextResponse.redirect(`${appUrl}${redirectTo}`);
   return attachAnonymousCookie(response, String(row.anonymous_user_id));
 }

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const email = String(body.email ?? "").trim().toLowerCase();
   const name = String(body.name ?? "").trim();
-  const redirectTo = typeof body.redirectTo === "string" ? body.redirectTo : "/mirror";
+  const redirectTo = typeof body.redirectTo === "string" ? body.redirectTo : "/teams";
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Enter a valid email" }, { status: 400 });

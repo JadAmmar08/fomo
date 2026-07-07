@@ -149,9 +149,9 @@ export default function DownloadPage() {
 
       <section className="panel" style={{ textAlign: "center", padding: "40px 36px" }}>
         <h2>Already installed?</h2>
-        <p style={{ marginBottom: 24 }}>Your mirror starts building the moment you browse.</p>
+        <p style={{ marginBottom: 24 }}>Your data starts building the moment you browse.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
-          <Link href="/mirror" className="button">Open your mirror</Link>
+          <Link href={"/teams" as Route} className="button">Open your team</Link>
           <Link href={"/rooms" as Route} className="button-secondary">Join a room</Link>
         </div>
       </section>

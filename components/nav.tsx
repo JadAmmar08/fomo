@@ -6,9 +6,8 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 
 const navItems: Array<{ href: Route; label: string }> = [
-  { href: "/mirror", label: "Mirror" },
-  { href: "/rooms" as Route, label: "Rooms" },
   { href: "/teams" as Route, label: "Teams" },
+  { href: "/rooms" as Route, label: "Rooms" },
   { href: "/privacy", label: "Privacy" }
 ];
 
@@ -56,7 +55,7 @@ export function Nav() {
       ))}
       {isMember ? (
         <Link
-          href="/mirror"
+          href={"/teams" as Route}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -72,7 +71,7 @@ export function Nav() {
           }}
         >
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />
-          {name ?? "My mirror"}
+          {name ?? "My account"}
         </Link>
       ) : (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>
