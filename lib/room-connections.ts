@@ -90,6 +90,11 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
         };
       })
       .filter((c) => c.peopleCount >= 2)
+      // Fabricated specifics (invented percentages, dollar amounts, year/month ranges) are a
+      // real recurring failure mode — the model states them with confidence but they aren't
+      // derivable from a topic label. Drop the connection rather than show a confident-sounding
+      // invented stat; a shorter honest list beats a longer fabricated one.
+      .filter((c) => !hasFabricatedSpecifics(c.explanation))
   };
 
   await pool.query(
@@ -111,6 +116,14 @@ const MAX_EXPLANATION_CHARS = 200;
  * If no safe cut point exists, leaves the text untouched — a longer complete sentence beats a
  * mechanically broken one.
  */
+function hasFabricatedSpecifics(text: string): boolean {
+  return (
+    /\d+\s*[-–]\s*\d+\s*(year|month|week|day)s?\b/i.test(text) || // "5-7 year"
+    /\$\s?\d/.test(text) || // "$50M"
+    /\b\d+(\.\d+)?\s*%/.test(text) // "40%"
+  );
+}
+
 function looksComplete(clause: string): boolean {
   const c = clause.trim();
   if (c.length < 25) return false;
@@ -127,12 +140,6 @@ function tightenExplanation(text: string): string {
   if (original.includes("?")) {
     const upToQuestion = original.slice(0, original.indexOf("?") + 1);
     return upToQuestion.length >= 15 ? upToQuestion : original;
-  }
-
-  // Only intervene at all if the sentence is actually over length — a short sentence that
-  // happens to contain "but"/a dash/a semicolon is not the problem we're fixing.
-  if (original.length <= MAX_EXPLANATION_CHARS) {
-    return /[.!?]$/.test(original) ? original : original + ".";
   }
 
   let result = original;
