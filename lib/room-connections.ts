@@ -74,13 +74,21 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   const connections = {
     ...rawConnections,
     connections: rawConnections.connections
-      .map((c) => ({
-        ...c,
-        explanation: tightenExplanation(c.explanation),
-        peopleCount: perMemberTopics.filter(
-          (topics) => topics.includes(c.from) || topics.includes(c.to)
-        ).length
-      }))
+      .map((c) => {
+        const explanation = tightenExplanation(c.explanation);
+        return {
+          ...c,
+          explanation,
+          // A card labeled "Open question" that isn't actually phrased as a question is a
+          // mislabel, not an insight type — downgrade rather than show false framing.
+          insightType: c.insightType === "question" && !explanation.trim().endsWith("?")
+            ? "implication" as const
+            : c.insightType,
+          peopleCount: perMemberTopics.filter(
+            (topics) => topics.includes(c.from) || topics.includes(c.to)
+          ).length
+        };
+      })
       .filter((c) => c.peopleCount >= 2)
   };
 
@@ -113,8 +121,21 @@ function looksComplete(clause: string): boolean {
 
 function tightenExplanation(text: string): string {
   const original = text.trim();
-  let result = original;
 
+  // A real question must keep its full structure and its "?" — never run clause-splitting on
+  // it, since cutting a question in half destroys the thing that makes it a question.
+  if (original.includes("?")) {
+    const upToQuestion = original.slice(0, original.indexOf("?") + 1);
+    return upToQuestion.length >= 15 ? upToQuestion : original;
+  }
+
+  // Only intervene at all if the sentence is actually over length — a short sentence that
+  // happens to contain "but"/a dash/a semicolon is not the problem we're fixing.
+  if (original.length <= MAX_EXPLANATION_CHARS) {
+    return /[.!?]$/.test(original) ? original : original + ".";
+  }
+
+  let result = original;
   for (const splitter of [/\s+[—–]\s+/, /;\s*/, /,?\s+but\s+/i]) {
     const parts = result.split(splitter);
     if (parts.length > 1 && looksComplete(parts[0])) {
@@ -213,6 +234,10 @@ RULES:
 - Bad (two ideas stitched together): "CRISPR's off-target editing risk may push regulatory timelines toward multi-year clinical trials, but most biotech funding rounds assume shorter commercialization windows."
 - Good (one claim, 14 words): "The regulatory research should tell the funding side whether their timeline assumption is realistic."
 - Good (one claim, 15 words): "Nobody here has checked whether the gene-editing approach fits the FDA pathway being researched."
+- NO CONSULTANT-SPEAK. Never write "may reveal," "risking," "capital allocation patterns," "distributing risk across modalities," or any phrase that sounds smart but could be pasted into a different room about a different topic and still sound plausible. If you can imagine the same sentence working for an unrelated pair of topics, rewrite it using the actual words from the two specific topics instead.
+- NAME THE ACTUAL TOPICS, not a generic abstraction of them. Reference the specific thing (the exact gene, drug, approval type, funding stage — whatever is literally in the topic label) rather than talking about "the science" or "the funding side" in the abstract.
+- If insightType is "question", the explanation MUST be phrased as an actual question ending in "?" — something specific the room could go find the answer to. It is not a recommendation or a piece of advice in disguise.
+- Every explanation should point at a concrete next step: something to compare, check, ask, or validate — not just an observation that a tension or gap exists.
 - ORDER connections by insight value, not by topical closeness. The single best, sharpest, most surprising connection goes first. If you only have 1-2 genuine insights, return only those — do not pad the list.
 - NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only.
 - For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases.
