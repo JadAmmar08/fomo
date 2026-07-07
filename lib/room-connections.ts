@@ -76,6 +76,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     connections: rawConnections.connections
       .map((c) => ({
         ...c,
+        explanation: tightenExplanation(c.explanation),
         peopleCount: perMemberTopics.filter(
           (topics) => topics.includes(c.from) || topics.includes(c.to)
         ).length
@@ -91,6 +92,48 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   );
 
   return { ...connections, generatedAt: new Date().toISOString() };
+}
+
+const MAX_EXPLANATION_CHARS = 200;
+
+/**
+ * Mechanical backstop on top of prompting — the model doesn't reliably obey the "one clause,
+ * no semicolon/dash/but" instruction on its own. Only cuts when the remainder after cutting is
+ * itself a complete, sensible clause (has a verb-ish shape and isn't a dangling fragment).
+ * If no safe cut point exists, leaves the text untouched — a longer complete sentence beats a
+ * mechanically broken one.
+ */
+function looksComplete(clause: string): boolean {
+  const c = clause.trim();
+  if (c.length < 25) return false;
+  // Dangling conjunctions/fragments at the end are the tell of an unsafe cut
+  if (/\b(if|whether|because|since|that|which|who|what|and|or|but|to|for|of|the|a|an)$/i.test(c)) return false;
+  return true;
+}
+
+function tightenExplanation(text: string): string {
+  const original = text.trim();
+  let result = original;
+
+  for (const splitter of [/\s+[—–]\s+/, /;\s*/, /,?\s+but\s+/i]) {
+    const parts = result.split(splitter);
+    if (parts.length > 1 && looksComplete(parts[0])) {
+      result = parts[0].trim();
+      break;
+    }
+  }
+
+  if (result.length > MAX_EXPLANATION_CHARS) {
+    const truncated = result.slice(0, MAX_EXPLANATION_CHARS);
+    const lastComma = truncated.lastIndexOf(",");
+    const candidate = lastComma > 60 ? truncated.slice(0, lastComma) : truncated.slice(0, truncated.lastIndexOf(" "));
+    // Only accept the truncation if it's still a complete-feeling clause — otherwise keep
+    // the full original rather than emit a broken fragment.
+    result = looksComplete(candidate) ? candidate.trim() : original;
+  }
+
+  if (!/[.!?]$/.test(result)) result += ".";
+  return result;
 }
 
 type RawConnection = Omit<IdeaConnection, "peopleCount">;
@@ -161,10 +204,15 @@ Not "these two topics are related" — that's a fact, not an insight. A good con
 RULES:
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
 - Reject superficial overlap. Two things being in the same broad field (both "biotech," both "tech") is NOT enough — there must be a specific, concrete link between them.
-- EXPLANATIONS MUST BE ONE TIGHT SENTENCE. No throat-clearing, no "Both are..." or "These are..." openings — those are the tell of a generic-relatedness observation, not an insight. Start directly with the implication, tension, question, or opportunity itself.
+- ONE CLAIM. ONE INDEPENDENT CLAUSE. HARD LIMIT 20 WORDS. Count your words before answering — if you're over 20, cut until you're under.
+- NO SEMICOLONS. NO EM-DASHES. NO "BUT". Each of these is how a second idea sneaks in — if your sentence needs one of these, you're trying to say two things. Pick the stronger one and delete the rest.
+- NO INVENTED SPECIFICS. Never state a fabricated number, percentage, timeline, or fact that isn't derivable from the topic labels themselves (no "18-24 month windows," no "$50M," no invented statistics) — that's the tell of a plausible-sounding but ungrounded claim. Ground the claim only in the concepts actually named in the topics.
+- No throat-clearing, no "Both are..." or "These are..." openings. Start directly with the claim.
+- The claim should point at something the room should DO or NOTICE: talk to each other, investigate something specific, recognize a mismatch, or reinterpret one side's work in light of the other's.
 - Bad (generic relatedness): "CRISPR therapies need to navigate FDA approval, so whoever's researching the science should align with whoever's mapping the regulatory path."
-- Good (concrete implication): "The regulatory approach only works if the gene-editing method stays within the FDA's current somatic-cell framework — worth checking before either side goes further."
-- Good (open question): "Neither side has worked out whether the funding timeline can actually survive the regulatory timeline — that's the real question here."
+- Bad (two ideas stitched together): "CRISPR's off-target editing risk may push regulatory timelines toward multi-year clinical trials, but most biotech funding rounds assume shorter commercialization windows."
+- Good (one claim, 14 words): "The regulatory research should tell the funding side whether their timeline assumption is realistic."
+- Good (one claim, 15 words): "Nobody here has checked whether the gene-editing approach fits the FDA pathway being researched."
 - ORDER connections by insight value, not by topical closeness. The single best, sharpest, most surprising connection goes first. If you only have 1-2 genuine insights, return only those — do not pad the list.
 - NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only.
 - For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases.
