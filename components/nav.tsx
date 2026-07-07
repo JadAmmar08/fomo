@@ -12,26 +12,32 @@ const navItems: Array<{ href: Route; label: string }> = [
   { href: "/privacy", label: "Privacy" }
 ];
 
-const ACTIVE_KEY = "fomo_has_activity";
+const MEMBER_KEY = "fomo_is_member";
+const NAME_KEY = "fomo_name";
 const SEEN_TRENDS_KEY = "fomo_seen_trend_ids";
 const MAX_BADGE = 2;
 
 export function Nav() {
   const pathname = usePathname();
   const [isMember, setIsMember] = useState<boolean | null>(null);
+  const [name, setName] = useState<string | null>(null);
   const [pulseBadge, setPulseBadge] = useState(0);
 
   useEffect(() => {
-    // Once someone has real signals, treat them as a member forever on this device
-    if (localStorage.getItem(ACTIVE_KEY) === "1") {
+    // Once someone is recognized (logged in OR has activity), they're a member on this
+    // device forever — never shown "Get started" or "Log in" again.
+    if (localStorage.getItem(MEMBER_KEY) === "1") {
       setIsMember(true);
+      setName(localStorage.getItem(NAME_KEY));
       return;
     }
     fetch("/api/session")
       .then(r => r.json())
       .then(d => {
-        if (d?.hasActivity) {
-          localStorage.setItem(ACTIVE_KEY, "1");
+        if (d?.isMember) {
+          localStorage.setItem(MEMBER_KEY, "1");
+          if (d.name) localStorage.setItem(NAME_KEY, d.name);
+          setName(d.name ?? null);
           setIsMember(true);
         } else {
           setIsMember(false);
@@ -111,7 +117,7 @@ export function Nav() {
           }}
         >
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />
-          My mirror
+          {name ?? "My mirror"}
         </Link>
       ) : (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>

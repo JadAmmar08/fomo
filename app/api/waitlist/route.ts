@@ -32,6 +32,15 @@ export async function POST(req: NextRequest) {
          on conflict (email) do update set anonymous_user_id = coalesce(excluded.anonymous_user_id, waitlist.anonymous_user_id)`,
         [email.toLowerCase().trim(), name?.trim() ?? null, anonymousUserId?.trim() ?? null]
       );
+
+      // Also capture the name on the users row so the nav can greet them by name — on conflict
+      // do nothing so this never overwrites a name already set elsewhere.
+      if (anonymousUserId?.trim() && name?.trim()) {
+        await pool.query(
+          `insert into users (anonymous_user_id, name) values ($1, $2) on conflict (anonymous_user_id) do nothing`,
+          [anonymousUserId.trim(), name.trim()]
+        );
+      }
     } catch {
       // Table may not exist yet — non-fatal
     }

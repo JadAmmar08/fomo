@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const email = String(body.email ?? "").trim().toLowerCase();
+  const name = String(body.name ?? "").trim();
   const redirectTo = typeof body.redirectTo === "string" ? body.redirectTo : "/mirror";
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -45,6 +46,13 @@ export async function POST(req: NextRequest) {
       [email, anonymousUserId]
     );
   }
+
+  // Capture their name at login so the nav can greet them by name instead of falling back to
+  // "My mirror" — on conflict do nothing so this never overwrites a name set elsewhere.
+  await pool.query(
+    `insert into users (anonymous_user_id, name) values ($1, $2) on conflict (anonymous_user_id) do nothing`,
+    [anonymousUserId, name || "FOMO user"]
+  );
 
   const token = createAnonymousUserId().replace("anon_", "link_");
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);

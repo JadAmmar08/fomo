@@ -16,6 +16,7 @@ function LoginInner() {
   const errorCode = searchParams.get("error");
   const redirectTo = searchParams.get("redirect") ?? "/mirror";
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState(errorCode ? ERROR_MESSAGES[errorCode] ?? "Something went wrong." : "");
@@ -31,7 +32,7 @@ function LoginInner() {
     const res = await fetch("/api/auth/request-link", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, redirectTo })
+      body: JSON.stringify({ email, name, redirectTo })
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -69,6 +70,18 @@ function LoginInner() {
               Enter your email and we'll send you a link that signs you in — on any device, no password to remember.
             </p>
             <div style={{ maxWidth: 380, margin: "0 auto", display: "grid", gap: 12 }}>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                onKeyDown={(e) => e.key === "Enter" && sendLink()}
+                style={{
+                  width: "100%", padding: "14px 18px",
+                  background: "var(--surface-raised)", border: "1px solid var(--line-strong)",
+                  borderRadius: "var(--radius-md)", color: "var(--text)", fontSize: "1rem"
+                }}
+              />
               <input
                 type="email"
                 value={email}
