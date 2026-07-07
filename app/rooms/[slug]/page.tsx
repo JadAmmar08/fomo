@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
-import { FeedbackActions } from "@/components/feedback-actions";
 import { WebOfIdeas } from "@/components/web-of-ideas";
 
 interface Trend {
@@ -110,70 +109,27 @@ export default async function RoomPulsePage({ params }: { params: Promise<{ slug
 
         {hasWeb ? (
           <WebOfIdeas connections={webOfIdeas!.connections} soloHighlights={webOfIdeas!.soloHighlights} />
-        ) : (
+        ) : trends.length > 0 ? (
           <>
             <h2 style={{ marginBottom: 8 }}>Still connecting the dots.</h2>
+            <p style={{ maxWidth: 480, marginBottom: 24 }}>
+              Not enough overlap yet to draw real connections — but here&apos;s what the room is separately looking into so far.
+            </p>
+            <div className="tag-row">
+              {Array.from(new Set(trends.map((t) => t.topicLabel))).slice(0, 14).map((label) => (
+                <span key={label} className="chip">{label}</span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 style={{ marginBottom: 8 }}>No activity yet.</h2>
             <p style={{ maxWidth: 480 }}>
-              Once members have a few days of research in, FOMO starts finding the overlaps between what everyone's separately looking into. Check back soon.
+              Once members browse with the extension active, FOMO starts finding what connects. Invite more people to get things going.
             </p>
           </>
         )}
       </section>
-
-      {trends.length === 0 ? (
-        <section className="panel" style={{ background: "var(--surface)" }}>
-          <h2>No activity yet</h2>
-          <p>
-            Once members browse with the extension active, their signals will show up here. Invite more people to get things going.
-          </p>
-        </section>
-      ) : (
-        <section className="grid two">
-          {trends.map((trend) => (
-            <div key={trend.id} className="panel glow-panel">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className="kicker">{trend.timeWindow} · {trend.category}</span>
-                  <h2 style={{ marginBottom: 0 }}>{trend.topicLabel}</h2>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div className="metric" style={{ fontSize: "1.8rem", color: "var(--accent)" }}>
-                    {trend.trendScore.toFixed(0)}
-                  </div>
-                  <div className="score-note">score</div>
-                </div>
-              </div>
-
-              <div className="tag-row" style={{ marginBottom: 16 }}>
-                {trend.topicTags.map((tag) => (
-                  <span key={tag} className="chip">{tag}</span>
-                ))}
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                <div className="meta-card">
-                  <span className="kicker">Signals</span>
-                  <strong style={{ fontSize: "1.2rem" }}>{trend.anonymousSignals}</strong>
-                </div>
-                <div className="meta-card">
-                  <span className="kicker">Growth</span>
-                  <strong style={{ fontSize: "1.2rem", color: trend.changePct > 0 ? "var(--teal)" : "var(--muted)" }}>
-                    {trend.changePct > 0 ? "+" : ""}{Math.round(trend.changePct)}%
-                  </strong>
-                </div>
-              </div>
-
-              <p style={{ marginBottom: 14, fontSize: "0.88rem" }}>{trend.explanation}</p>
-
-              <FeedbackActions
-                targetType="pulse"
-                targetId={trend.id}
-                actions={["good-catch", "not-relevant", "hide-topic"]}
-              />
-            </div>
-          ))}
-        </section>
-      )}
 
       <section className="panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
         <p style={{ margin: 0 }}>Want to invite more people?</p>
