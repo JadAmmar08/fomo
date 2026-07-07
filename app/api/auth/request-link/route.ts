@@ -48,11 +48,21 @@ export async function POST(req: NextRequest) {
   }
 
   // Capture their name at login so the nav can greet them by name instead of falling back to
-  // "My mirror" — on conflict do nothing so this never overwrites a name set elsewhere.
-  await pool.query(
-    `insert into users (anonymous_user_id, name) values ($1, $2) on conflict (anonymous_user_id) do nothing`,
-    [anonymousUserId, name || "FOMO user"]
-  );
+  // "My mirror". Update on conflict, but only when there's a real name to set and the existing
+  // row still has the generic placeholder — never clobber a real name set elsewhere.
+  if (name) {
+    await pool.query(
+      `insert into users (anonymous_user_id, name) values ($1, $2)
+       on conflict (anonymous_user_id) do update set name = excluded.name
+       where users.name = 'FOMO user' or users.name is null`,
+      [anonymousUserId, name]
+    );
+  } else {
+    await pool.query(
+      `insert into users (anonymous_user_id, name) values ($1, 'FOMO user') on conflict (anonymous_user_id) do nothing`,
+      [anonymousUserId]
+    );
+  }
 
   const token = createAnonymousUserId().replace("anon_", "link_");
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);

@@ -33,11 +33,13 @@ export async function POST(req: NextRequest) {
         [email.toLowerCase().trim(), name?.trim() ?? null, anonymousUserId?.trim() ?? null]
       );
 
-      // Also capture the name on the users row so the nav can greet them by name — on conflict
-      // do nothing so this never overwrites a name already set elsewhere.
+      // Also capture the name on the users row so the nav can greet them by name — update if the
+      // row still has the generic placeholder, never clobber a real name set elsewhere.
       if (anonymousUserId?.trim() && name?.trim()) {
         await pool.query(
-          `insert into users (anonymous_user_id, name) values ($1, $2) on conflict (anonymous_user_id) do nothing`,
+          `insert into users (anonymous_user_id, name) values ($1, $2)
+           on conflict (anonymous_user_id) do update set name = excluded.name
+           where users.name = 'FOMO user' or users.name is null`,
           [anonymousUserId.trim(), name.trim()]
         );
       }
