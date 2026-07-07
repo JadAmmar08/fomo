@@ -94,6 +94,12 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  function copyCode(room: Room) {
+    navigator.clipboard.writeText(room.invite_code);
+    setCopied(`${room.id}-code`);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
   return (
     <div className="stack">
       <section style={{ padding: "64px 0 48px", textAlign: "center" }}>
@@ -185,9 +191,21 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
                 {room.description && (
                   <p style={{ fontSize: "0.85rem", marginBottom: 8 }}>{room.description}</p>
                 )}
-                <span className="kicker" style={{ display: "inline" }}>{room.member_count} {room.member_count === 1 ? "member" : "members"}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span className="kicker" style={{ display: "inline", marginBottom: 0 }}>{room.member_count} {room.member_count === 1 ? "member" : "members"}</span>
+                  <span className="chip" style={{ fontFamily: "monospace", fontSize: "0.78rem" }}>
+                    code: {room.invite_code}
+                  </span>
+                </div>
               </div>
               <div className="button-row" style={{ flexShrink: 0 }}>
+                <button
+                  className="button-secondary"
+                  onClick={() => copyCode(room)}
+                  style={{ fontSize: "0.85rem" }}
+                >
+                  {copied === `${room.id}-code` ? "Copied!" : "Copy code"}
+                </button>
                 <button
                   className="button-secondary"
                   onClick={() => copyInvite(room)}
