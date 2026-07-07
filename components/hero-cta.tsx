@@ -3,14 +3,32 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const ACTIVE_KEY = "fomo_has_activity";
+const MEMBER_KEY = "fomo_is_member";
 
-export function HeroCta() {
+function useIsMember() {
   const [isMember, setIsMember] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem(ACTIVE_KEY) === "1") setIsMember(true);
+    if (localStorage.getItem(MEMBER_KEY) === "1") {
+      setIsMember(true);
+      return;
+    }
+    fetch("/api/session")
+      .then(r => r.json())
+      .then(d => {
+        if (d?.isMember) {
+          localStorage.setItem(MEMBER_KEY, "1");
+          setIsMember(true);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  return isMember;
+}
+
+export function HeroCta() {
+  const isMember = useIsMember();
 
   if (isMember) {
     return (
@@ -38,11 +56,7 @@ export function HeroCta() {
 }
 
 export function BottomCta() {
-  const [isMember, setIsMember] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem(ACTIVE_KEY) === "1") setIsMember(true);
-  }, []);
+  const isMember = useIsMember();
 
   if (isMember) {
     return (
