@@ -55,7 +55,9 @@ export default function LandingPage() {
             <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0 }}>
               <strong style={{ color: "var(--text)" }}>Want to go further?</strong> Join a private{" "}
               <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Room</Link>
-              {" "}with people you actually know — FOMO finds what you&apos;re each separately paying attention to and stitches it into one shared discovery.
+              {" "}with people you know, or a{" "}
+              <Link href={"/teams" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Team</Link>
+              {" "}for real research collaboration.
             </p>
           </div>
         </div>
@@ -100,6 +102,48 @@ export default function LandingPage() {
               <span className="chip">auto-built</span>
               <span className="chip">private to you</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Rooms vs Teams */}
+      <section data-reveal style={{ padding: "90px 0", borderTop: "1px solid var(--line)" }}>
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+            Two ways to go further
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          </div>
+          <h2 style={{ fontSize: "clamp(2.4rem, 5vw, 4rem)", lineHeight: 1.05 }}>
+            Rooms and Teams.
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <div style={{
+            background: "white", borderRadius: 20, border: "1px solid var(--line)",
+            boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "44px 40px"
+          }}>
+            <span className="eyebrow">Rooms</span>
+            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For people you know.</h3>
+            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 24 }}>
+              A private, invite-only pulse for a friend group, a class, a floor — anyone you actually know. Personalized to each person, ranked by what&apos;s actually relevant to them.
+            </p>
+            <Link href={"/rooms" as Route} className="button-secondary" style={{ fontSize: "0.9rem" }}>
+              Explore Rooms →
+            </Link>
+          </div>
+          <div style={{
+            background: "white", borderRadius: 20, border: "1px solid var(--line)",
+            boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "44px 40px"
+          }}>
+            <span className="eyebrow">Teams</span>
+            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For real research.</h3>
+            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 24 }}>
+              A private team where FOMO finds the actual connections between what each of you is separately researching — tensions, blind spots, open questions. Never who found what, only how it connects.
+            </p>
+            <Link href={"/teams" as Route} className="button-secondary" style={{ fontSize: "0.9rem" }}>
+              Explore Teams →
+            </Link>
           </div>
         </div>
       </section>

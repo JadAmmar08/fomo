@@ -6,22 +6,19 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 
 const navItems: Array<{ href: Route; label: string }> = [
-  { href: "/pulse", label: "Pulse" },
   { href: "/mirror", label: "Mirror" },
   { href: "/rooms" as Route, label: "Rooms" },
+  { href: "/teams" as Route, label: "Teams" },
   { href: "/privacy", label: "Privacy" }
 ];
 
 const MEMBER_KEY = "fomo_is_member";
 const NAME_KEY = "fomo_name";
-const SEEN_TRENDS_KEY = "fomo_seen_trend_ids";
-const MAX_BADGE = 2;
 
 export function Nav() {
   const pathname = usePathname();
   const [isMember, setIsMember] = useState<boolean | null>(null);
   const [name, setName] = useState<string | null>(null);
-  const [pulseBadge, setPulseBadge] = useState(0);
 
   useEffect(() => {
     // Once someone is recognized (logged in OR has activity), they're a member on this
@@ -46,37 +43,6 @@ export function Nav() {
       .catch(() => setIsMember(false));
   }, []);
 
-  useEffect(() => {
-    if (!isMember) return;
-
-    if (pathname === "/pulse") {
-      setPulseBadge(0);
-      return;
-    }
-
-    fetch("/api/pulse")
-      .then(r => r.json())
-      .then(d => {
-        const topIds: string[] = (d?.trends ?? []).slice(0, MAX_BADGE).map((t: { id: string }) => t.id);
-        if (topIds.length === 0) return;
-        const seen: string[] = JSON.parse(localStorage.getItem(SEEN_TRENDS_KEY) ?? "[]");
-        const newCount = topIds.filter(id => !seen.includes(id)).length;
-        setPulseBadge(newCount);
-      })
-      .catch(() => {});
-  }, [isMember, pathname]);
-
-  useEffect(() => {
-    if (pathname !== "/pulse") return;
-    fetch("/api/pulse")
-      .then(r => r.json())
-      .then(d => {
-        const topIds: string[] = (d?.trends ?? []).slice(0, MAX_BADGE).map((t: { id: string }) => t.id);
-        localStorage.setItem(SEEN_TRENDS_KEY, JSON.stringify(topIds));
-      })
-      .catch(() => {});
-  }, [pathname]);
-
   return (
     <nav className="topnav" aria-label="Primary">
       {navItems.map((item) => (
@@ -84,19 +50,8 @@ export function Nav() {
           key={item.href}
           href={item.href}
           className={pathname === item.href ? "active" : ""}
-          style={{ position: "relative" }}
         >
           {item.label}
-          {item.href === "/pulse" && pulseBadge > 0 && (
-            <span style={{
-              position: "absolute", top: -2, right: -6,
-              background: "var(--accent)", color: "white",
-              borderRadius: 999, minWidth: 16, height: 16, padding: "0 3px",
-              fontSize: "0.68rem", fontWeight: 700, lineHeight: "16px", textAlign: "center"
-            }}>
-              {pulseBadge}
-            </span>
-          )}
         </Link>
       ))}
       {isMember ? (

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   // Find the room
   const roomRes = await pool.query(
-    `SELECT id, name, slug, max_members, is_active FROM rooms WHERE invite_code = $1`,
+    `SELECT id, name, slug, max_members, is_active, type FROM rooms WHERE invite_code = $1`,
     [inviteCode]
   );
 
@@ -56,9 +56,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      room: { id: room.id, name: room.name, slug: room.slug }
+      room: { id: room.id, name: room.name, slug: room.slug, type: room.type }
     });
   } catch {
-    return NextResponse.json({ error: "Failed to join room" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to join" }, { status: 500 });
   }
 }

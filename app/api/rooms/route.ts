@@ -15,19 +15,20 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const name = String(body.name ?? "").trim();
   const description = String(body.description ?? "").trim();
+  const type = body.type === "team" ? "team" : "room";
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const anonymousUserId = getRequestAnonymousUserId(req, body.anonymousUserId);
 
   if (!name || name.length < 3) {
-    return NextResponse.json({ error: "Room name must be at least 3 characters" }, { status: 400 });
+    return NextResponse.json({ error: "Name must be at least 3 characters" }, { status: 400 });
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO rooms (name, slug, description, created_by)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, slug, description, invite_code, created_at`,
-      [name, slug, description, anonymousUserId]
+      `INSERT INTO rooms (name, slug, description, created_by, type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, slug, description, invite_code, created_at, type`,
+      [name, slug, description, anonymousUserId, type]
     );
 
     const room = result.rows[0];
@@ -43,9 +44,9 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     if (message.includes("unique")) {
-      return NextResponse.json({ error: "A room with that name already exists" }, { status: 409 });
+      return NextResponse.json({ error: "That name is already taken" }, { status: 409 });
     }
-    return NextResponse.json({ error: "Failed to create room" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create" }, { status: 500 });
   }
 }
 
@@ -54,19 +55,21 @@ export async function GET(req: NextRequest) {
   if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
   const anonymousUserId = req.headers.get("x-fomo-anonymous-id") ?? req.cookies.get("fomo_anonymous_id")?.value;
+  const typeParam = req.nextUrl.searchParams.get("type");
+  const type = typeParam === "team" ? "team" : "room";
 
   if (!anonymousUserId) {
     return NextResponse.json({ rooms: [] });
   }
 
   const result = await pool.query(
-    `SELECT r.id, r.name, r.slug, r.description, r.invite_code, r.created_at, rm.role,
+    `SELECT r.id, r.name, r.slug, r.description, r.invite_code, r.created_at, r.type, rm.role,
        (SELECT count(*) FROM room_members WHERE room_id = r.id) as member_count
      FROM rooms r
      JOIN room_members rm ON rm.room_id = r.id
-     WHERE rm.anonymous_user_id = $1 AND r.is_active = true
+     WHERE rm.anonymous_user_id = $1 AND r.is_active = true AND r.type = $2
      ORDER BY rm.joined_at DESC`,
-    [anonymousUserId]
+    [anonymousUserId, type]
   );
 
   return NextResponse.json({ rooms: result.rows });

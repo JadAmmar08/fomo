@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useState } from "react";
 
 const CHROME_STORE_URL = process.env.NEXT_PUBLIC_CHROME_STORE_URL || "";
@@ -151,7 +152,7 @@ export default function DownloadPage() {
         <p style={{ marginBottom: 24 }}>Your mirror starts building the moment you browse.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
           <Link href="/mirror" className="button">Open your mirror</Link>
-          <Link href="/pulse" className="button-secondary">See the pulse</Link>
+          <Link href={"/rooms" as Route} className="button-secondary">Join a room</Link>
         </div>
       </section>
     </div>

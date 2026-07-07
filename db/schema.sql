@@ -99,7 +99,9 @@ create table if not exists digest_clicks (
   clicked_at timestamptz not null default now()
 );
 
--- ROOMS
+-- ROOMS (also used for Teams — same infrastructure, distinguished by `type`.
+-- 'room' = community pulse (editorial, personalized, no cross-person connections).
+-- 'team' = research pulse (AI-found connections between separate members' work).)
 create table if not exists rooms (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -109,6 +111,7 @@ create table if not exists rooms (
   created_by text not null,
   max_members integer default 500,
   is_active boolean not null default true,
+  type text not null default 'room' check (type in ('room', 'team')),
   created_at timestamptz not null default now()
 );
 

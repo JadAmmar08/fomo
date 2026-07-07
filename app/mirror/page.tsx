@@ -4,6 +4,7 @@ import { getMirror } from "@/lib/store";
 import { hasExistingSession } from "@/lib/session";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
+import type { Route } from "next";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -126,8 +127,8 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
             ))}
           </div>
           <div style={{ marginTop: 24 }}>
-            <Link href="/pulse" className="button-secondary" style={{ display: "inline-flex" }}>
-              See your pulse →
+            <Link href={"/rooms" as Route} className="button-secondary" style={{ display: "inline-flex" }}>
+              Join a room →
             </Link>
           </div>
         </section>

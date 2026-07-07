@@ -1,6 +1,6 @@
 import { JoinPage } from "@/components/join-page";
 
-export default async function RoomsJoinCodePage({ params }: { params: Promise<{ code: string }> }) {
+export default async function TeamsJoinCodePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   return <JoinPage prefilledCode={code} />;
 }

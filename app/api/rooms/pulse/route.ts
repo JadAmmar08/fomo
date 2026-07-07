@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
-import { buildCommunityTrends } from "@/lib/trends";
+import { buildCommunityTrends, presentTrendsForViewer } from "@/lib/trends";
 import { getRoomWebOfIdeas } from "@/lib/room-connections";
 import type { BrowsingSignal } from "@/lib/types";
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   // Verify room exists
   const roomRes = await pool.query(
-    `SELECT id, name FROM rooms WHERE slug = $1 AND is_active = true`,
+    `SELECT id, name, type FROM rooms WHERE slug = $1 AND is_active = true`,
     [roomSlug]
   );
 
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   }
 
   const room = roomRes.rows[0];
+  const roomType = String(room.type) === "team" ? "team" : "room";
 
   // Get signals only from room members
   const signalsRes = await pool.query(
@@ -59,13 +60,36 @@ export async function GET(req: NextRequest) {
     [room.id]
   );
 
-  const trends = buildCommunityTrends(signalsRes.rows.map(mapSignal));
-  const webOfIdeas = await getRoomWebOfIdeas(String(room.id)).catch(() => null);
+  const rawTrends = buildCommunityTrends(signalsRes.rows.map(mapSignal));
+
+  if (roomType === "team") {
+    const webOfIdeas = await getRoomWebOfIdeas(String(room.id)).catch(() => null);
+    return NextResponse.json({
+      room: { id: room.id, name: room.name, type: "team" },
+      webOfIdeas,
+      generatedAt: new Date().toISOString()
+    });
+  }
+
+  // Room type — same editorial, personalized pulse mechanism as the individual /pulse page,
+  // just scoped to this room's members instead of everyone.
+  const viewerId = req.headers.get("x-fomo-anonymous-id") ?? req.cookies.get("fomo_anonymous_id")?.value ?? "";
+  let trends = rawTrends;
+  if (viewerId) {
+    const viewerTopicsRes = await pool.query(
+      `select topic_label, broad_category from browsing_signals
+       where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '14 days'
+       group by topic_label, broad_category order by count(*) desc limit 20`,
+      [viewerId]
+    ).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+    const viewerTopics = viewerTopicsRes.rows.map((r) => String(r.topic_label));
+    const viewerCategories = viewerTopicsRes.rows.map((r) => String(r.broad_category));
+    trends = presentTrendsForViewer(rawTrends, viewerTopics, viewerCategories);
+  }
 
   return NextResponse.json({
-    room: { id: room.id, name: room.name },
-    trends,
-    webOfIdeas,
+    room: { id: room.id, name: room.name, type: "room" },
+    trends: trends.slice(0, 10),
     generatedAt: new Date().toISOString()
   });
 }

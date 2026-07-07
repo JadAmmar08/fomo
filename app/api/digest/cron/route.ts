@@ -106,7 +106,7 @@ function digestHtml(recipientName: string, briefing: string, anonymousUserId: st
         ${briefing}
       </p>
       <a href="${pulseLink}" style="display:inline-block;padding:14px 26px;background:#1a1a18;color:#f7f6f3;border-radius:999px;text-decoration:none;font-weight:500;font-size:0.9rem;">
-        See what else is trending →
+        See your rooms →
       </a>
       <div style="margin-top:48px;padding-top:20px;border-top:1px solid rgba(0,0,0,0.08);">
         <p style="color:rgba(26,26,24,0.35);font-size:0.75rem;margin:0;">
