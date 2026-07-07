@@ -176,8 +176,8 @@ async function computeMentalModelWithHaiku(
       : "No previous mental model exists yet, this is the first time.";
 
     const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      model: "claude-sonnet-4-6",
+      max_tokens: 2500,
       tools: [
         {
           name: "team_mental_model",

@@ -10,6 +10,13 @@ export interface IdeaConnection {
   peopleCount: number;
 }
 
+// sourceTopics is internal only, stripped before caching/returning to the UI. It exists so
+// peopleCount can be verified against literal topic labels even when the model's display
+// "from"/"to" merges near-duplicate labels (e.g. two members' different phrasings of the same
+// concept) — matching against a cleaned-up display string was silently dropping real
+// connections when labels were messy or inconsistent across members.
+type RawConnectionWithSources = Omit<IdeaConnection, "peopleCount"> & { sourceTopics: string[] };
+
 export interface RoomWebOfIdeas {
   connections: IdeaConnection[];
   soloHighlights: string[];
@@ -68,16 +75,23 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   if (!rawConnections) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
 
   // peopleCount is computed from the actual data, not asked of the model — count distinct
-  // members whose topic list contains either side of the connection. This also acts as a
-  // hard safety net: if the model slips and connects one member's own two topics, peopleCount
-  // comes back as 1 and we drop it rather than show a fake cross-person connection.
+  // members whose topic list contains at least one of the connection's verified sourceTopics.
+  // Verified against literal labels (sourceTopics), not the display from/to, because the model
+  // sometimes merges near-duplicate labels for display (e.g. two members' different phrasings
+  // of the same concept) — matching the merged string would silently drop a genuine connection.
+  // This also acts as a hard safety net: a hallucinated sourceTopic that matches no member's
+  // real data, or a connection that only traces back to one member, gets dropped.
   const connections = {
     ...rawConnections,
     connections: rawConnections.connections
       .map((c) => {
         const explanation = tightenExplanation(c.explanation, c.insightType);
+        const verifiedTopics = c.sourceTopics.filter((t) =>
+          perMemberTopics.some((topics) => topics.includes(t))
+        );
+        const { sourceTopics: _sourceTopics, ...rest } = c;
         return {
-          ...c,
+          ...rest,
           explanation,
           // A card labeled "Open question" that isn't actually phrased as a question is a
           // mislabel, not an insight type — downgrade rather than show false framing.
@@ -85,7 +99,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
             ? "implication" as const
             : c.insightType,
           peopleCount: perMemberTopics.filter(
-            (topics) => topics.includes(c.from) || topics.includes(c.to)
+            (topics) => verifiedTopics.some((t) => topics.includes(t))
           ).length
         };
       })
@@ -95,6 +109,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
       // derivable from a topic label. Drop the connection rather than show a confident-sounding
       // invented stat; a shorter honest list beats a longer fabricated one.
       .filter((c) => !hasFabricatedSpecifics(c.explanation))
+      .filter((c) => !hasMemberLeak(c.explanation) && !hasMemberLeak(c.from) && !hasMemberLeak(c.to))
   };
 
   await pool.query(
@@ -132,6 +147,14 @@ function hasFabricatedSpecifics(text: string): boolean {
     /\$\s?\d/.test(text) || // "$50M"
     /\b\d+(\.\d+)?\s*%/.test(text) // "40%"
   );
+}
+
+// Anonymity is core to the product, connections must never attribute an idea to a specific
+// person. The prompt already forbids referencing "Member 1" etc. in explanations, but the model
+// doesn't always obey it, especially when reasoning gets more verbose — drop the connection
+// rather than leak an internal reasoning label into user-facing text.
+function hasMemberLeak(text: string): boolean {
+  return /\bmembers?\s*\d/i.test(text);
 }
 
 function looksComplete(clause: string): boolean {
@@ -186,11 +209,9 @@ function tightenExplanation(text: string, insightType: InsightType): string {
   return result;
 }
 
-type RawConnection = Omit<IdeaConnection, "peopleCount">;
-
 async function computeConnectionsWithHaiku(
   perMemberTopics: string[][]
-): Promise<{ connections: RawConnection[]; soloHighlights: string[] } | null> {
+): Promise<{ connections: RawConnectionWithSources[]; soloHighlights: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -203,8 +224,8 @@ async function computeConnectionsWithHaiku(
       .join("\n\n");
 
     const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
       tools: [
         {
           name: "web_of_ideas",
@@ -223,9 +244,14 @@ async function computeConnectionsWithHaiku(
                     insightType: {
                       type: "string",
                       enum: ["implication", "tension", "question", "opportunity", "blind_spot"]
+                    },
+                    sourceTopics: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "The exact topic labels this connection is grounded in, copied verbatim (character for character) from the input lists — at least one from each side. Never paraphrase, merge, or clean these up, even if 'from'/'to' above are a tidied-up display version."
                     }
                   },
-                  required: ["from", "to", "explanation", "insightType"]
+                  required: ["from", "to", "explanation", "insightType", "sourceTopics"]
                 },
                 description: "Ordered by insight value, most valuable first — not by how obviously related the topics are."
               },
@@ -253,6 +279,7 @@ Not "these two topics are related" — that's a fact, not an insight. Each label
 
 RULES:
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
+- sourceTopics must be copied verbatim from the input, character for character, even if two members phrased the same idea differently (e.g. "off-target effects" vs "off target risk"). List each real label separately in sourceTopics rather than merging them into one — the "from"/"to" fields can be a cleaner display version, but sourceTopics must trace back to exactly what was written in the input.
 - Reject superficial overlap. Two things being in the same broad field (both "biotech," both "tech") is NOT enough — there must be a specific, concrete link between them.
 - ONE CLAIM. HARD LIMIT ~25 WORDS (30 for tension, since it needs both sides). Count your words before answering — if you're over, cut until you're under.
 - NO SEMICOLONS. NO EM-DASHES. For every label EXCEPT tension: NO "BUT" either — if your sentence needs it, you're trying to say two things, pick the stronger one. For TENSION specifically, "but" (or "while"/"yet") is required, not banned — it's the only way to show both sides in one sentence. Do not pad a tension with extra description beyond the two sides themselves.
@@ -268,7 +295,7 @@ RULES:
 - If insightType is "question", the explanation MUST be phrased as an actual question ending in "?" — something specific the room could go find the answer to. It is not a recommendation or a piece of advice in disguise.
 - Every explanation should point at a concrete next step: something to compare, check, ask, or validate — not just an observation that a tension or gap exists.
 - ORDER connections by insight value, not by topical closeness. The single best, sharpest, most surprising connection goes first. If you only have 1-2 genuine insights, return only those — do not pad the list.
-- NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only.
+- NEVER reference "Member 1", "Member 2", "Members 3 and 5" etc. in your explanations, from, or to fields — those labels are for your reasoning only and never appear in output text. This is a hard requirement, not a style preference: anonymity is the product's core guarantee. Rewrite the sentence around the concepts themselves instead (say what the ideas imply, not who holds them).
 - For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases.
 - If nothing in the data produces a real insight (not just a topical relation), return an empty connections array. A shorter, sharper list beats a longer, softer one.`,
       messages: [
@@ -282,9 +309,11 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { connections: RawConnection[]; soloHighlights: string[] };
+    const raw = toolBlock.input as { connections: RawConnectionWithSources[]; soloHighlights: string[] };
     return {
-      connections: Array.isArray(raw.connections) ? raw.connections.slice(0, 6) : [],
+      connections: Array.isArray(raw.connections)
+        ? raw.connections.slice(0, 6).map((c) => ({ ...c, sourceTopics: Array.isArray(c.sourceTopics) ? c.sourceTopics : [] }))
+        : [],
       soloHighlights: Array.isArray(raw.soloHighlights) ? raw.soloHighlights.slice(0, 8) : []
     };
   } catch {
