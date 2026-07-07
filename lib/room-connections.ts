@@ -145,8 +145,9 @@ async function computeConnectionsWithHaiku(
 RULES:
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
 - A connection must be a real thematic or practical overlap, not a superficial keyword match. "Vector databases" and "startup fundraising" are not connected just because both are "tech-adjacent" — only connect them if there's a real reason (e.g. both are about AI infrastructure investment).
-- Write each explanation as one short, sharp sentence that would make someone go "oh, interesting" — never a dry description.
-- NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only. Describe the connection purely in terms of the ideas themselves.
+- THE EXPLANATION MUST STATE THE VALUE, NOT JUST THE RELATIONSHIP. Don't just describe why two topics are thematically related — say what someone should actually DO with this or why it MATTERS to know. Bad: "Both are about how money flows into biotech companies." Good: "Whoever's raising should talk to whoever's on the investor side — they're looking at the exact same deals from opposite ends." Every explanation should imply an action, a risk avoided, time saved, or an opportunity — not just an observation that two things are similar.
+- Write each explanation as one short, sharp sentence or two — never a dry academic description.
+- NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only. Describe the connection purely in terms of the ideas themselves and what's useful about the overlap.
 - Quality over quantity. If there are only 1-2 genuine connections, return only those. Do not manufacture weak links to fill space.
 - For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases — these still deserve to be seen even without an overlap.
 - If nothing in the data is genuinely connected, return an empty connections array rather than forcing something.`,
