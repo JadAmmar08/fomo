@@ -72,7 +72,7 @@ export default function DownloadPage() {
                 handleInstall();
               }}
             >
-              {!name || !email ? "Enter your name and email first" : "Add to Chrome — it's free"}
+              {!name || !email ? "Enter your name and email first" : "Add to Chrome, it's free"}
             </a>
           ) : (
             <a
@@ -94,8 +94,8 @@ export default function DownloadPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {[
             { n: "1", title: "Browse normally", body: "FOMO runs silently in the background. No setup needed." },
-            { n: "2", title: "Your mirror builds", body: "Within an hour, FOMO builds a profile of who you are based on what you actually read — not what you post." },
-            { n: "3", title: "See your pulse", body: "Check what people with similar interests are paying attention to right now." }
+            { n: "2", title: "Your mirror builds", body: "Within an hour, FOMO builds a profile of who you are based on what you actually read, not what you post." },
+            { n: "3", title: "Join a room or team", body: "Invite people you know into a private room, or a research group into a team." }
           ].map((step) => (
             <div key={step.n} style={{
               display: "flex",

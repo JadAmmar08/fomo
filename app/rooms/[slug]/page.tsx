@@ -87,7 +87,7 @@ export default async function RoomPulsePage({ params }: { params: Promise<{ slug
           background: "white", borderRadius: 20, border: "1px solid var(--line)",
           boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "56px 48px", textAlign: "center"
         }}>
-          <h2>Nothing yet — you&apos;re early.</h2>
+          <h2>Nothing yet. You&apos;re early.</h2>
           <p style={{ maxWidth: 420, margin: "0 auto" }}>
             Once members browse with the extension active, their signals show up here. Invite more people to get things going.
           </p>

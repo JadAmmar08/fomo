@@ -71,7 +71,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           {room.name}
         </h1>
         <p style={{ maxWidth: 480, margin: "0 auto 28px", fontSize: "1.05rem", lineHeight: 1.7 }}>
-          What this team is separately researching, stitched together — never who found what, only how it connects.
+          What this team is separately researching, stitched together. Never who found what, only how it connects.
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
           <span className="status-tile" style={{ background: "white" }}>

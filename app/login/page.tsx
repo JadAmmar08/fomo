@@ -67,7 +67,7 @@ function LoginInner() {
               No password. <span>Just a link.</span>
             </h1>
             <p style={{ maxWidth: 420, margin: "0 auto 32px", fontSize: "1.05rem", lineHeight: 1.7 }}>
-              Enter your email and we'll send you a link that signs you in — on any device, no password to remember.
+              Enter your email and we'll send you a link that signs you in, on any device, no password to remember.
             </p>
             <div style={{ maxWidth: 380, margin: "0 auto", display: "grid", gap: 12 }}>
               <input

@@ -13,7 +13,7 @@ export default function PrivacyPage() {
 
       <section className="panel">
         <h2>What FOMO is</h2>
-        <p>FOMO is a browser extension and web app that tracks what you pay attention to online — page titles and URLs — and shows you a live feed of what people with similar interests are reading and watching. Everything is anonymous by default. No account is required.</p>
+        <p>FOMO is a browser extension and web app that tracks what you pay attention to online (page titles and URLs) and shows you a personalized feed of what people in your rooms or teams are paying attention to. Everything is anonymous by default. No account is required.</p>
       </section>
 
       <section className="panel">
@@ -22,8 +22,8 @@ export default function PrivacyPage() {
           {[
             ["Page title and URL", "To classify what you're reading into interest categories."],
             ["Anonymous user ID", "A randomly generated ID stored in your browser. Not linked to your name, email, or identity."],
-            ["Time on page", "To measure attention — how long you actually spent on something."],
-            ["Interest categories", "Inferred from your browsing, stored on our servers to power the pulse feed."],
+            ["Time on page", "To measure attention: how long you actually spent on something."],
+            ["Interest categories", "Inferred from your browsing, stored on our servers to power your rooms and teams."],
           ].map(([item, desc]) => (
             <div key={item} className="item" style={{ padding: "14px 16px" }}>
               <strong style={{ fontSize: "0.9rem" }}>{item}</strong>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         <p>We use your browsing signals to:</p>
         <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
           <li>Build your anonymous attention profile (shown only to you on the Mirror page)</li>
-          <li>Contribute anonymously to the community pulse feed</li>
+          <li>Contribute anonymously to your rooms' and teams' pulse</li>
           <li>Improve classification accuracy over time</li>
         </ul>
         <p>We do not sell your data. We do not share it with advertisers. We do not use it for any purpose other than running FOMO.</p>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
 
       <section className="panel">
         <h2>How data is shared</h2>
-        <p>Your browsing signals contribute anonymously to the community pulse. Other users see aggregated topic trends — never individual browsing activity, never your user ID, never anything that could identify you.</p>
+        <p>Your browsing signals contribute anonymously to the rooms and teams you join. Other members see aggregated topic trends, never individual browsing activity, never your user ID, never anything that could identify you.</p>
         <p>We use Anthropic's Claude API to classify page content. Page titles and URLs are sent to Anthropic for this purpose. See <a href="https://www.anthropic.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Anthropic's privacy policy</a>.</p>
         <p>We use Supabase to store data. See <a href="https://supabase.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Supabase's privacy policy</a>.</p>
       </section>

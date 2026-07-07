@@ -28,7 +28,7 @@ const COPY = {
     createLabel: "Room name",
     createPlaceholder: "e.g. Marshall Class of 2028",
     emptyHeading: "No rooms",
-    emptyBody: "Create one and send the invite link to your group — their shared pulse starts the moment they join.",
+    emptyBody: "Create one and send the invite link to your group. Their shared pulse starts the moment they join.",
     joinPath: "/rooms/join",
     slugPath: "/rooms"
   },
@@ -41,7 +41,7 @@ const COPY = {
     createLabel: "Team name",
     createPlaceholder: "e.g. Biotech Research Group",
     emptyHeading: "No teams",
-    emptyBody: "Create one and send the invite link to your research group — connections start surfacing once everyone's browsing.",
+    emptyBody: "Create one and send the invite link to your research group. Connections start surfacing once everyone's browsing.",
     joinPath: "/teams/join",
     slugPath: "/teams"
   }

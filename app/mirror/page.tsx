@@ -84,7 +84,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
               Your profile is <span>building.</span>
             </h1>
             <p style={{ maxWidth: 460, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
-              Browse normally for a bit — FOMO is watching your attention in the background. Come back in an hour and your profile will be here.
+              Browse normally for a bit. FOMO is watching your attention in the background. Come back in an hour and your profile will be here.
             </p>
           </>
         )}
@@ -98,7 +98,7 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
             Where FOMO <span>places you.</span>
           </h2>
           <p style={{ marginBottom: 28, maxWidth: 560 }}>
-            Inferred from your attention — never self-reported. These determine whose pulse you share and who shares yours.
+            Inferred from your attention, never self-reported. These determine whose pulse you share and who shares yours.
           </p>
           <div className="grid two">
             {mirror.communities.map((community) => (
@@ -208,13 +208,13 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         <p style={{ marginBottom: 32, fontSize: "1rem" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
           <a
-            href={`sms:&body=Check out FOMO — it shows you what your community is actually paying attention to online. Install it here: https://usefomo.co/download`}
+            href={`sms:&body=Check out FOMO. It shows you what your community is actually paying attention to online. Install it here: https://usefomo.co/download`}
             className="button"
           >
             Text a friend
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?text=Just%20started%20using%20FOMO%20%E2%80%94%20it%20shows%20you%20what%20your%20community%20is%20actually%20paying%20attention%20to%20online.%20Try%20it%3A%20https%3A%2F%2Fusefomo.co`}
+            href={`https://twitter.com/intent/tweet?text=Just%20started%20using%20FOMO.%20It%20shows%20you%20what%20your%20community%20is%20actually%20paying%20attention%20to%20online.%20Try%20it%3A%20https%3A%2F%2Fusefomo.co`}
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"

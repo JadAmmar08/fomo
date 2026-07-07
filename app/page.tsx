@@ -20,7 +20,7 @@ export default function LandingPage() {
           Are you?
         </h1>
         <p style={{ maxWidth: 520, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO watches what you actually browse and shows you what people like you are focused on — before it becomes obvious.
+          FOMO watches what you actually browse and shows you what people like you are focused on, before it becomes obvious.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. No account. No feed to post to.</p>
@@ -37,7 +37,7 @@ export default function LandingPage() {
             We show you who you actually are.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-            Not who you say you are. Your mirror builds itself from where your attention really goes — and it&apos;s private to you.
+            Not who you say you are. Your mirror builds itself from where your attention really goes, and it&apos;s private to you.
           </p>
           <div style={{ display: "grid", gap: 16, marginBottom: 32 }}>
             {[
@@ -50,15 +50,6 @@ export default function LandingPage() {
                 <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
               </div>
             ))}
-          </div>
-          <div style={{ padding: "18px 22px", background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14 }}>
-            <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0 }}>
-              <strong style={{ color: "var(--text)" }}>Want to go further?</strong> Join a private{" "}
-              <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Room</Link>
-              {" "}with people you know, or a{" "}
-              <Link href={"/teams" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Team</Link>
-              {" "}for real research collaboration.
-            </p>
           </div>
         </div>
 
@@ -114,9 +105,12 @@ export default function LandingPage() {
             Two ways to go further
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
           </div>
-          <h2 style={{ fontSize: "clamp(2.4rem, 5vw, 4rem)", lineHeight: 1.05 }}>
+          <h2 style={{ fontSize: "clamp(2.4rem, 5vw, 4rem)", lineHeight: 1.05, marginBottom: 16 }}>
             Rooms and Teams.
           </h2>
+          <p style={{ maxWidth: 520, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
+            Same private, invite-only extension. Two different jobs, for two different kinds of groups.
+          </p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           <div style={{
@@ -124,9 +118,12 @@ export default function LandingPage() {
             boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "44px 40px"
           }}>
             <span className="eyebrow">Rooms</span>
-            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For people you know.</h3>
-            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 24 }}>
-              A private, invite-only pulse for a friend group, a class, a floor — anyone you actually know. Personalized to each person, ranked by what&apos;s actually relevant to them.
+            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For people you already know.</h3>
+            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 20 }}>
+              A private, personalized pulse of what your group is paying attention to. No connection hunting, just a feed ranked to each person.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "var(--subtle)", marginBottom: 24 }}>
+              <strong style={{ color: "var(--muted)" }}>Good for:</strong> friend groups, dorm floors, class cohorts, clubs, teammates.
             </p>
             <Link href={"/rooms" as Route} className="button-secondary" style={{ fontSize: "0.9rem" }}>
               Explore Rooms →
@@ -137,9 +134,12 @@ export default function LandingPage() {
             boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "44px 40px"
           }}>
             <span className="eyebrow">Teams</span>
-            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For real research.</h3>
-            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 24 }}>
-              A private team where FOMO finds the actual connections between what each of you is separately researching — tensions, blind spots, open questions. Never who found what, only how it connects.
+            <h3 style={{ fontSize: "1.6rem", marginBottom: 14 }}>For people doing real research.</h3>
+            <p style={{ fontSize: "0.98rem", lineHeight: 1.75, marginBottom: 20 }}>
+              FOMO finds the actual connections between what each of you is separately researching: tensions, blind spots, open questions. Never who found what, only how it connects.
+            </p>
+            <p style={{ fontSize: "0.85rem", color: "var(--subtle)", marginBottom: 24 }}>
+              <strong style={{ color: "var(--muted)" }}>Good for:</strong> research labs, VC funds, consulting teams, founders, analysts.
             </p>
             <Link href={"/teams" as Route} className="button-secondary" style={{ fontSize: "0.9rem" }}>
               Explore Teams →
@@ -163,8 +163,8 @@ export default function LandingPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
             { n: "01", title: "Install. Browse normally.", body: "A lightweight Chrome extension runs silently in the background. No setup, no forms, no logins." },
-            { n: "02", title: "Your mirror builds itself.", body: "Within an hour, FOMO profiles who you are from where your attention actually goes — not what you post." },
-            { n: "03", title: "Join a room, if you want to.", body: "Invite people you know into a private room and see the connections between what everyone's separately researching." },
+            { n: "02", title: "Your mirror builds itself.", body: "Within an hour, FOMO profiles who you are from where your attention actually goes, not what you post." },
+            { n: "03", title: "Join a room or a team.", body: "Invite people you know into a room, or a research group into a team, and see what only a group can find." },
           ].map((step) => (
             <div key={step.n} style={{
               background: "white",
@@ -192,13 +192,13 @@ export default function LandingPage() {
             Anonymous by design.<br />Not by accident.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.85, maxWidth: 400 }}>
-            Your identity is never attached to your signals. FOMO tracks what you browse — never who you are.
+            Your identity is never attached to your signals. FOMO tracks what you browse, never who you are.
           </p>
         </div>
         <div style={{ display: "grid", gap: 18 }}>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>What FOMO sees</h3>
-            <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and content — used only to classify your attention. Nothing else.</p>
+            <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and content, used only to classify your attention. Nothing else.</p>
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ color: "var(--subtle)", marginBottom: 10, fontSize: "1.1rem" }}>What FOMO never touches</h3>
