@@ -4,6 +4,7 @@ export interface IdeaConnection {
   from: string;
   to: string;
   explanation: string;
+  peopleCount: number;
 }
 
 export interface RoomWebOfIdeas {
@@ -60,8 +61,24 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   const totalTopics = perMemberTopics.reduce((sum, t) => sum + t.length, 0);
   if (totalTopics < 3) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
 
-  const connections = await computeConnectionsWithHaiku(perMemberTopics);
-  if (!connections) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
+  const rawConnections = await computeConnectionsWithHaiku(perMemberTopics);
+  if (!rawConnections) return { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() };
+
+  // peopleCount is computed from the actual data, not asked of the model — count distinct
+  // members whose topic list contains either side of the connection. This also acts as a
+  // hard safety net: if the model slips and connects one member's own two topics, peopleCount
+  // comes back as 1 and we drop it rather than show a fake cross-person connection.
+  const connections = {
+    ...rawConnections,
+    connections: rawConnections.connections
+      .map((c) => ({
+        ...c,
+        peopleCount: perMemberTopics.filter(
+          (topics) => topics.includes(c.from) || topics.includes(c.to)
+        ).length
+      }))
+      .filter((c) => c.peopleCount >= 2)
+  };
 
   await pool.query(
     `insert into room_connections (room_id, connections, generated_at)
@@ -73,9 +90,11 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   return { ...connections, generatedAt: new Date().toISOString() };
 }
 
+type RawConnection = Omit<IdeaConnection, "peopleCount">;
+
 async function computeConnectionsWithHaiku(
   perMemberTopics: string[][]
-): Promise<{ connections: IdeaConnection[]; soloHighlights: string[] } | null> {
+): Promise<{ connections: RawConnection[]; soloHighlights: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -142,7 +161,7 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { connections: IdeaConnection[]; soloHighlights: string[] };
+    const raw = toolBlock.input as { connections: RawConnection[]; soloHighlights: string[] };
     return {
       connections: Array.isArray(raw.connections) ? raw.connections.slice(0, 12) : [],
       soloHighlights: Array.isArray(raw.soloHighlights) ? raw.soloHighlights.slice(0, 8) : []

@@ -22,6 +22,7 @@ interface IdeaConnection {
   from: string;
   to: string;
   explanation: string;
+  peopleCount: number;
 }
 
 interface WebOfIdeasData {
