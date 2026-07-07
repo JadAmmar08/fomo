@@ -123,3 +123,32 @@ create table if not exists room_members (
 
 create index if not exists idx_room_members_user on room_members(anonymous_user_id);
 create index if not exists idx_room_members_room on room_members(room_id);
+
+-- ACCOUNTS (magic-link login — lets a user return to their existing anonymous_user_id
+-- from any device, without ever attaching a password or real identity to their signals)
+create table if not exists accounts (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  anonymous_user_id text not null unique,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists magic_link_tokens (
+  token text primary key,
+  email text not null,
+  anonymous_user_id text not null,
+  redirect_to text,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_magic_link_expires on magic_link_tokens(expires_at);
+
+-- ROOM CONNECTIONS (cached AI-generated web of ideas per room — never attributes a
+-- connection to a specific member, only links between topics/themes)
+create table if not exists room_connections (
+  room_id uuid primary key references rooms(id) on delete cascade,
+  connections jsonb not null default '[]'::jsonb,
+  generated_at timestamptz not null default now()
+);

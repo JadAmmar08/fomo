@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { buildCommunityTrends } from "@/lib/trends";
+import { getRoomWebOfIdeas } from "@/lib/room-connections";
 import type { BrowsingSignal } from "@/lib/types";
 
 function mapSignal(row: Record<string, unknown>): BrowsingSignal {
@@ -59,10 +60,12 @@ export async function GET(req: NextRequest) {
   );
 
   const trends = buildCommunityTrends(signalsRes.rows.map(mapSignal));
+  const webOfIdeas = await getRoomWebOfIdeas(String(room.id)).catch(() => null);
 
   return NextResponse.json({
     room: { id: room.id, name: room.name },
     trends,
+    webOfIdeas,
     generatedAt: new Date().toISOString()
   });
 }

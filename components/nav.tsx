@@ -114,21 +114,24 @@ export function Nav() {
           My mirror
         </Link>
       ) : (
-        <Link
-          href="/download"
-          style={{
-            background: "var(--text)",
-            color: "var(--bg)",
-            borderRadius: 999,
-            padding: "8px 18px",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            marginLeft: 8,
-            visibility: isMember === null ? "hidden" : "visible"
-          }}
-        >
-          Get started
-        </Link>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>
+          <Link href={"/login" as Route} style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+            Log in
+          </Link>
+          <Link
+            href="/download"
+            style={{
+              background: "var(--text)",
+              color: "var(--bg)",
+              borderRadius: 999,
+              padding: "8px 18px",
+              fontSize: "0.875rem",
+              fontWeight: 500
+            }}
+          >
+            Get started
+          </Link>
+        </span>
       )}
     </nav>
   );
