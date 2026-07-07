@@ -53,7 +53,9 @@ export default function LandingPage() {
           </div>
           <div style={{ padding: "18px 22px", background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14 }}>
             <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0 }}>
-              <strong style={{ color: "var(--text)" }}>Want to go further?</strong> Join a private <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Room</Link> with people you actually know — FOMO finds what you&apos;re each separately paying attention to and stitches it into one shared discovery.
+              <strong style={{ color: "var(--text)" }}>Want to go further?</strong> Join a private{" "}
+              <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Room</Link>
+              {" "}with people you actually know — FOMO finds what you&apos;re each separately paying attention to and stitches it into one shared discovery.
             </p>
           </div>
         </div>
