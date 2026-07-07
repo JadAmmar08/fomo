@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { HeroCta, BottomCta } from "@/components/hero-cta";
 
 export default function LandingPage() {
@@ -25,36 +26,6 @@ export default function LandingPage() {
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. No account. No feed to post to.</p>
       </section>
 
-      {/* Floating stats card */}
-      <section data-reveal style={{ marginBottom: 110 }}>
-        <div style={{
-          background: "white",
-          borderRadius: 24,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.04)",
-          border: "1px solid var(--line)",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          maxWidth: 880,
-          margin: "0 auto",
-          overflow: "hidden"
-        }}>
-          {[
-            { n: "24+", label: "People sharing attention" },
-            { n: "5,000+", label: "Signals captured" },
-            { n: "Live", label: "Pulse, updated in real time" },
-          ].map((stat, i) => (
-            <div key={i} style={{
-              padding: "48px 32px",
-              textAlign: "center",
-              borderRight: i < 2 ? "1px solid var(--line)" : undefined
-            }}>
-              <div style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2.6rem, 5vw, 3.6rem)", color: i === 2 ? "var(--accent)" : "var(--text)", marginBottom: 8, letterSpacing: "-0.03em", lineHeight: 1 }}>{stat.n}</div>
-              <div style={{ fontSize: "0.9rem", color: "var(--muted)" }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* The mirror — text left, product card right */}
       <section data-reveal style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
         <div>
@@ -68,17 +39,22 @@ export default function LandingPage() {
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
             Not who you say you are. Your mirror builds itself from where your attention really goes — and it&apos;s private to you.
           </p>
-          <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gap: 16, marginBottom: 32 }}>
             {[
               { title: "Zero effort.", body: "No posting, no bios, no upkeep. Browse and it builds." },
               { title: "Honest by definition.", body: "You can fake a profile. You can't fake attention." },
-              { title: "Yours alone.", body: "The mirror is private. Only anonymous signals reach the pulse." },
+              { title: "Yours alone.", body: "The mirror is private. It never places you in a community you didn't choose." },
             ].map((f) => (
               <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                 <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
                 <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
               </div>
             ))}
+          </div>
+          <div style={{ padding: "18px 22px", background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14 }}>
+            <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0 }}>
+              <strong style={{ color: "var(--text)" }}>Want to go further?</strong> Join a private <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Room</Link> with people you actually know — FOMO finds what you&apos;re each separately paying attention to and stitches it into one shared discovery.
+            </p>
           </div>
         </div>
 
@@ -100,13 +76,14 @@ export default function LandingPage() {
           <div style={{ padding: "26px" }}>
             <div style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 18, marginBottom: 22 }}>
               <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.25rem", fontStyle: "italic", color: "var(--text)", lineHeight: 1.5 }}>
-                &ldquo;You&apos;re deep in early-stage startups and AI tooling — and lately, venture funding has your attention.&rdquo;
+                &ldquo;A student developer building side projects, actively shipping to production and navigating early-stage tools.&rdquo;
               </p>
             </div>
+            <span className="kicker" style={{ marginBottom: 10 }}>Where your attention places you</span>
             {[
-              { label: "AI startups & tooling", pct: 92 },
-              { label: "Venture & fundraising", pct: 78 },
-              { label: "Consumer social", pct: 54 },
+              { label: "Builders shipping side projects", pct: 88 },
+              { label: "Early-stage tooling & infrastructure", pct: 74 },
+              { label: "Campus finance & markets", pct: 46 },
             ].map((t) => (
               <div key={t.label} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -141,7 +118,7 @@ export default function LandingPage() {
           {[
             { n: "01", title: "Install. Browse normally.", body: "A lightweight Chrome extension runs silently in the background. No setup, no forms, no logins." },
             { n: "02", title: "Your mirror builds itself.", body: "Within an hour, FOMO profiles who you are from where your attention actually goes — not what you post." },
-            { n: "03", title: "See what your community sees.", body: "The pulse shows what people like you are focused on right now. No opinions. Just raw attention." },
+            { n: "03", title: "Join a room, if you want to.", body: "Invite people you know into a private room and see the connections between what everyone's separately researching." },
           ].map((step) => (
             <div key={step.n} style={{
               background: "white",
