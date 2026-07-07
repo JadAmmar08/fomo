@@ -17,7 +17,7 @@ export default function LandingPage() {
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO Teams watches what everyone on your team is separately researching, and surfaces the tensions, blind spots, and opportunities no one would have found alone.
+          FOMO watches what everyone is separately researching, and surfaces the tensions, blind spots, and opportunities no one would have found alone.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
