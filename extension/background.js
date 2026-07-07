@@ -205,6 +205,16 @@ async function autoTrackUrl(url, title, tabId) {
 }
 
 async function ensureAnonymousUserId(store) {
+  // If someone explicitly logged in on the website (or this is a different person's session),
+  // the browser's actual cookie will disagree with whatever this extension has cached. That
+  // disagreement is a deliberate signal and must win, otherwise a shared computer (or a stale
+  // test install) permanently traps whoever uses it into the wrong identity.
+  const existingCookie = await readAppCookie().catch(() => null);
+  if (existingCookie && store.anonymousUserId && existingCookie !== store.anonymousUserId) {
+    await chrome.storage.local.set({ anonymousUserId: existingCookie });
+    return existingCookie;
+  }
+
   if (store.anonymousUserId) {
     await syncCookieToApp(store.anonymousUserId);
     return store.anonymousUserId;
@@ -218,6 +228,11 @@ async function ensureAnonymousUserId(store) {
     return data.anonymousUserId;
   }
   return null;
+}
+
+async function readAppCookie() {
+  const cookie = await chrome.cookies.get({ url: API_BASE_URL, name: "fomo_anonymous_id" }).catch(() => null);
+  return cookie?.value ?? null;
 }
 
 async function syncCookieToApp(anonymousUserId) {
