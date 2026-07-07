@@ -1,9 +1,12 @@
 import { getPool } from "@/lib/postgres";
 
+export type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
+
 export interface IdeaConnection {
   from: string;
   to: string;
   explanation: string;
+  insightType: InsightType;
   peopleCount: number;
 }
 
@@ -123,10 +126,15 @@ async function computeConnectionsWithHaiku(
                   properties: {
                     from: { type: "string" },
                     to: { type: "string" },
-                    explanation: { type: "string" }
+                    explanation: { type: "string" },
+                    insightType: {
+                      type: "string",
+                      enum: ["implication", "tension", "question", "opportunity", "blind_spot"]
+                    }
                   },
-                  required: ["from", "to", "explanation"]
-                }
+                  required: ["from", "to", "explanation", "insightType"]
+                },
+                description: "Ordered by insight value, most valuable first — not by how obviously related the topics are."
               },
               soloHighlights: {
                 type: "array",
@@ -140,21 +148,31 @@ async function computeConnectionsWithHaiku(
         }
       ],
       tool_choice: { type: "tool", name: "web_of_ideas" },
-      system: `You find genuine intellectual connections between what different members of a private research group are independently looking into. This is the core value of the product: surfacing overlaps and adjacencies nobody in the group would have noticed on their own.
+      system: `You are a research analyst finding non-obvious, high-value connections between what different members of a private group are independently looking into. This is the core value of the product: turning quiet, separate research into a shared discovery the group wouldn't have found on its own.
+
+WHAT COUNTS AS A GOOD CONNECTION:
+Not "these two topics are related" — that's a fact, not an insight. A good connection surfaces one of:
+- an IMPLICATION: what one person's work means for the other's, that they probably haven't realized
+- a TENSION: a conflict, tradeoff, or disagreement between two approaches/findings
+- a QUESTION: a concrete open question the overlap raises that the group should go answer
+- an OPPORTUNITY: something actionable they could do together because of the overlap
+- a BLIND_SPOT: something one side is missing that the other side already knows
 
 RULES:
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
-- A connection must be a real thematic or practical overlap, not a superficial keyword match. "Vector databases" and "startup fundraising" are not connected just because both are "tech-adjacent" — only connect them if there's a real reason (e.g. both are about AI infrastructure investment).
-- THE EXPLANATION MUST STATE THE VALUE, NOT JUST THE RELATIONSHIP. Don't just describe why two topics are thematically related — say what someone should actually DO with this or why it MATTERS to know. Bad: "Both are about how money flows into biotech companies." Good: "Whoever's raising should talk to whoever's on the investor side — they're looking at the exact same deals from opposite ends." Every explanation should imply an action, a risk avoided, time saved, or an opportunity — not just an observation that two things are similar.
-- Write each explanation as one short, sharp sentence or two — never a dry academic description.
-- NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only. Describe the connection purely in terms of the ideas themselves and what's useful about the overlap.
-- Quality over quantity. If there are only 1-2 genuine connections, return only those. Do not manufacture weak links to fill space.
-- For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases — these still deserve to be seen even without an overlap.
-- If nothing in the data is genuinely connected, return an empty connections array rather than forcing something.`,
+- Reject superficial overlap. Two things being in the same broad field (both "biotech," both "tech") is NOT enough — there must be a specific, concrete link between them.
+- EXPLANATIONS MUST BE ONE TIGHT SENTENCE. No throat-clearing, no "Both are..." or "These are..." openings — those are the tell of a generic-relatedness observation, not an insight. Start directly with the implication, tension, question, or opportunity itself.
+- Bad (generic relatedness): "CRISPR therapies need to navigate FDA approval, so whoever's researching the science should align with whoever's mapping the regulatory path."
+- Good (concrete implication): "The regulatory approach only works if the gene-editing method stays within the FDA's current somatic-cell framework — worth checking before either side goes further."
+- Good (open question): "Neither side has worked out whether the funding timeline can actually survive the regulatory timeline — that's the real question here."
+- ORDER connections by insight value, not by topical closeness. The single best, sharpest, most surprising connection goes first. If you only have 1-2 genuine insights, return only those — do not pad the list.
+- NEVER reference "Member 1", "Member 2" etc. in your explanations — those labels are for your reasoning only.
+- For strong individual topics that don't connect to anything else, list them in soloHighlights as short phrases.
+- If nothing in the data produces a real insight (not just a topical relation), return an empty connections array. A shorter, sharper list beats a longer, softer one.`,
       messages: [
         {
           role: "user",
-          content: `Here is what each member of this private room has been researching over the last 7 days:\n\n${memberBlock}\n\nFind the real connections between different members' work, and list any standout individual topics that don't connect to anything.`
+          content: `Here is what each member of this private room has been researching over the last 7 days:\n\n${memberBlock}\n\nFind the sharpest, most valuable connections between different members' work — implications, tensions, open questions, or opportunities, not just topical overlap. Order by insight value. List any standout individual topics that don't connect to anything.`
         }
       ]
     });
@@ -164,7 +182,7 @@ RULES:
 
     const raw = toolBlock.input as { connections: RawConnection[]; soloHighlights: string[] };
     return {
-      connections: Array.isArray(raw.connections) ? raw.connections.slice(0, 12) : [],
+      connections: Array.isArray(raw.connections) ? raw.connections.slice(0, 6) : [],
       soloHighlights: Array.isArray(raw.soloHighlights) ? raw.soloHighlights.slice(0, 8) : []
     };
   } catch {
