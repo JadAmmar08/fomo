@@ -75,7 +75,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     ...rawConnections,
     connections: rawConnections.connections
       .map((c) => {
-        const explanation = tightenExplanation(c.explanation);
+        const explanation = tightenExplanation(c.explanation, c.insightType);
         return {
           ...c,
           explanation,
@@ -132,7 +132,7 @@ function looksComplete(clause: string): boolean {
   return true;
 }
 
-function tightenExplanation(text: string): string {
+function tightenExplanation(text: string, insightType: InsightType): string {
   const original = text.trim();
 
   // A real question must keep its full structure and its "?" — never run clause-splitting on
@@ -143,21 +143,33 @@ function tightenExplanation(text: string): string {
   }
 
   let result = original;
-  for (const splitter of [/\s+[—–]\s+/, /;\s*/, /,?\s+but\s+/i]) {
-    const parts = result.split(splitter);
-    if (parts.length > 1 && looksComplete(parts[0])) {
-      result = parts[0].trim();
-      break;
+
+  // A tension is DEFINED by its two-sided contrast ("X assumes A, but Y needs B") — cutting
+  // at "but"/dash/semicolon would delete the very thing that makes it a tension, leaving a
+  // flat one-sided statement. Only the length cap (below) applies to tension cards; the
+  // clause-splitting pass is skipped entirely for this type.
+  if (insightType !== "tension") {
+    for (const splitter of [/\s+[—–]\s+/, /;\s*/, /,?\s+but\s+/i]) {
+      const parts = result.split(splitter);
+      if (parts.length > 1 && looksComplete(parts[0])) {
+        result = parts[0].trim();
+        break;
+      }
     }
   }
 
-  if (result.length > MAX_EXPLANATION_CHARS) {
-    const truncated = result.slice(0, MAX_EXPLANATION_CHARS);
+  // Tension cards get more room before truncation kicks in, since the two-sided contrast
+  // structure naturally runs a bit longer than a single-claim sentence.
+  const maxChars = insightType === "tension" ? MAX_EXPLANATION_CHARS + 60 : MAX_EXPLANATION_CHARS;
+
+  if (result.length > maxChars) {
+    const truncated = result.slice(0, maxChars);
     const lastComma = truncated.lastIndexOf(",");
     const candidate = lastComma > 60 ? truncated.slice(0, lastComma) : truncated.slice(0, truncated.lastIndexOf(" "));
-    // Only accept the truncation if it's still a complete-feeling clause — otherwise keep
-    // the full original rather than emit a broken fragment.
-    result = looksComplete(candidate) ? candidate.trim() : original;
+    // For a tension, only accept a truncation that still contains a contrast word — otherwise
+    // we'd be flattening it into a one-sided statement, which defeats the label.
+    const stillHasContrast = insightType !== "tension" || /\b(but|while|yet|whereas|however)\b/i.test(candidate);
+    result = (looksComplete(candidate) && stillHasContrast) ? candidate.trim() : original;
   }
 
   if (!/[.!?]$/.test(result)) result += ".";
@@ -222,25 +234,25 @@ async function computeConnectionsWithHaiku(
       system: `You are a research analyst finding non-obvious, high-value connections between what different members of a private group are independently looking into. This is the core value of the product: turning quiet, separate research into a shared discovery the group wouldn't have found on its own.
 
 WHAT COUNTS AS A GOOD CONNECTION:
-Not "these two topics are related" — that's a fact, not an insight. A good connection surfaces one of:
-- an IMPLICATION: what one person's work means for the other's, that they probably haven't realized
-- a TENSION: a conflict, tradeoff, or disagreement between two approaches/findings
-- a QUESTION: a concrete open question the overlap raises that the group should go answer
-- an OPPORTUNITY: something actionable they could do together because of the overlap
-- a BLIND_SPOT: something one side is missing that the other side already knows
+Not "these two topics are related" — that's a fact, not an insight. Each label has a REQUIRED shape. Writing a short sentence is not enough — it must preserve the shape below or it doesn't count as that label:
+- an IMPLICATION: state what follows IF both signals are true — an "if both are real, then..." consequence, not just a fact about one side.
+- a TENSION: MUST name both sides of the conflict in the same sentence (e.g. "X assumes A, but Y requires B"). A sentence that only states one side is not a tension — it's an unfinished thought. Do not write a tension you can't fit both sides into; pick a different label instead.
+- a QUESTION: a real unresolved question, ending in "?", specific enough that someone could go find the answer.
+- an OPPORTUNITY: a concrete advantage available ONLY because of the overlap — what becomes possible, not just what's interesting.
+- a BLIND_SPOT: name the specific thing one side is missing, and (implicitly) who already has it.
 
 RULES:
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
 - Reject superficial overlap. Two things being in the same broad field (both "biotech," both "tech") is NOT enough — there must be a specific, concrete link between them.
-- ONE CLAIM. ONE INDEPENDENT CLAUSE. HARD LIMIT 20 WORDS. Count your words before answering — if you're over 20, cut until you're under.
-- NO SEMICOLONS. NO EM-DASHES. NO "BUT". Each of these is how a second idea sneaks in — if your sentence needs one of these, you're trying to say two things. Pick the stronger one and delete the rest.
+- ONE CLAIM. HARD LIMIT ~25 WORDS (30 for tension, since it needs both sides). Count your words before answering — if you're over, cut until you're under.
+- NO SEMICOLONS. NO EM-DASHES. For every label EXCEPT tension: NO "BUT" either — if your sentence needs it, you're trying to say two things, pick the stronger one. For TENSION specifically, "but" (or "while"/"yet") is required, not banned — it's the only way to show both sides in one sentence. Do not pad a tension with extra description beyond the two sides themselves.
 - NO INVENTED SPECIFICS. Never state a fabricated number, percentage, timeline, or fact that isn't derivable from the topic labels themselves (no "18-24 month windows," no "$50M," no invented statistics) — that's the tell of a plausible-sounding but ungrounded claim. Ground the claim only in the concepts actually named in the topics.
 - No throat-clearing, no "Both are..." or "These are..." openings. Start directly with the claim.
 - The claim should point at something the room should DO or NOTICE: talk to each other, investigate something specific, recognize a mismatch, or reinterpret one side's work in light of the other's.
 - Bad (generic relatedness): "CRISPR therapies need to navigate FDA approval, so whoever's researching the science should align with whoever's mapping the regulatory path."
-- Bad (two ideas stitched together): "CRISPR's off-target editing risk may push regulatory timelines toward multi-year clinical trials, but most biotech funding rounds assume shorter commercialization windows."
-- Good (one claim, 14 words): "The regulatory research should tell the funding side whether their timeline assumption is realistic."
-- Good (one claim, 15 words): "Nobody here has checked whether the gene-editing approach fits the FDA pathway being researched."
+- Bad for a non-tension label (two ideas stitched together): "CRISPR's off-target editing risk may push regulatory timelines toward multi-year clinical trials, but most biotech funding rounds assume shorter commercialization windows." — this shape is fine, but ONLY if labeled tension.
+- Good implication (one claim, 14 words): "The regulatory research should tell the funding side whether their timeline assumption is realistic."
+- Good tension (both sides, 22 words): "The gene-editing research assumes a slower regulatory path, but the funding side is planning around a much faster one."
 - NO CONSULTANT-SPEAK. Never write "may reveal," "risking," "capital allocation patterns," "distributing risk across modalities," or any phrase that sounds smart but could be pasted into a different room about a different topic and still sound plausible. If you can imagine the same sentence working for an unrelated pair of topics, rewrite it using the actual words from the two specific topics instead.
 - NAME THE ACTUAL TOPICS, not a generic abstraction of them. Reference the specific thing (the exact gene, drug, approval type, funding stage — whatever is literally in the topic label) rather than talking about "the science" or "the funding side" in the abstract.
 - If insightType is "question", the explanation MUST be phrased as an actual question ending in "?" — something specific the room could go find the answer to. It is not a recommendation or a piece of advice in disguise.
