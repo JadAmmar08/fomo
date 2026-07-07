@@ -20,8 +20,8 @@ interface Node {
   degree: number;
 }
 
-const WIDTH = 720;
-const HEIGHT = 460;
+const WIDTH = 840;
+const HEIGHT = 500;
 const CENTER_X = WIDTH / 2;
 const CENTER_Y = HEIGHT / 2;
 
@@ -112,7 +112,7 @@ export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
                     fill={isDimmed ? "var(--subtle)" : "var(--text)"}
                     style={{ transition: "fill 0.2s" }}
                   >
-                    {node.label.length > 28 ? node.label.slice(0, 26) + "…" : node.label}
+                    {node.label.length > 36 ? node.label.slice(0, 34) + "…" : node.label}
                   </text>
                 </g>
               );
