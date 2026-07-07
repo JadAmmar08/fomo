@@ -13,11 +13,8 @@ export default function LandingPage() {
           Collaboration, without the meetings.
           <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
         </div>
-        <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
-          Your team already found the answer.
-        </h1>
-        <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", margin: "6px auto 36px", lineHeight: 1.05, fontStyle: "italic", color: "var(--accent)", letterSpacing: "-0.03em" }}>
-          They just don&apos;t know it yet.
+        <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
+          Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
           FOMO Teams watches what everyone on your team is separately researching, and surfaces the tensions, blind spots, and opportunities no one would have found alone.
