@@ -104,6 +104,16 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     [roomId, JSON.stringify(connections)]
   );
 
+  // Append-only history, distinct from the overwritten cache above — this is what lets the
+  // team mirror detect reinforcement, staleness, and shifts over time instead of only ever
+  // seeing the latest snapshot.
+  if (connections.connections.length > 0) {
+    await pool.query(
+      `insert into team_connection_history (room_id, connections) values ($1, $2)`,
+      [roomId, JSON.stringify(connections.connections)]
+    );
+  }
+
   return { ...connections, generatedAt: new Date().toISOString() };
 }
 

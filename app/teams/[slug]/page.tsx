@@ -83,6 +83,11 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
             Team members only
           </span>
         </div>
+        <div style={{ marginTop: 20 }}>
+          <Link href={`/teams/${slug}/mirror` as Route} className="button-secondary" style={{ display: "inline-flex" }}>
+            See the team&apos;s mental model →
+          </Link>
+        </div>
       </section>
 
       {/* Web of ideas — the team's connections layer */}

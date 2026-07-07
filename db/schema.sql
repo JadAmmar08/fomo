@@ -127,6 +127,33 @@ create table if not exists room_members (
 create index if not exists idx_room_members_user on room_members(anonymous_user_id);
 create index if not exists idx_room_members_room on room_members(room_id);
 
+-- TEAM MIRROR (an evolving mental model of the team, distinct from the connections-engine
+-- pulse. Persisted and updated incrementally, rather than recomputed fresh each time, so it
+-- can track things a snapshot can't: reinforced theses, stale assumptions, belief shifts.)
+create table if not exists team_connection_history (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references rooms(id) on delete cascade,
+  connections jsonb not null,
+  captured_at timestamptz not null default now()
+);
+create index if not exists idx_team_conn_history_room on team_connection_history(room_id, captured_at desc);
+
+create table if not exists team_mirror_state (
+  room_id uuid primary key references rooms(id) on delete cascade,
+  onboarding_summary text,
+  theses jsonb not null default '[]'::jsonb,
+  stale_assumptions jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists team_mirror_shifts (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references rooms(id) on delete cascade,
+  description text not null,
+  detected_at timestamptz not null default now()
+);
+create index if not exists idx_team_mirror_shifts_room on team_mirror_shifts(room_id, detected_at desc);
+
 -- ACCOUNTS (magic-link login — lets a user return to their existing anonymous_user_id
 -- from any device, without ever attaching a password or real identity to their signals)
 create table if not exists accounts (
