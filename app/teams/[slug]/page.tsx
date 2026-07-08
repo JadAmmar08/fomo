@@ -179,14 +179,16 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           )}
       </section>
 
-      {/* Web of ideas — the team's connections layer */}
+      {/* Team Pulse — the team's connections layer. Named to match the "pulse" terminology
+          used everywhere else on the site (hero eyebrow, homepage mockup), which previously
+          didn't match this page's "Web of ideas" label. */}
       <section data-reveal style={{
         background: "white", borderRadius: 20, border: "1px solid var(--line)",
         boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
-          Web of ideas
+          Team Pulse
         </div>
 
         {hasWeb && webOfIdeas!.previouslyViewedAt && (
