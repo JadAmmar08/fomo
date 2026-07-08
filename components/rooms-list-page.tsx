@@ -100,6 +100,21 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  async function deleteRoom(room: Room) {
+    const confirmed = window.confirm(
+      `Delete "${room.name}" permanently? This removes it for everyone, including all its pulse and mirror history. This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/rooms?id=${room.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? "Failed to delete");
+      return;
+    }
+    setRooms(prev => prev.filter(r => r.id !== room.id));
+  }
+
   return (
     <div className="stack">
       <section style={{ padding: "64px 0 48px", textAlign: "center" }}>
@@ -216,6 +231,18 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
                 <Link href={`${copy.slugPath}/${room.slug}` as Route} className="button" style={{ fontSize: "0.85rem" }}>
                   See pulse
                 </Link>
+                {room.role === "admin" && (
+                  <button
+                    onClick={() => deleteRoom(room)}
+                    style={{
+                      fontSize: "0.85rem", padding: "10px 16px", background: "transparent",
+                      border: "1px solid var(--line)", borderRadius: "var(--radius-md)",
+                      color: "var(--danger)", cursor: "pointer"
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}

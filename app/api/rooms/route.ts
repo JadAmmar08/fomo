@@ -74,3 +74,35 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ rooms: result.rows });
 }
+
+export async function DELETE(req: NextRequest) {
+  const pool = getPool();
+  if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
+
+  const anonymousUserId = req.headers.get("x-fomo-anonymous-id") ?? req.cookies.get("fomo_anonymous_id")?.value;
+  if (!anonymousUserId) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  const roomId = req.nextUrl.searchParams.get("id");
+  if (!roomId) {
+    return NextResponse.json({ error: "Room id required" }, { status: 400 });
+  }
+
+  const memberRes = await pool.query(
+    `select role from room_members where room_id = $1 and anonymous_user_id = $2`,
+    [roomId, anonymousUserId]
+  );
+  if (memberRes.rows.length === 0 || memberRes.rows[0].role !== "admin") {
+    return NextResponse.json({ error: "Only the team admin can delete it" }, { status: 403 });
+  }
+
+  // rooms cascades to room_members, room_connections, team_connection_history,
+  // team_mirror_state, and team_mirror_shifts via foreign keys. individual_guidance
+  // isn't a foreign-key relationship (room_id is a plain string there, since guidance
+  // can exist without a team), so it needs its own cleanup.
+  await pool.query(`delete from individual_guidance where room_id = $1`, [roomId]);
+  await pool.query(`delete from rooms where id = $1`, [roomId]);
+
+  return NextResponse.json({ ok: true });
+}

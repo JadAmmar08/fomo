@@ -125,21 +125,33 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
       </section>
 
       {/* Your research — single-player value, works from day one, before the team has
-          enough shared history for real cross-person connections */}
-      {guidance && (
-        <section data-reveal style={{
-          background: "white", borderRadius: 20, border: "1px solid var(--line)",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
-            Your research
-          </div>
-          <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>
-          <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0 }}>
-            {guidance.pattern}
-          </p>
-          {guidance.recommendations.length > 0 && (
+          enough shared history for real cross-person connections. Always rendered, with an
+          honest "still learning" state, so it doesn't just silently vanish when there isn't
+          enough browsing history yet (that looked like a missing feature, not an empty state). */}
+      <section data-reveal style={{
+        background: "white", borderRadius: 20, border: "1px solid var(--line)",
+        boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+          <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+          Your research
+        </div>
+        {guidance ? (
+          <>
+            <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>
+            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0 }}>
+              {guidance.pattern}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 style={{ marginBottom: 8 }}>Still learning your pattern.</h2>
+            <p style={{ maxWidth: 480 }}>
+              Once you&apos;ve browsed a bit, FOMO starts reading the pattern in your own research and pointing you toward directions worth exploring. Check back soon.
+            </p>
+          </>
+        )}
+        {guidance && guidance.recommendations.length > 0 && (
             <>
               <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where to look next</span>
               <div style={{ display: "grid", gap: 10 }}>
@@ -165,8 +177,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
               </div>
             </>
           )}
-        </section>
-      )}
+      </section>
 
       {/* Web of ideas — the team's connections layer */}
       <section data-reveal style={{
