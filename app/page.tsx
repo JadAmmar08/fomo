@@ -103,6 +103,63 @@ Make your meetings better.
         </div>
       </section>
 
+      {/* Individual guidance — value from day one, before the team has enough shared
+          history for the connections engine, card left / text right for rhythm */}
+      <section data-reveal style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+        {/* Product mockup card — the actual individual guidance output */}
+        <div style={{
+          background: "white",
+          borderRadius: 20,
+          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
+          border: "1px solid var(--line)",
+          overflow: "hidden"
+        }}>
+          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)" }}>
+            <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Your research</div>
+            <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Day one, no team data needed</div>
+          </div>
+          <div style={{ padding: "22px 26px" }}>
+            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: 18 }}>
+              You&apos;re mapping the financial and market fundamentals of climate tech infrastructure, focusing on which technologies attract capital and how their values are set.
+            </p>
+            <div style={{ display: "grid", gap: 10 }}>
+              {[
+                "Compare unit economics across the most-funded category to see what's actually driving the premium.",
+                "Look at how carbon credit pricing floors constrain financing for removal and storage companies.",
+              ].map((rec, i) => (
+                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
+                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{rec}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            Your research
+          </div>
+          <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
+            Useful before your team is.
+          </h2>
+          <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
+            You don&apos;t have to wait for teammates to catch up. From day one, FOMO reads the pattern in your own research and points you toward directions you weren&apos;t already looking, not just deeper into what you&apos;re doing, somewhere genuinely adjacent.
+          </p>
+          <div style={{ display: "grid", gap: 16 }}>
+            {[
+              { title: "Never a rehash.", body: "It won't just tell you to keep doing what you're doing. It looks for a real angle you haven't considered yet." },
+              { title: "Yours alone.", body: "Built entirely from your own browsing, no team data required, no one else sees it." },
+            ].map((f) => (
+              <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
+                <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* The mirror — evolving mental model teaser */}
       <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div style={{
