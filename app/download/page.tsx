@@ -43,7 +43,7 @@ export default function DownloadPage() {
           Add FOMO to Chrome.
         </h1>
         <p style={{ maxWidth: 440, margin: "20px auto 36px", fontSize: "1.05rem", lineHeight: 1.7 }}>
-          One click. No account needed. Your mirror and pulse start building the moment you browse.
+          One click. No account needed. Your team&apos;s pulse starts building the moment you browse.
         </p>
         <div style={{ maxWidth: 380, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, textAlign: "left" }}>
           <input
@@ -94,8 +94,8 @@ export default function DownloadPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {[
             { n: "1", title: "Browse normally", body: "FOMO runs silently in the background. No setup needed." },
-            { n: "2", title: "Your mirror builds", body: "Within an hour, FOMO builds a profile of who you are based on what you actually read, not what you post." },
-            { n: "3", title: "Join a room or team", body: "Invite people you know into a private room, or a research group into a team." }
+            { n: "2", title: "Join your team", body: "Create or join a private, invite-only team for your research group, lab, or fund." },
+            { n: "3", title: "Your team's pulse builds", body: "As your team browses, FOMO starts finding the connections, tensions, and blind spots between everyone's separate research." }
           ].map((step) => (
             <div key={step.n} style={{
               display: "flex",
