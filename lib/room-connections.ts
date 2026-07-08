@@ -267,6 +267,12 @@ function tightenExplanation(text: string, insightType: InsightType): string {
     result = (looksComplete(candidate) && stillHasContrast) ? candidate.trim() : original;
   }
 
+  // Final mechanical backstop: the clause-splitting above only removes an em-dash when it's
+  // a safe place to cut (and never even tries for tension cards, which need both sides intact).
+  // Any em-dash that survives to here gets replaced rather than left in, found via real
+  // production output where a tension card shipped with one still in it.
+  result = result.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",");
+
   if (!/[.!?]$/.test(result)) result += ".";
   return result;
 }
