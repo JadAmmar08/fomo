@@ -1,5 +1,3 @@
-import Link from "next/link";
-import type { Route } from "next";
 import { HeroCta, BottomCta } from "@/components/hero-cta";
 
 export default function LandingPage() {
@@ -270,15 +268,6 @@ export default function LandingPage() {
             <p style={{ lineHeight: 1.75 }}>Passwords, messages, form inputs, banking pages, health records. Ever.</p>
           </div>
         </div>
-      </section>
-
-      {/* Rooms, mentioned once, low-key */}
-      <section data-reveal style={{ padding: "48px 0", borderTop: "1px solid var(--line)", textAlign: "center" }}>
-        <p style={{ fontSize: "0.95rem", maxWidth: 480, margin: "0 auto" }}>
-          Not a research team? FOMO also has{" "}
-          <Link href={"/rooms" as Route} style={{ color: "var(--accent)", textDecoration: "underline" }}>Rooms</Link>
-          , a lighter, personal version for friend groups and classes.
-        </p>
       </section>
 
       <BottomCta />

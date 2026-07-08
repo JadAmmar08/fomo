@@ -7,7 +7,6 @@ import type { Route } from "next";
 
 const navItems: Array<{ href: Route; label: string }> = [
   { href: "/teams" as Route, label: "Teams" },
-  { href: "/rooms" as Route, label: "Rooms" },
   { href: "/privacy", label: "Privacy" }
 ];
 

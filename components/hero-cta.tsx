@@ -37,9 +37,6 @@ export function HeroCta() {
         <Link href={"/teams" as Route} className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
           Open your team →
         </Link>
-        <Link href={"/rooms" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
-          Your rooms
-        </Link>
       </div>
     );
   }

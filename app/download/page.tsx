@@ -152,7 +152,6 @@ export default function DownloadPage() {
         <p style={{ marginBottom: 24 }}>Your data starts building the moment you browse.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
           <Link href={"/teams" as Route} className="button">Open your team</Link>
-          <Link href={"/rooms" as Route} className="button-secondary">Join a room</Link>
         </div>
       </section>
     </div>
