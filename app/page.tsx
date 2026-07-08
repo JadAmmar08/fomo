@@ -10,7 +10,7 @@ export default function LandingPage() {
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
-Make your meetings better.
+          Make your meetings better.
           <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
@@ -39,8 +39,8 @@ Make your meetings better.
         </div>
       </section>
 
-      {/* The connections engine — text left, product card right */}
-      <section data-reveal style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      {/* The pulse — text left, product card right */}
+      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
@@ -105,7 +105,7 @@ Make your meetings better.
 
       {/* Individual guidance — value from day one, before the team has enough shared
           history for the connections engine, card left / text right for rhythm */}
-      <section data-reveal style={{ padding: "40px 0 110px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         {/* Product mockup card — the actual individual guidance output */}
         <div style={{
           background: "white",
@@ -114,18 +114,21 @@ Make your meetings better.
           border: "1px solid var(--line)",
           overflow: "hidden"
         }}>
-          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)" }}>
-            <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Your research</div>
-            <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Day one, no team data needed</div>
+          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Your research</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Day one, no team data needed</div>
+            </div>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>Just you</span>
           </div>
           <div style={{ padding: "22px 26px" }}>
             <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: 18 }}>
-              You&apos;re mapping the financial and market fundamentals of climate tech infrastructure, focusing on which technologies attract capital and how their values are set.
+              You&apos;re circling whether gene editing approaches can actually clear regulatory approval, tracking both the science and the pathways that gate it.
             </p>
             <div style={{ display: "grid", gap: 10 }}>
               {[
-                "Compare unit economics across the most-funded category to see what's actually driving the premium.",
-                "Look at how carbon credit pricing floors constrain financing for removal and storage companies.",
+                "Look at how orphan drug designations have reshaped approval odds for rare-disease gene therapies.",
+                "Check which delivery-vector approaches are already locked up in patents before committing to one.",
               ].map((rec, i) => (
                 <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
                   <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{rec}</p>
@@ -160,28 +163,8 @@ Make your meetings better.
         </div>
       </section>
 
-      {/* The mirror — evolving mental model teaser */}
-      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
-        <div style={{
-          background: "white", borderRadius: 20, border: "1px solid var(--line)",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "36px 40px"
-        }}>
-          <span className="kicker" style={{ marginBottom: 14 }}>Working theses</span>
-          <div style={{ display: "grid", gap: 10 }}>
-            {[
-              "A gene editing approach must fit an existing FDA pathway before trials can begin.",
-              "Founders and investors are converging on the same funding thesis for gene editing.",
-            ].map((t, i) => (
-              <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px" }}>
-                <p style={{ fontSize: "0.88rem", lineHeight: 1.6, margin: 0 }}>{t}</p>
-              </div>
-            ))}
-          </div>
-          <span className="kicker" style={{ marginTop: 20, marginBottom: 10 }}>Blind spots</span>
-          <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px" }}>
-            <p style={{ fontSize: "0.88rem", lineHeight: 1.6, margin: 0 }}>Nobody has revisited the FDA pathway assumption since it was first raised three weeks ago.</p>
-          </div>
-        </div>
+      {/* The mirror — text left, product card right (keeps the alternating rhythm) */}
+      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
@@ -193,6 +176,40 @@ Make your meetings better.
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, maxWidth: 420 }}>
             Every team gets an evolving model of what it currently believes, what&apos;s been reinforced, and what nobody&apos;s challenged in a while. It gets sharper the longer the team uses it, and a new member can read it and be caught up in minutes.
           </p>
+        </div>
+
+        {/* Product mockup card — the actual team mirror output */}
+        <div style={{
+          background: "white",
+          borderRadius: 20,
+          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
+          border: "1px solid var(--line)",
+          overflow: "hidden"
+        }}>
+          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Team Mirror</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Biotech Research Team</div>
+            </div>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>Evolving</span>
+          </div>
+          <div style={{ padding: "22px 26px" }}>
+            <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Working theses</span>
+            <div style={{ display: "grid", gap: 10, marginBottom: 22 }}>
+              {[
+                "A gene editing approach must fit an existing FDA pathway before trials can begin.",
+                "Founders and investors are converging on the same funding thesis for gene editing.",
+              ].map((t, i) => (
+                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
+                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{t}</p>
+                </div>
+              ))}
+            </div>
+            <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Blind spots</span>
+            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>Nobody has revisited the FDA pathway assumption since it was first raised three weeks ago.</p>
+            </div>
+          </div>
         </div>
       </section>
 
