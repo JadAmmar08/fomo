@@ -128,10 +128,34 @@ function toHourBucket(date) {
   return date.toISOString();
 }
 
+// Search engines put the actual query in a query-string parameter, not the path, so
+// "google.com/search" alone is identical for every search someone ever runs. Without this,
+// every distinct Google/Bing/DuckDuckGo search within the same hour collapsed onto the same
+// cache key, and only the first search of the hour ever got classified, every later, different
+// search silently reused that first result instead of its own.
+const SEARCH_QUERY_PARAMS = [
+  { host: "google.", param: "q" },
+  { host: "bing.com", param: "q" },
+  { host: "duckduckgo.com", param: "q" },
+  { host: "search.yahoo.com", param: "p" }
+];
+
+function extractSearchQuery(url) {
+  const match = SEARCH_QUERY_PARAMS.find((s) => url.hostname.includes(s.host));
+  if (!match) return null;
+  const value = url.searchParams.get(match.param);
+  return value ? value.trim() : null;
+}
+
 export function normalizeSignal(urlString, title) {
   const url = new URL(urlString);
   const videoId = url.searchParams.get("v");
-  const urlPath = videoId ? `${url.pathname}?v=${videoId}` : url.pathname || "/";
+  const searchQuery = extractSearchQuery(url);
+  const urlPath = videoId
+    ? `${url.pathname}?v=${videoId}`
+    : searchQuery
+      ? `${url.pathname}?q=${searchQuery}`
+      : url.pathname || "/";
   return {
     normalizedDomain: url.hostname.replace(/^www\./, ""),
     urlPath,
