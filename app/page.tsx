@@ -9,9 +9,9 @@ export default function LandingPage() {
       {/* Hero */}
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-          <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
           Make your meetings better.
-          <span style={{ display: "block", width: 48, height: 1, background: "var(--line-strong)" }} />
+          <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
@@ -43,7 +43,7 @@ export default function LandingPage() {
       <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
             The pulse
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
@@ -140,7 +140,7 @@ export default function LandingPage() {
 
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
             Your research
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
@@ -167,7 +167,7 @@ export default function LandingPage() {
       <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
             The mirror
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
@@ -250,7 +250,7 @@ export default function LandingPage() {
       <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
             Privacy
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
