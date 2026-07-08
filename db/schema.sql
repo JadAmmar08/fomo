@@ -186,10 +186,15 @@ create table if not exists room_connections (
 
 -- INDIVIDUAL GUIDANCE (single-player value on day one, before a team has enough
 -- shared history for real cross-person connections — a pattern in one person's own
--- research plus recommended next directions, not tied to any specific team)
+-- research plus recommended next directions. Keyed by (anonymous_user_id, room_id)
+-- since guidance uses that team's pulse/mirror data once it exists, so the same
+-- person can get different guidance in different teams. room_id is '' for the
+-- team-less/solo case.)
 create table if not exists individual_guidance (
-  anonymous_user_id text primary key,
+  anonymous_user_id text not null,
+  room_id text not null default '',
   pattern text not null,
   recommendations jsonb not null default '[]'::jsonb,
-  generated_at timestamptz not null default now()
+  generated_at timestamptz not null default now(),
+  primary key (anonymous_user_id, room_id)
 );

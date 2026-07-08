@@ -45,13 +45,13 @@ interface GuidanceData {
   recommendations: string[];
 }
 
-async function getGuidance() {
+async function getGuidance(slug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const cookieStore = await cookies();
   const uid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
   if (!uid) return null;
 
-  const res = await fetch(`${appUrl}/api/guidance`, {
+  const res = await fetch(`${appUrl}/api/guidance?room=${slug}`, {
     headers: { "x-fomo-anonymous-id": uid },
     cache: "no-store",
   });
@@ -62,7 +62,7 @@ async function getGuidance() {
 
 export default async function TeamPulsePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [data, guidance] = await Promise.all([getTeamPulse(slug), getGuidance()]);
+  const [data, guidance] = await Promise.all([getTeamPulse(slug), getGuidance(slug)]);
 
   if (!data) {
     return (

@@ -9,20 +9,23 @@ export interface IndividualGuidance {
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours — a slow-moving personal pattern, not a live feed
 
 /**
- * Single-player value for a team member on day one, before the team has enough shared
- * history for real cross-person connections. Looks only at one person's own recent research,
- * names the pattern in it, and recommends specific next directions. Distinct from the team
- * pulse/mirror, which reason across multiple people's browsing and never attribute anything
- * to an individual.
+ * Single-player value for a team member, closes the loop with the team pulse/mirror once
+ * those exist. Looks at one person's own recent research, names the underlying goal, and
+ * recommends adjacent directions, and when a roomId is given, also pulls that team's already
+ * -computed pulse connections and mirror theses (read-only, no extra AI calls to produce them)
+ * so a recommendation can point out when someone's own research already bears on something the
+ * team has found. Falls back to a solo-only version when there's no room or no team data yet.
+ * Team context here is already anonymized by construction (pulse/mirror never attribute a
+ * finding to a person), so this never exposes a teammate's individual browsing.
  */
-export async function getIndividualGuidance(anonymousUserId: string, forceRefresh = false): Promise<IndividualGuidance | null> {
+export async function getIndividualGuidance(anonymousUserId: string, roomId = "", forceRefresh = false): Promise<IndividualGuidance | null> {
   const pool = getPool();
   if (!pool) return null;
 
   if (!forceRefresh) {
     const cached = await pool.query(
-      `select pattern, recommendations, generated_at from individual_guidance where anonymous_user_id = $1`,
-      [anonymousUserId]
+      `select pattern, recommendations, generated_at from individual_guidance where anonymous_user_id = $1 and room_id = $2`,
+      [anonymousUserId, roomId]
     );
     if (cached.rows.length > 0) {
       const generatedAt = new Date(cached.rows[0].generated_at as string).getTime();
@@ -45,21 +48,64 @@ export async function getIndividualGuidance(anonymousUserId: string, forceRefres
   const topics = topicsRes.rows.map((r) => String(r.topic_label));
   if (topics.length < 3) return null;
 
-  const result = await computeGuidanceWithHaiku(topics);
+  const teamContext = roomId ? await getTeamContext(pool, roomId) : null;
+
+  const result = await computeGuidanceWithHaiku(topics, teamContext);
   if (!result) return null;
 
   await pool.query(
-    `insert into individual_guidance (anonymous_user_id, pattern, recommendations, generated_at)
-     values ($1, $2, $3, now())
-     on conflict (anonymous_user_id) do update
+    `insert into individual_guidance (anonymous_user_id, room_id, pattern, recommendations, generated_at)
+     values ($1, $2, $3, $4, now())
+     on conflict (anonymous_user_id, room_id) do update
        set pattern = excluded.pattern, recommendations = excluded.recommendations, generated_at = now()`,
-    [anonymousUserId, result.pattern, JSON.stringify(result.recommendations)]
+    [anonymousUserId, roomId, result.pattern, JSON.stringify(result.recommendations)]
   );
 
   return { ...result, generatedAt: new Date().toISOString() };
 }
 
-async function computeGuidanceWithHaiku(topics: string[]): Promise<{ pattern: string; recommendations: string[] } | null> {
+interface TeamContext {
+  connectionSummaries: string[];
+  theses: string[];
+  staleAssumptions: string[];
+}
+
+/**
+ * Reads whatever the team's pulse and mirror already have cached. Never triggers a fresh
+ * AI recompute here, this is meant to be cheap and read-only, riding on work the pulse/mirror
+ * pages already do.
+ */
+async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string): Promise<TeamContext | null> {
+  const [connectionsRes, mirrorRes] = await Promise.all([
+    pool.query(`select connections from room_connections where room_id = $1`, [roomId]),
+    pool.query(`select theses, stale_assumptions from team_mirror_state where room_id = $1`, [roomId])
+  ]);
+
+  const connectionSummaries: string[] = [];
+  if (connectionsRes.rows.length > 0) {
+    const data = connectionsRes.rows[0].connections as { connections?: { from: string; to: string; explanation: string }[] };
+    for (const c of (data.connections ?? []).slice(0, 6)) {
+      connectionSummaries.push(`${c.from} <-> ${c.to}: ${c.explanation}`);
+    }
+  }
+
+  const theses: string[] = [];
+  const staleAssumptions: string[] = [];
+  if (mirrorRes.rows.length > 0) {
+    const rawTheses = mirrorRes.rows[0].theses as { statement: string }[] | null;
+    const rawStale = mirrorRes.rows[0].stale_assumptions as { statement: string; note: string }[] | null;
+    for (const t of rawTheses ?? []) theses.push(t.statement);
+    for (const s of rawStale ?? []) staleAssumptions.push(s.statement);
+  }
+
+  if (connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0) return null;
+  return { connectionSummaries, theses, staleAssumptions };
+}
+
+async function computeGuidanceWithHaiku(
+  topics: string[],
+  teamContext: TeamContext | null
+): Promise<{ pattern: string; recommendations: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -67,9 +113,17 @@ async function computeGuidanceWithHaiku(topics: string[]): Promise<{ pattern: st
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey });
 
+    const teamContextBlock = teamContext
+      ? `\n\nThe team this person is on has already found the following (never reveal who found what, this is team-wide, not personal):\n${[
+          ...teamContext.connectionSummaries.map((c) => `- Connection: ${c}`),
+          ...teamContext.theses.map((t) => `- Team thesis: ${t}`),
+          ...teamContext.staleAssumptions.map((s) => `- Unrevisited team assumption: ${s}`)
+        ].join("\n")}`
+      : "";
+
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 600,
+      max_tokens: 700,
       tools: [
         {
           name: "research_guidance",
@@ -86,22 +140,25 @@ async function computeGuidanceWithHaiku(topics: string[]): Promise<{ pattern: st
         }
       ],
       tool_choice: { type: "tool", name: "research_guidance" },
-      system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, not a team, never reference other people.
+      system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
 
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 
 STEP 2, point in different directions: the recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
 
+STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE of the recommendations should point that out directly, e.g. "your research on X could speak to the team's open question about Y" or "you may be positioned to help resolve the team's unrevisited assumption about Z." Only make this connection if it's real and specific, don't force one. If there's no genuine link, ignore the team context and give purely personal divergent directions instead.
+
 RULES:
 - pattern: one sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 30 words.
 - recommendations: 1-3 specific, non-obvious directions that serve the same goal from a new angle, phrased as a concrete thing to look into. Each under 20 words. Do not repeat or lightly rephrase a topic they already have.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
-- Ground everything in the literal topic names given, don't invent facts, statistics, or timelines not derivable from the topics. A divergent direction still has to be a real, plausible extension of their actual research, not a random unrelated idea.
+- Ground everything in the literal topic names and team context given, don't invent facts, statistics, or timelines not derivable from them.
+- Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.
 - If the topics are too scattered to infer a real goal, say so honestly in the pattern field rather than forcing one.`,
       messages: [
         {
           role: "user",
-          content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}\n\nWhat's the underlying goal behind this research, and what interesting, non-obvious directions could they explore next that still serve that same goal?`
+          content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}${teamContextBlock}\n\nWhat's the underlying goal behind this research, and what interesting, non-obvious directions could they explore next that still serve that same goal?`
         }
       ]
     });
@@ -114,11 +171,18 @@ RULES:
 
     return {
       pattern: stripEmDash(raw.pattern),
-      recommendations: (Array.isArray(raw.recommendations) ? raw.recommendations : []).slice(0, 3).map(stripEmDash)
+      recommendations: (Array.isArray(raw.recommendations) ? raw.recommendations : [])
+        .slice(0, 3)
+        .map(stripEmDash)
+        .filter((r) => !hasMemberLeak(r))
     };
   } catch {
     return null;
   }
+}
+
+function hasMemberLeak(text: string): boolean {
+  return /\bmembers?\s*\d/i.test(text) || /\byour teammate\b/i.test(text);
 }
 
 function stripEmDash(text: string): string {
