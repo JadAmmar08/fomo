@@ -52,7 +52,16 @@ function isInternalFomoPage(url) {
   try {
     const current = new URL(url);
     const app = new URL(API_BASE_URL);
-    return current.origin === app.origin;
+    if (current.origin === app.origin) return true;
+
+    // The Chrome Web Store listing page for FOMO itself (and any extension's listing page,
+    // to be safe) is full of language like "extension," "developer," "browser tool," which
+    // has nothing to do with a real user's actual research. Without this, every new installer
+    // gets classified as "shipping a Chrome extension" purely from sitting on the install page.
+    if (current.hostname === "chromewebstore.google.com" || current.hostname === "chrome.google.com") {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -174,7 +183,7 @@ async function getCurrentPageState() {
         topicLabel: "FOMO internal page",
         topicTags: ["FOMO"],
         confidence: 1,
-        reasoning: "FOMO does not track its own local dashboard pages."
+        reasoning: "FOMO does not track its own dashboard pages or its Chrome Web Store listing."
       }
     };
   }
