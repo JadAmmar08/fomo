@@ -281,6 +281,27 @@ function stripEmDash(text: string): string {
   return text.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",").trim();
 }
 
+// Abbreviations that end in a period but never actually end a sentence. Found by a real
+// production example: "state vs." got treated as a complete sentence and everything after it
+// (the actual point of the sentence) was silently discarded.
+const ABBREVIATIONS = /\b(vs|etc|approx|e\.g|i\.e|dr|mr|mrs|ms|jr|sr|u\.s|u\.k|inc|corp|ltd|co|st|ave|no|a\.m|p\.m)$/i;
+
+function splitIntoSentences(text: string): string[] {
+  const sentences: string[] = [];
+  let start = 0;
+  const boundary = /[.?!]\s+/g;
+  let match: RegExpExecArray | null;
+  while ((match = boundary.exec(text))) {
+    const before = text.slice(start, match.index); // exclude the punctuation itself
+    const wordBeforePeriod = before.trim().split(/\s+/).pop() ?? "";
+    if (ABBREVIATIONS.test(wordBeforePeriod)) continue;
+    sentences.push(text.slice(start, match.index + 1).trim());
+    start = boundary.lastIndex;
+  }
+  sentences.push(text.slice(start).trim());
+  return sentences.filter(Boolean);
+}
+
 /**
  * Mechanical backstop for the "one tight sentence" rule, same reasoning as the connections
  * engine and individual guidance: prompting alone doesn't reliably hold. If the model writes
@@ -288,7 +309,7 @@ function stripEmDash(text: string): string {
  * mid-sentence, an honest longer sentence beats a mangled fragment.
  */
 function tightenToOneSentence(text: string, maxWords: number): string {
-  const sentences = text.trim().split(/(?<=[.?!])\s+/).filter(Boolean);
+  const sentences = splitIntoSentences(text.trim());
   const result = sentences[0] ?? text.trim();
   const wordCount = result.split(/\s+/).filter(Boolean).length;
   if (wordCount > maxWords + 10 && sentences.length === 1) return result;

@@ -227,6 +227,27 @@ function hasMemberLeak(text: string): boolean {
   return /\bmembers?\s*\d/i.test(text) || /\byour teammate\b/i.test(text);
 }
 
+// Abbreviations that end in a period but never actually end a sentence. Found by a real
+// production example: "state vs." got treated as a complete sentence and everything after it
+// (the actual point of the recommendation) was silently discarded.
+const ABBREVIATIONS = /\b(vs|etc|approx|e\.g|i\.e|dr|mr|mrs|ms|jr|sr|u\.s|u\.k|inc|corp|ltd|co|st|ave|no|a\.m|p\.m)$/i;
+
+function splitIntoSentences(text: string): string[] {
+  const sentences: string[] = [];
+  let start = 0;
+  const boundary = /[.?!]\s+/g;
+  let match: RegExpExecArray | null;
+  while ((match = boundary.exec(text))) {
+    const before = text.slice(start, match.index); // exclude the punctuation itself
+    const wordBeforePeriod = before.trim().split(/\s+/).pop() ?? "";
+    if (ABBREVIATIONS.test(wordBeforePeriod)) continue; // not a real sentence end, keep scanning
+    sentences.push(text.slice(start, match.index + 1).trim());
+    start = boundary.lastIndex;
+  }
+  sentences.push(text.slice(start).trim());
+  return sentences.filter(Boolean);
+}
+
 /**
  * Mechanical backstop on top of prompting, the "one sentence, under N words" instruction
  * doesn't reliably hold on its own, especially for team_signal items that try to state a
@@ -236,7 +257,7 @@ function hasMemberLeak(text: string): boolean {
  * sentence beats a chopped, unclear fragment.
  */
 function tightenToOneSentence(text: string, maxWords: number): string {
-  const sentences = text.trim().split(/(?<=[.?!])\s+/).filter(Boolean);
+  const sentences = splitIntoSentences(text.trim());
   let result = sentences[0] ?? text.trim();
 
   // If the first sentence alone is still over budget and there's no clean shorter cut,
