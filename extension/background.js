@@ -81,7 +81,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   await ensureAnonymousUserId(updated);
 
   if (details.reason === "install") {
-    chrome.tabs.create({ url: `${API_BASE_URL}/mirror` });
+    chrome.tabs.create({ url: `${API_BASE_URL}/teams` });
   }
 });
 
