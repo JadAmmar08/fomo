@@ -183,3 +183,13 @@ create table if not exists room_connections (
   connections jsonb not null default '[]'::jsonb,
   generated_at timestamptz not null default now()
 );
+
+-- INDIVIDUAL GUIDANCE (single-player value on day one, before a team has enough
+-- shared history for real cross-person connections — a pattern in one person's own
+-- research plus recommended next directions, not tied to any specific team)
+create table if not exists individual_guidance (
+  anonymous_user_id text primary key,
+  pattern text not null,
+  recommendations jsonb not null default '[]'::jsonb,
+  generated_at timestamptz not null default now()
+);

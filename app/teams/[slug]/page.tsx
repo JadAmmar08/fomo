@@ -40,9 +40,29 @@ async function getTeamPulse(slug: string) {
   }>;
 }
 
+interface GuidanceData {
+  pattern: string;
+  recommendations: string[];
+}
+
+async function getGuidance() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const cookieStore = await cookies();
+  const uid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
+  if (!uid) return null;
+
+  const res = await fetch(`${appUrl}/api/guidance`, {
+    headers: { "x-fomo-anonymous-id": uid },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json() as { guidance: GuidanceData | null };
+  return data.guidance;
+}
+
 export default async function TeamPulsePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const data = await getTeamPulse(slug);
+  const [data, guidance] = await Promise.all([getTeamPulse(slug), getGuidance()]);
 
   if (!data) {
     return (
@@ -92,6 +112,32 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           </Link>
         </div>
       </section>
+
+      {/* Your research — single-player value, works from day one, before the team has
+          enough shared history for real cross-person connections */}
+      {guidance && (
+        <section data-reveal style={{
+          background: "white", borderRadius: 20, border: "1px solid var(--line)",
+          boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            Your research
+          </div>
+          <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 20 : 0 }}>
+            {guidance.pattern}
+          </p>
+          {guidance.recommendations.length > 0 && (
+            <div style={{ display: "grid", gap: 10 }}>
+              {guidance.recommendations.map((rec, i) => (
+                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px" }}>
+                  <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>{rec}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Web of ideas — the team's connections layer */}
       <section data-reveal style={{
