@@ -16,11 +16,8 @@ Make your meetings better.
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
         </h1>
-        <p style={{ maxWidth: 560, margin: "0 auto 24px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO watches your team&apos;s research in the background and tells you what changed, what people are missing, and what the next meeting should actually decide.
-        </p>
-        <p style={{ maxWidth: 480, margin: "0 auto 44px", fontSize: "0.95rem", lineHeight: 1.6, color: "var(--subtle)" }}>
-          A private Chrome extension. It watches what your team browses, nothing else, and never shows anyone who found what.
+        <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
+          A private Chrome extension that watches your team&apos;s research in the background and tells you what changed, what people are missing, and what the next meeting should decide.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
