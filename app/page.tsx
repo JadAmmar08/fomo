@@ -17,7 +17,7 @@ Make your meetings better.
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO watches what everyone is separately researching, and surfaces the tensions, blind spots, and opportunities no one would have found alone.
+          FOMO watches your team&apos;s research in the background and tells you what changed, what people are missing, and what the next meeting should actually decide.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
