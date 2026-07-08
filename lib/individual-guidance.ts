@@ -185,8 +185,8 @@ Each recommendation gets a type:
 - "team_signal": ONLY for the one recommendation (if any) that ties this person's own research to something the team has already found. Never invent one of these if there's no real link.
 
 RULES:
-- pattern: one sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 30 words.
-- recommendations: 1-3 items, each under 20 words, matching its stated type's shape. Do not repeat or lightly rephrase a topic they already have.
+- pattern: ONE sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 25 words. Count your words, if over, cut until under.
+- recommendations: 1-3 items. ONE CLAIM PER ITEM, ONE sentence, not two. "direction" and "question" are max 20 words. "team_signal" is max 28 words, still one sentence, state the connection only, do not also add a follow-up question in the same item. Do not repeat or lightly rephrase a topic they already have.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
 - Ground everything in the literal topic names and team context given, don't invent facts, statistics, or timelines not derivable from them.
 - Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.
@@ -207,14 +207,15 @@ RULES:
 
     const recommendations: GuidanceRecommendation[] = (Array.isArray(raw.recommendations) ? raw.recommendations : [])
       .slice(0, 3)
-      .map((r) => ({
-        type: (r.type === "question" || r.type === "team_signal" ? r.type : "direction") as GuidanceType,
-        text: stripEmDash(String(r.text ?? ""))
-      }))
+      .map((r) => {
+        const type = (r.type === "question" || r.type === "team_signal" ? r.type : "direction") as GuidanceType;
+        const maxWords = type === "team_signal" ? 28 : 20;
+        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords) };
+      })
       .filter((r) => r.text && !hasMemberLeak(r.text));
 
     return {
-      pattern: stripEmDash(raw.pattern),
+      pattern: tightenToOneSentence(stripEmDash(raw.pattern), 25),
       recommendations
     };
   } catch {
@@ -224,6 +225,29 @@ RULES:
 
 function hasMemberLeak(text: string): boolean {
   return /\bmembers?\s*\d/i.test(text) || /\byour teammate\b/i.test(text);
+}
+
+/**
+ * Mechanical backstop on top of prompting, the "one sentence, under N words" instruction
+ * doesn't reliably hold on its own, especially for team_signal items that try to state a
+ * connection and ask a follow-up question in the same breath. If there's more than one
+ * sentence, keep only the first, it's reliably the actual claim, the rest is usually a
+ * bonus question or restatement. Never force-truncate mid-sentence, a longer complete
+ * sentence beats a chopped, unclear fragment.
+ */
+function tightenToOneSentence(text: string, maxWords: number): string {
+  const sentences = text.trim().split(/(?<=[.?!])\s+/).filter(Boolean);
+  let result = sentences[0] ?? text.trim();
+
+  // If the first sentence alone is still over budget and there's no clean shorter cut,
+  // leave it as-is rather than mangle it, matches the project's existing philosophy.
+  const wordCount = result.split(/\s+/).filter(Boolean).length;
+  if (wordCount > maxWords + 10 && sentences.length === 1) {
+    return result; // no safe cut available, leave the honest long version
+  }
+
+  if (!/[.!?]$/.test(result)) result += ".";
+  return result;
 }
 
 function stripEmDash(text: string): string {

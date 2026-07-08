@@ -233,7 +233,7 @@ RULES:
 - ONBOARDING SUMMARY: written for someone who just joined the team and has seen none of this. Plain, concrete, no internal shorthand.
 - THESES: only include a thesis if it's been reinforced by connections across more than one cycle, or is a clear, strong synthesis of the current cycle if this is the first one. A single one-off connection is not a thesis.
 - NO INVENTED SPECIFICS: never state a fabricated number, percentage, or timeline not derivable from the actual connections given.
-- ONE CLAIM PER STATEMENT: each thesis or stale assumption should be one tight sentence, not a paragraph.
+- ONE CLAIM PER STATEMENT: each thesis or stale assumption statement is ONE tight sentence, max 25 words, not a paragraph, not two sentences. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
 - NO EM-DASHES anywhere in any field. Use a period or comma instead.
 ${askForStaleness
   ? "- STALE ASSUMPTIONS: you have enough history for this. Flag anything the team assumed in early cycles that has not been touched, confirmed, or challenged by any connection since. If genuinely nothing qualifies, return an empty array, don't force one."
@@ -260,12 +260,15 @@ ${askForStaleness
     return {
       onboardingSummary: stripEmDash(raw.onboardingSummary),
       theses: Array.isArray(raw.theses)
-        ? raw.theses.slice(0, 6).map((t) => ({ ...t, statement: stripEmDash(t.statement) }))
+        ? raw.theses.slice(0, 6).map((t) => ({ ...t, statement: tightenToOneSentence(stripEmDash(t.statement), 25) }))
         : [],
       staleAssumptions: Array.isArray(raw.staleAssumptions)
-        ? raw.staleAssumptions.slice(0, 6).map((a) => ({ statement: stripEmDash(a.statement), note: stripEmDash(a.note) }))
+        ? raw.staleAssumptions.slice(0, 6).map((a) => ({
+            statement: tightenToOneSentence(stripEmDash(a.statement), 25),
+            note: tightenToOneSentence(stripEmDash(a.note), 30)
+          }))
         : [],
-      newShifts: Array.isArray(raw.newShifts) ? raw.newShifts.slice(0, 4).map(stripEmDash) : []
+      newShifts: Array.isArray(raw.newShifts) ? raw.newShifts.slice(0, 4).map((s) => tightenToOneSentence(stripEmDash(s), 25)) : []
     };
   } catch {
     return null;
@@ -276,4 +279,18 @@ ${askForStaleness
 // reliable enough (proven true earlier on the connections engine too).
 function stripEmDash(text: string): string {
   return text.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",").trim();
+}
+
+/**
+ * Mechanical backstop for the "one tight sentence" rule, same reasoning as the connections
+ * engine and individual guidance: prompting alone doesn't reliably hold. If the model writes
+ * more than one sentence, keep only the first, it's reliably the actual claim. Never force-cut
+ * mid-sentence, an honest longer sentence beats a mangled fragment.
+ */
+function tightenToOneSentence(text: string, maxWords: number): string {
+  const sentences = text.trim().split(/(?<=[.?!])\s+/).filter(Boolean);
+  const result = sentences[0] ?? text.trim();
+  const wordCount = result.split(/\s+/).filter(Boolean).length;
+  if (wordCount > maxWords + 10 && sentences.length === 1) return result;
+  return result;
 }
