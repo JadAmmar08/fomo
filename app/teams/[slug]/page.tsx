@@ -40,10 +40,21 @@ async function getTeamPulse(slug: string) {
   }>;
 }
 
+interface GuidanceRecommendation {
+  type: "direction" | "question" | "team_signal";
+  text: string;
+}
+
 interface GuidanceData {
   pattern: string;
-  recommendations: string[];
+  recommendations: GuidanceRecommendation[];
 }
+
+const GUIDANCE_LABELS: Record<GuidanceRecommendation["type"], string> = {
+  direction: "Direction",
+  question: "Open question",
+  team_signal: "Team signal"
+};
 
 async function getGuidance(slug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -124,17 +135,35 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
             <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
             Your research
           </div>
-          <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 20 : 0 }}>
+          <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>
+          <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0 }}>
             {guidance.pattern}
           </p>
           {guidance.recommendations.length > 0 && (
-            <div style={{ display: "grid", gap: 10 }}>
-              {guidance.recommendations.map((rec, i) => (
-                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 16px" }}>
-                  <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>{rec}</p>
-                </div>
-              ))}
-            </div>
+            <>
+              <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where to look next</span>
+              <div style={{ display: "grid", gap: 10 }}>
+                {guidance.recommendations.map((rec, i) => {
+                  const isTeamSignal = rec.type === "team_signal";
+                  return (
+                    <div key={i} style={{
+                      background: isTeamSignal ? "var(--accent-soft)" : "var(--surface-raised)",
+                      border: isTeamSignal ? "1px solid var(--accent)" : "1px solid var(--line)",
+                      borderRadius: 12, padding: "12px 16px"
+                    }}>
+                      <span className="pill" style={{
+                        fontSize: "0.68rem", marginBottom: 6, display: "inline-flex",
+                        background: isTeamSignal ? "var(--accent)" : undefined,
+                        color: isTeamSignal ? "white" : undefined
+                      }}>
+                        {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
+                      </span>
+                      <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>{rec.text}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       )}

@@ -1,8 +1,15 @@
 import { getPool } from "@/lib/postgres";
 
+export type GuidanceType = "direction" | "question" | "team_signal";
+
+export interface GuidanceRecommendation {
+  type: GuidanceType;
+  text: string;
+}
+
 export interface IndividualGuidance {
   pattern: string;
-  recommendations: string[];
+  recommendations: GuidanceRecommendation[];
   generatedAt: string;
 }
 
@@ -32,7 +39,7 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
       if (Date.now() - generatedAt < CACHE_TTL_MS) {
         return {
           pattern: String(cached.rows[0].pattern),
-          recommendations: Array.isArray(cached.rows[0].recommendations) ? cached.rows[0].recommendations.map(String) : [],
+          recommendations: normalizeRecommendations(cached.rows[0].recommendations),
           generatedAt: new Date(cached.rows[0].generated_at as string).toISOString()
         };
       }
@@ -62,6 +69,17 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   );
 
   return { ...result, generatedAt: new Date().toISOString() };
+}
+
+// Guards against older cached rows that stored plain strings before recommendations had a type.
+function normalizeRecommendations(raw: unknown): GuidanceRecommendation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r) => {
+    if (typeof r === "string") return { type: "direction" as const, text: r };
+    const obj = r as { type?: string; text?: string };
+    const type: GuidanceType = obj.type === "question" || obj.type === "team_signal" ? obj.type : "direction";
+    return { type, text: String(obj.text ?? "") };
+  }).filter((r) => r.text);
 }
 
 interface TeamContext {
@@ -105,7 +123,7 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
 async function computeGuidanceWithHaiku(
   topics: string[],
   teamContext: TeamContext | null
-): Promise<{ pattern: string; recommendations: string[] } | null> {
+): Promise<{ pattern: string; recommendations: GuidanceRecommendation[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -132,7 +150,20 @@ async function computeGuidanceWithHaiku(
             type: "object" as const,
             properties: {
               pattern: { type: "string" },
-              recommendations: { type: "array", items: { type: "string" } }
+              recommendations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    type: {
+                      type: "string",
+                      enum: ["direction", "question", "team_signal"]
+                    },
+                    text: { type: "string" }
+                  },
+                  required: ["type", "text"]
+                }
+              }
             },
             required: ["pattern", "recommendations"],
             additionalProperties: false
@@ -144,13 +175,18 @@ async function computeGuidanceWithHaiku(
 
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 
-STEP 2, point in different directions: the recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
+STEP 2, point in different directions: recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
 
-STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE of the recommendations should point that out directly, e.g. "your research on X could speak to the team's open question about Y" or "you may be positioned to help resolve the team's unrevisited assumption about Z." Only make this connection if it's real and specific, don't force one. If there's no genuine link, ignore the team context and give purely personal divergent directions instead.
+STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE recommendation should point that out directly and must use type "team_signal", e.g. "your research on X could speak to the team's open question about Y." Only make this connection if it's real and specific, don't force one. If there's no genuine link, ignore the team context and give purely personal directions instead.
+
+Each recommendation gets a type:
+- "direction": a concrete next thing to look into, phrased as a statement, not a question.
+- "question": phrased as an actual open question ending in "?", specific enough someone could go find the answer.
+- "team_signal": ONLY for the one recommendation (if any) that ties this person's own research to something the team has already found. Never invent one of these if there's no real link.
 
 RULES:
 - pattern: one sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 30 words.
-- recommendations: 1-3 specific, non-obvious directions that serve the same goal from a new angle, phrased as a concrete thing to look into. Each under 20 words. Do not repeat or lightly rephrase a topic they already have.
+- recommendations: 1-3 items, each under 20 words, matching its stated type's shape. Do not repeat or lightly rephrase a topic they already have.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
 - Ground everything in the literal topic names and team context given, don't invent facts, statistics, or timelines not derivable from them.
 - Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.
@@ -166,15 +202,20 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { pattern: string; recommendations: string[] };
+    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string }[] };
     if (!raw.pattern) return null;
+
+    const recommendations: GuidanceRecommendation[] = (Array.isArray(raw.recommendations) ? raw.recommendations : [])
+      .slice(0, 3)
+      .map((r) => ({
+        type: (r.type === "question" || r.type === "team_signal" ? r.type : "direction") as GuidanceType,
+        text: stripEmDash(String(r.text ?? ""))
+      }))
+      .filter((r) => r.text && !hasMemberLeak(r.text));
 
     return {
       pattern: stripEmDash(raw.pattern),
-      recommendations: (Array.isArray(raw.recommendations) ? raw.recommendations : [])
-        .slice(0, 3)
-        .map(stripEmDash)
-        .filter((r) => !hasMemberLeak(r))
+      recommendations
     };
   } catch {
     return null;
