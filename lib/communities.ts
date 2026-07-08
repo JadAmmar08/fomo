@@ -15,8 +15,13 @@ export interface InferenceResult {
   personalProfile: PersonalProfile | null;
 }
 
+// Below this, a "profile" is really just guessing from one or two stray signals, e.g. a single
+// page visited right after installing, and produces a confident-sounding but meaningless read.
+// Matches the threshold the newer team guidance system already uses for the same reason.
+const MIN_INTERESTS_FOR_PROFILE = 3;
+
 export async function inferCommunities(interests: UserInterest[]): Promise<InferenceResult> {
-  if (interests.length === 0) return { communities: [], personalProfile: null };
+  if (interests.length < MIN_INTERESTS_FOR_PROFILE) return { communities: [], personalProfile: null };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { communities: [], personalProfile: null };
