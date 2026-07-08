@@ -73,7 +73,7 @@ async function computeGuidanceWithHaiku(topics: string[]): Promise<{ pattern: st
       tools: [
         {
           name: "research_guidance",
-          description: "Return a pattern in someone's own research and 1-3 specific next directions.",
+          description: "Return the goal behind someone's own research and 1-3 divergent, non-obvious directions that serve that same goal.",
           input_schema: {
             type: "object" as const,
             properties: {
@@ -86,18 +86,22 @@ async function computeGuidanceWithHaiku(topics: string[]): Promise<{ pattern: st
         }
       ],
       tool_choice: { type: "tool", name: "research_guidance" },
-      system: `You are helping one person see the pattern in their own recent research and what to look into next. This is for ONE person only, not a team, never reference other people.
+      system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, not a team, never reference other people.
+
+STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
+
+STEP 2, point in different directions: the recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
 
 RULES:
-- pattern: one sentence naming the actual throughline across their topics, not a generic restatement ("You're researching X and Y" is not a pattern, it's a list). Name what the topics have in common or where they're heading. Max 30 words.
-- recommendations: 1-3 specific next research directions that follow naturally from the pattern, phrased as a concrete thing to look into, not vague advice. Each under 20 words.
+- pattern: one sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 30 words.
+- recommendations: 1-3 specific, non-obvious directions that serve the same goal from a new angle, phrased as a concrete thing to look into. Each under 20 words. Do not repeat or lightly rephrase a topic they already have.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
-- Ground everything in the literal topic names given, don't invent facts, statistics, or timelines not derivable from the topics.
-- If the topics are too scattered or unrelated to form a real pattern, say so honestly in the pattern field rather than forcing one.`,
+- Ground everything in the literal topic names given, don't invent facts, statistics, or timelines not derivable from the topics. A divergent direction still has to be a real, plausible extension of their actual research, not a random unrelated idea.
+- If the topics are too scattered to infer a real goal, say so honestly in the pattern field rather than forcing one.`,
       messages: [
         {
           role: "user",
-          content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}\n\nWhat's the pattern, and what should they look into next?`
+          content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}\n\nWhat's the underlying goal behind this research, and what interesting, non-obvious directions could they explore next that still serve that same goal?`
         }
       ]
     });
