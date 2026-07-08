@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <section className="panel" style={{ padding: "48px 36px" }}>
         <span className="eyebrow">Legal</span>
         <h1 style={{ marginTop: 12 }}>Privacy Policy</h1>
-        <p style={{ color: "var(--subtle)" }}>Last updated: June 21, 2026</p>
+        <p style={{ color: "var(--subtle)" }}>Last updated: July 7, 2026</p>
       </section>
 
       <section className="panel">
@@ -21,9 +21,11 @@ export default function PrivacyPage() {
         <div className="list">
           {[
             ["Page title and URL", "To classify what you're reading into interest categories."],
-            ["Anonymous user ID", "A randomly generated ID stored in your browser. Not linked to your name, email, or identity."],
+            ["A snippet of visible page text", "Up to roughly 6,000 characters of the page's visible text and metadata, sent for AI classification only. It is not stored after classification, only the resulting category and topic label are saved."],
+            ["Anonymous user ID", "A randomly generated ID stored in your browser. Not linked to your name, email, or identity unless you create an account (see below)."],
             ["Time on page", "To measure attention: how long you actually spent on something."],
             ["Interest categories", "Inferred from your browsing, stored on our servers to power your rooms and teams."],
+            ["Email address (optional)", "Only if you join the waitlist or create an account to sign in from multiple devices. Used solely to send you a sign-in link or product updates, never sold or used for advertising."],
           ].map(([item, desc]) => (
             <div key={item} className="item" style={{ padding: "14px 16px" }}>
               <strong style={{ fontSize: "0.9rem" }}>{item}</strong>
@@ -37,7 +39,7 @@ export default function PrivacyPage() {
         <h2>What we never collect</h2>
         <div className="list">
           {[
-            "Your name, email, or any personally identifiable information (unless you voluntarily join the waitlist)",
+            "Your name or any personally identifiable information, unless you voluntarily join the waitlist or create an account with an email address",
             "Passwords, form inputs, or anything you type",
             "Messages, emails, or private communications",
             "Content from banking, health, or other sensitive pages (these are automatically excluded)",
@@ -55,24 +57,30 @@ export default function PrivacyPage() {
         <p>We use your browsing signals to:</p>
         <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
           <li>Build your anonymous attention profile (shown only to you on the Mirror page)</li>
-          <li>Contribute anonymously to your rooms' and teams' pulse</li>
+          <li>Contribute anonymously to your rooms' and teams' pulse and mental model</li>
           <li>Improve classification accuracy over time</li>
         </ul>
-        <p>We do not sell your data. We do not share it with advertisers. We do not use it for any purpose other than running FOMO.</p>
+        <p>If you provide an email address, we use it only to send you a sign-in link, product updates, or (for digest emails) a summary of activity relevant to you. We do not sell your data. We do not share it with advertisers. We do not use it for any purpose other than running FOMO.</p>
       </section>
 
       <section className="panel">
         <h2>How data is shared</h2>
         <p>Your browsing signals contribute anonymously to the rooms and teams you join. Other members see aggregated topic trends, never individual browsing activity, never your user ID, never anything that could identify you.</p>
-        <p>We use Anthropic's Claude API to classify page content. Page titles and URLs are sent to Anthropic for this purpose. See <a href="https://www.anthropic.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Anthropic's privacy policy</a>.</p>
-        <p>We use Supabase to store data. See <a href="https://supabase.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Supabase's privacy policy</a>.</p>
+        <p>We share data with the following third parties, solely to operate FOMO:</p>
+        <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
+          <li><strong>Anthropic</strong> (Claude API): page titles, URLs, and page text snippets are sent to classify content and generate room/team insights. See <a href="https://www.anthropic.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Anthropic&apos;s privacy policy</a>.</li>
+          <li><strong>Supabase</strong>: stores our database, including browsing signals, interest categories, and account records. See <a href="https://supabase.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Supabase&apos;s privacy policy</a>.</li>
+          <li><strong>Resend</strong>: sends transactional emails (sign-in links and, if you opt in, digest emails) on our behalf. Only your email address is shared with Resend for this purpose. See <a href="https://resend.com/legal/privacy-policy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Resend&apos;s privacy policy</a>.</li>
+          <li><strong>Vercel</strong>: hosts our website and app, and provides anonymous, aggregated web analytics (page views only, no personal data). See <a href="https://vercel.com/legal/privacy-policy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Vercel&apos;s privacy policy</a>.</li>
+        </ul>
+        <p>We do not sell data to anyone, and we do not share it with advertisers or data brokers.</p>
       </section>
 
       <section className="panel">
         <h2>Your rights</h2>
         <p>You can delete all your data at any time from the <a href="/settings" style={{ color: "var(--accent)" }}>Settings page</a>. This permanently removes all browsing signals, your anonymous profile, and your user record from our servers.</p>
         <p>You can pause tracking at any time by toggling the extension off. No new signals will be collected while paused.</p>
-        <p>If you joined the waitlist and want your email removed, contact us at <a href="mailto:hi@usefomo.co" style={{ color: "var(--accent)" }}>hi@usefomo.co</a>.</p>
+        <p>If you joined the waitlist, created an account, or otherwise provided an email address and want it removed, contact us at <a href="mailto:hi@usefomo.co" style={{ color: "var(--accent)" }}>hi@usefomo.co</a>.</p>
       </section>
 
       <section className="panel">
