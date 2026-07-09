@@ -118,9 +118,9 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
               <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What this team currently believes.</h2>
               <div className="list">
                 {mirror!.theses.map((thesis, i) => (
-                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    {thesis.isNew && <span className="pill" style={{ fontSize: "0.68rem", flexShrink: 0, marginTop: 2 }}>New</span>}
-                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0 }}>{thesis.statement}</p>
+                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    {thesis.isNew && <span className="pill" style={{ fontSize: "0.68rem", flexShrink: 0, marginTop: 2, background: "var(--accent)", color: "white" }}>New</span>}
+                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{thesis.statement}</p>
                   </div>
                 ))}
               </div>
@@ -134,9 +134,9 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
               mirror!.staleAssumptions && mirror!.staleAssumptions.length > 0 ? (
                 <div className="list" style={{ marginTop: 16 }}>
                   {mirror!.staleAssumptions.map((a, i) => (
-                    <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 20px" }}>
-                      <p style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 6px" }}>{a.statement}</p>
-                      <p style={{ fontSize: "0.85rem", margin: 0 }}>{a.note}</p>
+                    <div key={i} style={{ background: "var(--blindspot-soft)", border: "1px solid var(--line)", borderLeft: "3px solid var(--blindspot)", borderRadius: 14, padding: "16px 20px" }}>
+                      <p style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 6px", color: "var(--text)" }}>{a.statement}</p>
+                      <p style={{ fontSize: "0.85rem", margin: 0, color: "var(--text-strong)" }}>{a.note}</p>
                     </div>
                   ))}
                 </div>
@@ -158,7 +158,7 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
                     <span className="kicker" style={{ marginBottom: 0, flexShrink: 0, width: 90 }}>
                       {new Date(shift.detectedAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </span>
-                    <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0 }}>{shift.description}</p>
+                    <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{shift.description}</p>
                   </div>
                 ))}
               </div>
