@@ -65,6 +65,15 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   const memberIds = membersRes.rows.map((r) => String(r.anonymous_user_id));
   if (memberIds.length === 0) return null;
 
+  const roomRes = await pool.query(
+    `select name, description from rooms where id = $1`,
+    [roomId]
+  );
+  const teamFocus = {
+    name: String(roomRes.rows[0]?.name ?? ""),
+    description: roomRes.rows[0]?.description ? String(roomRes.rows[0].description) : null
+  };
+
   // Per-member topic lists, kept internal only — the AI sees "Member 1, Member 2..." never a name
   const perMemberTopics: string[][] = [];
   for (const memberId of memberIds) {
@@ -82,7 +91,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
   }
 
-  const rawConnections = await computeConnectionsWithHaiku(perMemberTopics);
+  const rawConnections = await computeConnectionsWithHaiku(perMemberTopics, teamFocus);
   if (!rawConnections) {
     return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
   }
@@ -278,7 +287,8 @@ function tightenExplanation(text: string, insightType: InsightType): string {
 }
 
 async function computeConnectionsWithHaiku(
-  perMemberTopics: string[][]
+  perMemberTopics: string[][],
+  teamFocus: { name: string; description: string | null }
 ): Promise<{ connections: RawConnectionWithSources[]; soloHighlights: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -290,6 +300,10 @@ async function computeConnectionsWithHaiku(
     const memberBlock = perMemberTopics
       .map((topics, i) => `Member ${i + 1}:\n${topics.map((t) => `- ${t}`).join("\n")}`)
       .join("\n\n");
+
+    const teamFocusBlock = teamFocus.description
+      ? `This team is called "${teamFocus.name}" and describes its focus as: "${teamFocus.description}"`
+      : `This team is called "${teamFocus.name}". No further description was given, so judge relevance by what the team's own research topics have in common, not against an outside definition of the field.`;
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
@@ -337,6 +351,9 @@ async function computeConnectionsWithHaiku(
       tool_choice: { type: "tool", name: "web_of_ideas" },
       system: `You are a research analyst finding non-obvious, high-value connections between what different members of a private group are independently looking into. This is the core value of the product: turning quiet, separate research into a shared discovery the group wouldn't have found on its own.
 
+RELEVANCE CHECK, BEFORE ANYTHING ELSE:
+You will be told this team's name and, if given, its stated focus. A member's browsing history can include topics that have nothing to do with why this team exists (a personal errand, an unrelated hobby, an app-store or store listing, etc.) — these are noise, not signal. Before treating any topic as material for a connection or a solo highlight, ask: "does this plausibly belong to what this team is actually researching?" If a topic is clearly off-focus for this team, exclude it entirely, even if it would otherwise connect neatly to another off-focus topic from a different member. Do not force a connection between two irrelevant topics just because they're thematically similar to each other, they still have to be relevant to the team's actual purpose.
+
 WHAT COUNTS AS A GOOD CONNECTION:
 Not "these two topics are related" — that's a fact, not an insight. Each label has a REQUIRED shape. Writing a short sentence is not enough — it must preserve the shape below or it doesn't count as that label:
 - an IMPLICATION: state what follows IF both signals are true — an "if both are real, then..." consequence, not just a fact about one side.
@@ -369,7 +386,7 @@ RULES:
       messages: [
         {
           role: "user",
-          content: `Here is what each member of this private room has been researching over the last 7 days:\n\n${memberBlock}\n\nFind the sharpest, most valuable connections between different members' work — implications, tensions, open questions, or opportunities, not just topical overlap. Order by insight value. List any standout individual topics that don't connect to anything.`
+          content: `${teamFocusBlock}\n\nHere is what each member of this private room has been researching over the last 7 days:\n\n${memberBlock}\n\nFirst, mentally filter out any topics that don't plausibly belong to this team's focus. Then find the sharpest, most valuable connections between different members' remaining work — implications, tensions, open questions, or opportunities, not just topical overlap. Order by insight value. List any standout individual topics that don't connect to anything, but only if they're actually relevant to this team.`
         }
       ]
     });
