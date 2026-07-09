@@ -125,13 +125,20 @@ export default function LandingPage() {
             </p>
             <div style={{ display: "grid", gap: 10 }}>
               {[
-                "Look at how orphan drug designations have reshaped approval odds for rare-disease gene therapies.",
-                "Check which delivery-vector approaches are already locked up in patents before committing to one.",
-              ].map((rec, i) => (
-                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
-                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec}</p>
-                </div>
-              ))}
+                { label: "Direction", rec: "Look at how orphan drug designations have reshaped approval odds for rare-disease gene therapies." },
+                { label: "Open question", rec: "Which delivery-vector approaches are already locked up in patents before committing to one?" },
+              ].map((item, i) => {
+                const color = item.label === "Direction" ? "var(--direction)" : "var(--question)";
+                const bg = item.label === "Direction" ? "var(--direction-soft)" : "var(--question-soft)";
+                return (
+                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${color}`, borderRadius: 14, padding: "14px 18px" }}>
+                    <span className="pill" style={{ fontSize: "0.65rem", fontWeight: 600, marginBottom: 6, display: "inline-flex", color, background: bg, border: `1px solid ${color}` }}>
+                      {item.label}
+                    </span>
+                    <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{item.rec}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
