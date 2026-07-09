@@ -139,7 +139,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
         {guidance ? (
           <>
             <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0 }}>
+            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0, color: "var(--text)" }}>
               {guidance.pattern}
             </p>
           </>
@@ -157,20 +157,24 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
               <div style={{ display: "grid", gap: 10 }}>
                 {guidance.recommendations.map((rec, i) => {
                   const isTeamSignal = rec.type === "team_signal";
+                  const typeColor = rec.type === "question" ? "var(--question)" : rec.type === "direction" ? "var(--direction)" : "var(--accent)";
+                  const typeBg = rec.type === "question" ? "var(--question-soft)" : rec.type === "direction" ? "var(--direction-soft)" : "var(--accent-soft)";
                   return (
                     <div key={i} style={{
                       background: isTeamSignal ? "var(--accent-soft)" : "var(--surface-raised)",
                       border: isTeamSignal ? "1px solid var(--accent)" : "1px solid var(--line)",
+                      borderLeft: `3px solid ${typeColor}`,
                       borderRadius: 12, padding: "12px 16px"
                     }}>
                       <span className="pill" style={{
-                        fontSize: "0.68rem", marginBottom: 6, display: "inline-flex",
-                        background: isTeamSignal ? "var(--accent)" : undefined,
-                        color: isTeamSignal ? "white" : undefined
+                        fontSize: "0.68rem", marginBottom: 6, display: "inline-flex", fontWeight: 600,
+                        background: isTeamSignal ? "var(--accent)" : typeBg,
+                        color: isTeamSignal ? "white" : typeColor,
+                        border: isTeamSignal ? "none" : `1px solid ${typeColor}`
                       }}>
                         {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
                       </span>
-                      <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0 }}>{rec.text}</p>
+                      <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec.text}</p>
                     </div>
                   );
                 })}

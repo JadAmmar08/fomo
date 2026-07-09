@@ -81,15 +81,15 @@ export default function LandingPage() {
           </div>
           <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
             {[
-              { label: "Tension", from: "CRISPR Gene Editing", to: "FDA Approval Pathways", body: "The regulatory research should tell the science side whether their approach even fits an approvable pathway." },
-              { label: "Blind spot", from: "Funding Landscape", to: "Venture Capital in Life Sciences", body: "Founders are optimizing for a funding round investors aren't actually pricing in yet." },
+              { label: "Tension", color: "var(--tension)", bg: "var(--tension-soft)", from: "CRISPR Gene Editing", to: "FDA Approval Pathways", body: "The regulatory research should tell the science side whether their approach even fits an approvable pathway." },
+              { label: "Blind spot", color: "var(--blindspot)", bg: "var(--blindspot-soft)", from: "Funding Landscape", to: "Venture Capital in Life Sciences", body: "Founders are optimizing for a funding round investors aren't actually pricing in yet." },
             ].map((c) => (
-              <div key={c.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 18px" }}>
+              <div key={c.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: "16px 18px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{c.from} <span style={{ color: "var(--accent)", fontWeight: 400 }}>↔</span> {c.to}</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text)" }}>{c.from} <span style={{ color: "var(--accent)", fontWeight: 400 }}>↔</span> {c.to}</span>
                 </div>
-                <span className="pill" style={{ fontSize: "0.68rem", marginBottom: 8, display: "inline-flex" }}>{c.label}</span>
-                <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{c.body}</p>
+                <span className="pill" style={{ fontSize: "0.68rem", fontWeight: 600, marginBottom: 8, display: "inline-flex", color: c.color, background: c.bg, border: `1px solid ${c.color}` }}>{c.label}</span>
+                <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{c.body}</p>
               </div>
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -129,7 +129,7 @@ export default function LandingPage() {
                 "Check which delivery-vector approaches are already locked up in patents before committing to one.",
               ].map((rec, i) => (
                 <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
-                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{rec}</p>
+                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec}</p>
                 </div>
               ))}
             </div>
@@ -199,13 +199,13 @@ export default function LandingPage() {
                 "Founders and investors are converging on the same funding thesis for gene editing.",
               ].map((t, i) => (
                 <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
-                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>{t}</p>
+                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{t}</p>
                 </div>
               ))}
             </div>
             <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Blind spots</span>
-            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
-              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0 }}>Nobody has revisited the FDA pathway assumption since it was first raised three weeks ago.</p>
+            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--blindspot)", borderRadius: 14, padding: "14px 18px" }}>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>Nobody has revisited the FDA pathway assumption since it was first raised three weeks ago.</p>
             </div>
           </div>
         </div>
