@@ -205,7 +205,7 @@ export default function LandingPage() {
                 "A gene editing approach must fit an existing FDA pathway before trials can begin.",
                 "Founders and investors are converging on the same funding thesis for gene editing.",
               ].map((t, i) => (
-                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
+                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "14px 18px" }}>
                   <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{t}</p>
                 </div>
               ))}
