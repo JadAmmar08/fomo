@@ -1,7 +1,9 @@
 export const runtime = "nodejs";
 
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
+import { logFeatureView } from "@/lib/cost-log";
 
 interface Thesis {
   statement: string;
@@ -71,6 +73,12 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
 
   const { room, mirror } = data;
   const hasAnything = mirror && (mirror.onboardingSummary || mirror.theses.length > 0);
+
+  const cookieStore = await cookies();
+  const viewerUid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
+  if (viewerUid) {
+    logFeatureView({ eventType: "mirror_view", anonymousUserId: viewerUid, roomId: room.id });
+  }
 
   return (
     <div className="stack" style={{ gap: 24 }}>

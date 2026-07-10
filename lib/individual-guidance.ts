@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/postgres";
+import { logApiCall } from "@/lib/cost-log";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
 
@@ -57,7 +58,7 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
 
   const teamContext = roomId ? await getTeamContext(pool, roomId) : null;
 
-  const result = await computeGuidanceWithHaiku(topics, teamContext);
+  const result = await computeGuidanceWithHaiku(topics, teamContext, anonymousUserId, roomId);
   if (!result) return null;
 
   await pool.query(
@@ -122,7 +123,9 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
 
 async function computeGuidanceWithHaiku(
   topics: string[],
-  teamContext: TeamContext | null
+  teamContext: TeamContext | null,
+  anonymousUserId?: string,
+  roomId?: string
 ): Promise<{ pattern: string; recommendations: GuidanceRecommendation[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -197,6 +200,15 @@ RULES:
           content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}${teamContextBlock}\n\nWhat's the underlying goal behind this research, and what interesting, non-obvious directions could they explore next that still serve that same goal?`
         }
       ]
+    });
+
+    logApiCall({
+      callType: "guidance_synthesis",
+      model: "claude-haiku-4-5-20251001",
+      inputTokens: message.usage?.input_tokens ?? 0,
+      outputTokens: message.usage?.output_tokens ?? 0,
+      roomId: roomId || undefined,
+      anonymousUserId
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");

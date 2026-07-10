@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getPool } from "@/lib/postgres";
+import { AdminDashboardClient } from "@/components/admin-dashboard-client";
 
 export const runtime = "nodejs";
 
@@ -179,19 +180,34 @@ async function getTeamStats(): Promise<TeamStat[]> {
   }
 }
 
+async function getDashboardData(key: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  try {
+    const res = await fetch(`${appUrl}/api/admin/dashboard?key=${encodeURIComponent(key)}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
   const params = await searchParams;
   const adminKey = process.env.ADMIN_KEY;
   if (!adminKey) redirect("/");
   if (params.key !== adminKey) redirect("/");
 
-  const [stats, teams] = await Promise.all([getStats(), getTeamStats()]);
+  const [stats, teams, dashboardData] = await Promise.all([getStats(), getTeamStats(), getDashboardData(adminKey)]);
 
   return (
     <div className="stack">
       <section className="panel" style={{ padding: "40px 36px" }}>
         <span className="eyebrow">Admin</span>
         <h1 style={{ marginTop: 12 }}>FOMO Dashboard</h1>
+      </section>
+
+      <section className="panel">
+        <AdminDashboardClient adminKey={adminKey} initialData={dashboardData} />
       </section>
 
       <section className="panel">

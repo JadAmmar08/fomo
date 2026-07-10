@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { classifySignal } from "@/lib/classifier";
 import { isSensitiveMetadata, sanitizePath } from "@/lib/privacy";
 import { getCachedClassification, isDatabaseMode } from "@/lib/database-store";
+import { logApiCall } from "@/lib/cost-log";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -23,7 +24,10 @@ export async function POST(request: NextRequest) {
 
   if (isDatabaseMode()) {
     const cached = await getCachedClassification(normalizedDomain, urlPath);
-    if (cached) return NextResponse.json(cached);
+    if (cached) {
+      logApiCall({ callType: "classification", model: "cache", inputTokens: 0, outputTokens: 0, cacheHit: true });
+      return NextResponse.json(cached);
+    }
   }
 
   const classification = await classifySignal({

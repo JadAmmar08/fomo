@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/postgres";
+import { logApiCall } from "@/lib/cost-log";
 
 export type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
@@ -91,7 +92,7 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
   }
 
-  const rawConnections = await computeConnectionsWithHaiku(perMemberTopics, teamFocus);
+  const rawConnections = await computeConnectionsWithHaiku(perMemberTopics, teamFocus, roomId);
   if (!rawConnections) {
     return attachViewState(pool, roomId, { connections: [], soloHighlights: [], generatedAt: new Date().toISOString() });
   }
@@ -288,7 +289,8 @@ function tightenExplanation(text: string, insightType: InsightType): string {
 
 async function computeConnectionsWithHaiku(
   perMemberTopics: string[][],
-  teamFocus: { name: string; description: string | null }
+  teamFocus: { name: string; description: string | null },
+  roomId?: string
 ): Promise<{ connections: RawConnectionWithSources[]; soloHighlights: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -389,6 +391,14 @@ RULES:
           content: `${teamFocusBlock}\n\nHere is what each member of this private room has been researching over the last 7 days:\n\n${memberBlock}\n\nFirst, mentally filter out any topics that don't plausibly belong to this team's focus. Then find the sharpest, most valuable connections between different members' remaining work — implications, tensions, open questions, or opportunities, not just topical overlap. Order by insight value. List any standout individual topics that don't connect to anything, but only if they're actually relevant to this team.`
         }
       ]
+    });
+
+    logApiCall({
+      callType: "pulse_synthesis",
+      model: "claude-sonnet-4-6",
+      inputTokens: message.usage?.input_tokens ?? 0,
+      outputTokens: message.usage?.output_tokens ?? 0,
+      roomId
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");

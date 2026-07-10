@@ -1,4 +1,5 @@
 import { CATEGORIES, type Category } from "@/lib/types";
+import { logApiCall } from "@/lib/cost-log";
 
 export interface ClassifierInput {
   domain: string;
@@ -720,6 +721,14 @@ The label must be a concise noun phrase describing the TOPIC or PATTERN, not the
           })
         }
       ]
+    });
+
+    logApiCall({
+      callType: "classification",
+      model,
+      inputTokens: message.usage?.input_tokens ?? 0,
+      outputTokens: message.usage?.output_tokens ?? 0,
+      cacheHit: false
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");

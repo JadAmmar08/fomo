@@ -1,5 +1,6 @@
 import { getPool } from "@/lib/postgres";
 import type { IdeaConnection } from "@/lib/room-connections";
+import { logApiCall } from "@/lib/cost-log";
 
 export interface Thesis {
   statement: string;
@@ -83,7 +84,7 @@ export async function getTeamMirror(roomId: string, forceRefresh = false): Promi
     history.length >= MIN_HISTORY_ENTRIES_FOR_STALENESS &&
     Date.now() - oldestCapturedAt >= MIN_HISTORY_SPAN_MS;
 
-  const computed = await computeMentalModelWithHaiku(history, previousState, hasEnoughHistoryForStaleness);
+  const computed = await computeMentalModelWithHaiku(history, previousState, hasEnoughHistoryForStaleness, roomId);
   if (!computed) {
     return previousState && previousUpdatedAt
       ? {
@@ -157,7 +158,8 @@ function mapPreviousState(row: Record<string, unknown>): PreviousState {
 async function computeMentalModelWithHaiku(
   history: Array<{ connections: IdeaConnection[]; captured_at: string }>,
   previousState: PreviousState | null,
-  askForStaleness: boolean
+  askForStaleness: boolean,
+  roomId?: string
 ): Promise<{ onboardingSummary: string; theses: Thesis[]; staleAssumptions: StaleAssumption[]; newShifts: string[] } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
@@ -245,6 +247,14 @@ ${askForStaleness
           content: `${previousBlock}\n\nFull history of connection cycles found so far:\n\n${historyBlock}\n\nUpdate the team's mental model.`
         }
       ]
+    });
+
+    logApiCall({
+      callType: "mirror_synthesis",
+      model: "claude-sonnet-4-6",
+      inputTokens: message.usage?.input_tokens ?? 0,
+      outputTokens: message.usage?.output_tokens ?? 0,
+      roomId
     });
 
     const toolBlock = message.content.find((b) => b.type === "tool_use");

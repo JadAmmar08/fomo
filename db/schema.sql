@@ -198,3 +198,31 @@ create table if not exists individual_guidance (
   generated_at timestamptz not null default now(),
   primary key (anonymous_user_id, room_id)
 );
+
+-- COST LOG (one row per Anthropic API call site, used to compute unit economics
+-- on the admin dashboard: spend by call type, spend per team, cache hit rate)
+create table if not exists cost_log (
+  id uuid primary key default gen_random_uuid(),
+  call_type text not null check (call_type in ('classification', 'pulse_synthesis', 'mirror_synthesis', 'guidance_synthesis')),
+  room_id uuid references rooms(id) on delete set null,
+  anonymous_user_id text,
+  input_tokens integer not null default 0,
+  output_tokens integer not null default 0,
+  estimated_cost numeric(10,6) not null default 0,
+  cache_hit boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_cost_log_type_time on cost_log(call_type, created_at desc);
+create index if not exists idx_cost_log_room on cost_log(room_id);
+
+-- FEATURE VIEWS (page-load level view events for Team Pulse / Team Mirror / Guidance,
+-- used for feature engagement metrics and the activation funnel's last two steps)
+create table if not exists feature_views (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null check (event_type in ('pulse_view', 'mirror_view', 'guidance_view')),
+  anonymous_user_id text not null,
+  room_id uuid references rooms(id) on delete cascade,
+  viewed_at timestamptz not null default now()
+);
+create index if not exists idx_feature_views_type_time on feature_views(event_type, viewed_at desc);
+create index if not exists idx_feature_views_user on feature_views(anonymous_user_id);

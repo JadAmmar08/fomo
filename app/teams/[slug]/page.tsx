@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
 import { WebOfIdeas } from "@/components/web-of-ideas";
+import { logFeatureView } from "@/lib/cost-log";
 
 interface IdeaConnection {
   from: string;
@@ -92,6 +93,13 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
 
   const { room, webOfIdeas, generatedAt } = data;
   const hasWeb = webOfIdeas && (webOfIdeas.connections.length > 0 || webOfIdeas.soloHighlights.length > 0);
+
+  const cookieStore = await cookies();
+  const viewerUid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
+  if (viewerUid) {
+    logFeatureView({ eventType: "pulse_view", anonymousUserId: viewerUid, roomId: room.id });
+    if (guidance) logFeatureView({ eventType: "guidance_view", anonymousUserId: viewerUid, roomId: room.id });
+  }
 
   return (
     <div>
