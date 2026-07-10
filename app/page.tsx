@@ -8,14 +8,14 @@ export default function LandingPage() {
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-          Make your meetings better.
+          Give every project team a shared research brain.
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          A private Chrome extension that watches your team&apos;s research in the background and tells you what changed, what people are missing, and what the next meeting should decide.
+          Create a private FOMO for any case, diligence, or research project. As each person works normally, FOMO connects their separate findings, flags contradictions, and shows the team what it needs to resolve next.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
@@ -27,7 +27,7 @@ export default function LandingPage() {
           {[
             { title: "Shorter meetings.", body: "Open it at the start of the call. Nobody spends the first ten minutes catching everyone up, the team already knows what everyone found." },
             { title: "Fewer blind spots.", body: "See when two people are independently converging on the same problem, or missing something the other already knows." },
-            { title: "Faster onboarding.", body: "A new hire reads the team's mental model and is caught up in minutes, not weeks of asking around." },
+            { title: "No setup for a project team.", body: "Spin one up for a case, a diligence sprint, or a research assignment. Archive it when the project ends." },
           ].map((v) => (
             <div key={v.title} style={{ padding: "32px 8px" }}>
               <h3 style={{ fontSize: "1.2rem", marginBottom: 10 }}>{v.title}</h3>
@@ -81,8 +81,8 @@ export default function LandingPage() {
           </div>
           <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
             {[
-              { label: "Tension", color: "var(--tension)", bg: "var(--tension-soft)", from: "CRISPR Gene Editing", to: "FDA Approval Pathways", body: "The regulatory research should tell the science side whether their approach even fits an approvable pathway." },
-              { label: "Blind spot", color: "var(--blindspot)", bg: "var(--blindspot-soft)", from: "Funding Landscape", to: "Venture Capital in Life Sciences", body: "Founders are optimizing for a funding round investors aren't actually pricing in yet." },
+              { label: "Tension", color: "var(--tension)", bg: "var(--tension-soft)", from: "In-Vivo Delivery Research", to: "Regulatory Precedent", body: "The science side is prioritizing an in-vivo approach, but every comparable approved program used ex-vivo delivery. Worth resolving before it changes the timeline." },
+              { label: "Blind spot", color: "var(--blindspot)", bg: "var(--blindspot-soft)", from: "Patent Coverage", to: "Valuation Model", body: "The valuation assumes seven years of exclusivity, but the strongest composition claims expire in four." },
             ].map((c) => (
               <div key={c.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: "16px 18px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 10 }}>
@@ -101,70 +101,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Individual guidance — value from day one, before the team has enough shared
-          history for the connections engine, card left / text right for rhythm */}
-      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
-        {/* Product mockup card — the actual individual guidance output */}
-        <div style={{
-          background: "white",
-          borderRadius: 20,
-          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
-          border: "1px solid var(--line)",
-          overflow: "hidden"
-        }}>
-          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Your research</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Day one, no team data needed</div>
-            </div>
-            <span className="pill" style={{ fontSize: "0.75rem" }}>Just you</span>
-          </div>
-          <div style={{ padding: "22px 26px" }}>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.05rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: 18 }}>
-              You&apos;re circling whether gene editing approaches can actually clear regulatory approval, tracking both the science and the pathways that gate it.
-            </p>
-            <div style={{ display: "grid", gap: 10 }}>
-              {[
-                { label: "Direction", rec: "Look at how orphan drug designations have reshaped approval odds for rare-disease gene therapies." },
-                { label: "Open question", rec: "Which delivery-vector approaches are already locked up in patents before committing to one?" },
-              ].map((item, i) => {
-                const color = item.label === "Direction" ? "var(--direction)" : "var(--question)";
-                const bg = item.label === "Direction" ? "var(--direction-soft)" : "var(--question-soft)";
-                return (
-                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${color}`, borderRadius: 14, padding: "14px 18px" }}>
-                    <span className="pill" style={{ fontSize: "0.65rem", fontWeight: 600, marginBottom: 6, display: "inline-flex", color, background: bg, border: `1px solid ${color}` }}>
-                      {item.label}
-                    </span>
-                    <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{item.rec}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-            Your research
-          </div>
-          <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Useful before your team is.
-          </h2>
-          <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-            You don&apos;t have to wait for teammates to catch up. From day one, FOMO reads the pattern in your own research and points you toward directions you weren&apos;t already looking, not just deeper into what you&apos;re doing, somewhere genuinely adjacent.
+      {/* Individual guidance — kept as a small supporting note, not a full section,
+          so it doesn't compete with the core team-connections pitch */}
+      <section data-reveal style={{ padding: "44px 0", borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20, maxWidth: 780, margin: "0 auto" }}>
+          <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>◐</span>
+          <p style={{ fontSize: "0.98rem", lineHeight: 1.7, color: "var(--muted)", margin: 0 }}>
+            <strong style={{ color: "var(--text)" }}>Useful before your team is, too.</strong> Even before teammates join, FOMO reads the pattern in your own research and points you toward a direction worth exploring, built entirely from your own browsing, visible only to you.
           </p>
-          <div style={{ display: "grid", gap: 16 }}>
-            {[
-              { title: "Never a rehash.", body: "It won't just tell you to keep doing what you're doing. It looks for a real angle you haven't considered yet." },
-              { title: "Yours alone.", body: "Built entirely from your own browsing, no team data required, no one else sees it." },
-            ].map((f) => (
-              <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
-                <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -202,8 +146,8 @@ export default function LandingPage() {
             <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Working theses</span>
             <div style={{ display: "grid", gap: 10, marginBottom: 22 }}>
               {[
-                "A gene editing approach must fit an existing FDA pathway before trials can begin.",
-                "Founders and investors are converging on the same funding thesis for gene editing.",
+                "The in-vivo delivery approach is the team's default, pending regulatory resolution.",
+                "The acquisition price ceiling assumes seven years of exclusivity.",
               ].map((t, i) => (
                 <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "14px 18px" }}>
                   <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{t}</p>
@@ -212,7 +156,7 @@ export default function LandingPage() {
             </div>
             <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Blind spots</span>
             <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--blindspot)", borderRadius: 14, padding: "14px 18px" }}>
-              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>Nobody has revisited the FDA pathway assumption since it was first raised three weeks ago.</p>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>Nobody has revisited the exclusivity assumption since the patent research surfaced the four-year expiry.</p>
             </div>
           </div>
         </div>
