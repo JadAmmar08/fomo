@@ -1,38 +1,38 @@
 # FOMO
 
-See what your community is paying attention to.
+Turn a team's separate browsing into shared intelligence — without anyone changing how they work.
 
-FOMO is a Chrome extension that silently classifies what you browse using AI, builds a personal attention profile (your Mirror), and shows a live feed of what people like you are into right now (the Pulse).
+FOMO is a free, private Chrome extension + web app for research-heavy teams. It quietly reads what each person is already researching in their browser and uses AI to surface the connections, tensions, and open questions between what different teammates are separately looking into — never who found what, only how it connects.
 
 **Live at [usefomo.co](https://usefomo.co)** · **[Chrome Web Store](https://chromewebstore.google.com/detail/FOMO/dfnmincjfmcbhnilbhbfhgkhegdhdnal)**
 
 ## How it works
 
-1. Install the Chrome extension
-2. Browse normally — FOMO runs silently in the background
-3. Your **Mirror** builds a profile of who you are based on what you read
-4. The **Pulse** shows what your community is paying attention to right now
-5. Daily **digest emails** surface trends personalized to your interests
+1. Install the Chrome extension and create or join a team
+2. Browse normally — FOMO classifies pages in the background, no manual input
+3. **Team Pulse** surfaces cross-member connections, tensions, and standout solo research, filtered against the team's own stated focus
+4. **Team Mirror** builds the team's evolving mental model — working theses, stale assumptions nobody's revisited, and how thinking has shifted over time
+5. **Individual guidance** reads your own research pattern and points you toward directions worth exploring, distinct from the team view
 
-No account needed. No followers. No posting. Everything is anonymous by default.
+No account needed beyond an anonymous ID. No one can see who researched what — only the aggregate, anonymized signal.
 
 ## Stack
 
 - **Frontend/Backend:** Next.js App Router + TypeScript on Vercel
-- **Database:** Supabase PostgreSQL via pgbouncer
-- **AI Classification:** Claude Haiku (via Anthropic API)
+- **Database:** Supabase PostgreSQL
+- **AI:** Claude Sonnet (Team Pulse & Team Mirror synthesis), Claude Haiku (page classification & individual guidance), via the Anthropic API
 - **Email:** Resend (digest emails + notifications)
 - **Extension:** Manifest V3 Chrome extension
 
 ## Key features
 
-- **AI-powered classification** — Claude Haiku classifies every page into topics and categories
-- **Server-side classification cache** — same URL never gets classified twice
-- **Personalized digest emails** — Haiku writes casual, friend-like briefings based on your interests
-- **Junk filtering** — logins, shopping, dashboards, utility pages filtered at API level
-- **Quality-ranked Pulse** — research, finance, startups rank higher than shopping
-- **Mirror identity** — content script syncs user identity via URL param, no cookie dependency
-- **Share buttons** — text a friend or share on X directly from your mirror
+- **Team relevance filtering** — connections and highlights are checked against the team's own name/description before surfacing, so off-topic browsing doesn't pollute team insight
+- **Team Pulse** — AI-found connections between what different members are separately researching, ranked by insight value (implication, tension, question, opportunity, blind spot)
+- **Team Mirror** — the team's working theses, stale/unchallenged assumptions, and a timeline of belief shifts, derived from connection history
+- **Individual guidance** — a private read on your own research pattern, with directions and open questions to explore next
+- **Mechanical safety nets on every AI output** — em-dash stripping, one-sentence enforcement, fabricated-stat filtering, and anonymity-leak filtering sit underneath every prompt, not just the prompt itself
+- **AI-powered classification with server-side cache** — every page is classified once and never reclassified
+- **Admin dashboard** — per-team pilot health: member counts, active members, signal volume, connection/thesis counts, and per-member engagement, to see whether a team is actually using it
 
 ## Privacy
 
@@ -46,13 +46,17 @@ No account needed. No followers. No posting. Everything is anonymous by default.
 
 - `POST /api/signals` — receive browsing signals from extension
 - `POST /api/classify` — classify a page (with server-side cache)
-- `GET /api/pulse` — community trends
+- `GET/POST /api/rooms` — create/list teams
+- `POST /api/rooms/join` — join a team
+- `GET /api/rooms/pulse` — Team Pulse (cross-member connections)
+- `GET /api/rooms/mirror` — Team Mirror (working theses, stale assumptions, shifts)
+- `GET /api/guidance` — individual research guidance
 - `GET /api/session` — anonymous session management
 - `POST /api/feedback` — mirror/pulse feedback
 - `POST /api/waitlist` — email signup (links to anonymous ID)
 - `GET /api/digest/cron` — daily personalized digest (Vercel cron, 9am EST)
 - `GET /api/digest/click` — track digest email click-throughs
-- `GET /admin` — admin dashboard (protected)
+- `GET /admin` — admin dashboard (protected, per-team pilot health)
 
 ## Local setup
 
@@ -72,6 +76,7 @@ npm run dev
 - `NEXT_PUBLIC_CHROME_STORE_URL` — Chrome Web Store listing URL
 - `CRON_SECRET` — Vercel cron authentication
 - `DIGEST_API_KEY` — manual digest trigger auth
+- `ADMIN_KEY` — admin dashboard access key
 
 ## Built by
 
