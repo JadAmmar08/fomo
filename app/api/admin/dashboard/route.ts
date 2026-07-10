@@ -10,6 +10,17 @@ function checkAuth(request: NextRequest): boolean {
   return key === adminKey;
 }
 
+// Every query below is scoped to anonymous_user_ids that belong to at least
+// one team (rooms.type = 'team') — this dashboard reflects team usage only,
+// not solo/room browsing.
+const TEAM_MEMBERS_CTE = `
+  team_members AS (
+    SELECT DISTINCT rm.anonymous_user_id
+    FROM room_members rm
+    JOIN rooms r ON r.id = rm.room_id AND r.type = 'team'
+  )
+`;
+
 export async function GET(request: NextRequest) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -22,13 +33,19 @@ export async function GET(request: NextRequest) {
   const client = await pool.connect();
 
   try {
-    // ---- Today's health ----
-    const [todayRes, yesterdayRes, totalUsersRes, activeTeamsTodayRes] = await Promise.all([
-      client.query(`SELECT COUNT(DISTINCT anonymous_user_id) AS dau, COUNT(*) AS signals
-        FROM browsing_signals WHERE timestamp_bucket::date = current_date`),
-      client.query(`SELECT COUNT(DISTINCT anonymous_user_id) AS dau, COUNT(*) AS signals
-        FROM browsing_signals WHERE timestamp_bucket::date = current_date - interval '1 day'`),
-      client.query(`SELECT COUNT(*) AS total FROM users`),
+    // ---- Today's health (team members only) ----
+    const [todayRes, yesterdayRes, totalMembersRes, activeTeamsTodayRes] = await Promise.all([
+      client.query(`WITH ${TEAM_MEMBERS_CTE}
+        SELECT COUNT(DISTINCT bs.anonymous_user_id) AS dau, COUNT(*) AS signals
+        FROM browsing_signals bs
+        JOIN team_members tm ON tm.anonymous_user_id = bs.anonymous_user_id
+        WHERE bs.timestamp_bucket::date = current_date`),
+      client.query(`WITH ${TEAM_MEMBERS_CTE}
+        SELECT COUNT(DISTINCT bs.anonymous_user_id) AS dau, COUNT(*) AS signals
+        FROM browsing_signals bs
+        JOIN team_members tm ON tm.anonymous_user_id = bs.anonymous_user_id
+        WHERE bs.timestamp_bucket::date = current_date - interval '1 day'`),
+      client.query(`WITH ${TEAM_MEMBERS_CTE} SELECT COUNT(*) AS total FROM team_members`),
       client.query(`SELECT COUNT(DISTINCT rm.room_id) AS active_teams
         FROM room_members rm
         JOIN rooms r ON r.id = rm.room_id AND r.type = 'team'
@@ -40,25 +57,27 @@ export async function GET(request: NextRequest) {
     const todaySignals = parseInt(String(todayRes.rows[0].signals));
     const yesterdayDau = parseInt(String(yesterdayRes.rows[0].dau));
     const yesterdaySignals = parseInt(String(yesterdayRes.rows[0].signals));
-    const totalUsers = parseInt(String(totalUsersRes.rows[0].total));
+    const totalMembers = parseInt(String(totalMembersRes.rows[0].total));
 
     const health = {
       dau: todayDau,
       dauTrendPct: yesterdayDau > 0 ? Math.round(((todayDau - yesterdayDau) / yesterdayDau) * 1000) / 10 : null,
-      pctUsedExtension: totalUsers > 0 ? Math.round((todayDau / totalUsers) * 1000) / 10 : 0,
+      pctUsedExtension: totalMembers > 0 ? Math.round((todayDau / totalMembers) * 1000) / 10 : 0,
       activeTeamsToday: parseInt(String(activeTeamsTodayRes.rows[0].active_teams)),
       signalsToday: todaySignals,
       signalsTrendPct: yesterdaySignals > 0 ? Math.round(((todaySignals - yesterdaySignals) / yesterdaySignals) * 1000) / 10 : null
     };
 
-    // ---- Retention cohorts (last 14 cohort days, day1/day2/day7) ----
+    // ---- Retention cohorts (team members only, last 14 cohort days, day1/day2/day7) ----
     let retention: Array<{ cohortDate: string; cohortSize: number; day1: number | null; day2: number | null; day7: number | null }> = [];
     try {
       const cohortRes = await client.query(`
-        WITH first_seen AS (
-          SELECT anonymous_user_id, MIN(timestamp_bucket::date) AS cohort_date
-          FROM browsing_signals
-          GROUP BY anonymous_user_id
+        WITH ${TEAM_MEMBERS_CTE},
+        first_seen AS (
+          SELECT bs.anonymous_user_id, MIN(bs.timestamp_bucket::date) AS cohort_date
+          FROM browsing_signals bs
+          JOIN team_members tm ON tm.anonymous_user_id = bs.anonymous_user_id
+          GROUP BY bs.anonymous_user_id
         ),
         cohorts AS (
           SELECT cohort_date, COUNT(*) AS cohort_size
@@ -67,8 +86,9 @@ export async function GET(request: NextRequest) {
           GROUP BY cohort_date
         ),
         activity AS (
-          SELECT DISTINCT anonymous_user_id, timestamp_bucket::date AS active_date
-          FROM browsing_signals
+          SELECT DISTINCT bs.anonymous_user_id, bs.timestamp_bucket::date AS active_date
+          FROM browsing_signals bs
+          JOIN team_members tm ON tm.anonymous_user_id = bs.anonymous_user_id
         )
         SELECT
           c.cohort_date,
@@ -96,14 +116,16 @@ export async function GET(request: NextRequest) {
       });
     } catch { /* ignore */ }
 
-    // ---- Feature engagement (last 7 days) ----
+    // ---- Feature engagement (last 7 days, team members only) ----
     let engagement = { pulseViews: 0, pulseUniqueUsers: 0, mirrorViews: 0, mirrorUniqueUsers: 0, guidanceViews: 0, guidanceUniqueUsers: 0 };
     try {
       const engRes = await client.query(`
-        SELECT event_type, COUNT(*) AS views, COUNT(DISTINCT anonymous_user_id) AS unique_users
-        FROM feature_views
-        WHERE viewed_at > now() - interval '7 days'
-        GROUP BY event_type
+        WITH ${TEAM_MEMBERS_CTE}
+        SELECT fv.event_type, COUNT(*) AS views, COUNT(DISTINCT fv.anonymous_user_id) AS unique_users
+        FROM feature_views fv
+        JOIN team_members tm ON tm.anonymous_user_id = fv.anonymous_user_id
+        WHERE fv.viewed_at > now() - interval '7 days'
+        GROUP BY fv.event_type
       `);
       for (const row of engRes.rows) {
         const views = parseInt(String(row.views));
@@ -115,57 +137,59 @@ export async function GET(request: NextRequest) {
     } catch { /* table may not exist yet */ }
 
     const engagementPct = {
-      pulsePctOfDau: todayDau > 0 ? Math.round((engagement.pulseUniqueUsers / totalUsers) * 1000) / 10 : 0,
-      mirrorPctOfDau: totalUsers > 0 ? Math.round((engagement.mirrorUniqueUsers / totalUsers) * 1000) / 10 : 0,
-      guidancePctOfDau: totalUsers > 0 ? Math.round((engagement.guidanceUniqueUsers / totalUsers) * 1000) / 10 : 0
+      pulsePctOfDau: totalMembers > 0 ? Math.round((engagement.pulseUniqueUsers / totalMembers) * 1000) / 10 : 0,
+      mirrorPctOfDau: totalMembers > 0 ? Math.round((engagement.mirrorUniqueUsers / totalMembers) * 1000) / 10 : 0,
+      guidancePctOfDau: totalMembers > 0 ? Math.round((engagement.guidanceUniqueUsers / totalMembers) * 1000) / 10 : 0
     };
 
-    // ---- Activation funnel ----
-    let funnel = { installs: totalUsers, accounts: 0, invitedTeam: 0, joinedTeam: 0, firstPulseView: 0, firstMirrorView: 0 };
+    // ---- Activation funnel (per-team, not per-user — teams created down to teams
+    // whose members actually looked at what FOMO produced for them) ----
+    let funnel = { teamsCreated: 0, teamsWith2Plus: 0, teamsWithPulseView: 0, teamsWithMirrorView: 0 };
     try {
-      const [accountsRes, invitedRes, joinedRes, pulseViewedRes, mirrorViewedRes] = await Promise.all([
-        client.query(`SELECT COUNT(*) AS n FROM accounts`),
-        client.query(`SELECT COUNT(DISTINCT created_by) AS n FROM rooms WHERE type = 'team'`),
-        client.query(`SELECT COUNT(DISTINCT rm.anonymous_user_id) AS n
-          FROM room_members rm JOIN rooms r ON r.id = rm.room_id
-          WHERE r.type = 'team' AND rm.anonymous_user_id <> r.created_by`),
-        client.query(`SELECT COUNT(DISTINCT anonymous_user_id) AS n FROM feature_views WHERE event_type = 'pulse_view'`).catch(() => ({ rows: [{ n: 0 }] })),
-        client.query(`SELECT COUNT(DISTINCT anonymous_user_id) AS n FROM feature_views WHERE event_type = 'mirror_view'`).catch(() => ({ rows: [{ n: 0 }] }))
+      const [createdRes, twoPlusRes, pulseViewRes, mirrorViewRes] = await Promise.all([
+        client.query(`SELECT COUNT(*) AS n FROM rooms WHERE type = 'team'`),
+        client.query(`SELECT COUNT(*) AS n FROM (
+            SELECT room_id FROM room_members rm JOIN rooms r ON r.id = rm.room_id AND r.type = 'team'
+            GROUP BY room_id HAVING COUNT(*) >= 2
+          ) t`),
+        client.query(`SELECT COUNT(DISTINCT fv.room_id) AS n FROM feature_views fv
+          JOIN rooms r ON r.id = fv.room_id AND r.type = 'team'
+          WHERE fv.event_type = 'pulse_view'`).catch(() => ({ rows: [{ n: 0 }] })),
+        client.query(`SELECT COUNT(DISTINCT fv.room_id) AS n FROM feature_views fv
+          JOIN rooms r ON r.id = fv.room_id AND r.type = 'team'
+          WHERE fv.event_type = 'mirror_view'`).catch(() => ({ rows: [{ n: 0 }] }))
       ]);
       funnel = {
-        installs: totalUsers,
-        accounts: parseInt(String(accountsRes.rows[0].n)),
-        invitedTeam: parseInt(String(invitedRes.rows[0].n)),
-        joinedTeam: parseInt(String(joinedRes.rows[0].n)),
-        firstPulseView: parseInt(String(pulseViewedRes.rows[0].n)),
-        firstMirrorView: parseInt(String(mirrorViewedRes.rows[0].n))
+        teamsCreated: parseInt(String(createdRes.rows[0].n)),
+        teamsWith2Plus: parseInt(String(twoPlusRes.rows[0].n)),
+        teamsWithPulseView: parseInt(String(pulseViewRes.rows[0].n)),
+        teamsWithMirrorView: parseInt(String(mirrorViewRes.rows[0].n))
       };
     } catch { /* ignore */ }
 
     const funnelSteps = [
-      { label: "Install", count: funnel.installs },
-      { label: "Create account", count: funnel.accounts },
-      { label: "Invite team", count: funnel.invitedTeam },
-      { label: "Team member joins", count: funnel.joinedTeam },
-      { label: "First Pulse view", count: funnel.firstPulseView },
-      { label: "First Mirror view", count: funnel.firstMirrorView }
+      { label: "Team created", count: funnel.teamsCreated },
+      { label: "Team has 2+ members", count: funnel.teamsWith2Plus },
+      { label: "Team viewed Pulse", count: funnel.teamsWithPulseView },
+      { label: "Team viewed Mirror", count: funnel.teamsWithMirrorView }
     ].map((step) => ({
       ...step,
-      pct: funnel.installs > 0 ? Math.round((step.count / funnel.installs) * 1000) / 10 : 0
+      pct: funnel.teamsCreated > 0 ? Math.round((step.count / funnel.teamsCreated) * 1000) / 10 : 0
     }));
 
-    // ---- Costs (last 7 days) ----
+    // ---- Costs (last 7 days, team-attributed calls only) ----
     let costsByType: Array<{ callType: string; calls: number; estimatedCost: number; cacheHitRate: number | null }> = [];
     let costsByTeam: Array<{ roomId: string; teamName: string; estimatedCost: number }> = [];
     try {
       const costRes = await client.query(`
-        SELECT call_type,
+        SELECT cl.call_type,
           COUNT(*) AS calls,
-          SUM(estimated_cost) AS total_cost,
-          SUM(CASE WHEN cache_hit THEN 1 ELSE 0 END) AS cache_hits
-        FROM cost_log
-        WHERE created_at > now() - interval '7 days'
-        GROUP BY call_type
+          SUM(cl.estimated_cost) AS total_cost,
+          SUM(CASE WHEN cl.cache_hit THEN 1 ELSE 0 END) AS cache_hits
+        FROM cost_log cl
+        WHERE cl.created_at > now() - interval '7 days'
+          AND (cl.room_id IS NOT NULL OR cl.call_type = 'classification')
+        GROUP BY cl.call_type
       `);
       costsByType = costRes.rows.map((r) => {
         const calls = parseInt(String(r.calls));
@@ -180,7 +204,7 @@ export async function GET(request: NextRequest) {
       const teamCostRes = await client.query(`
         SELECT cl.room_id, r.name AS team_name, SUM(cl.estimated_cost) AS total_cost
         FROM cost_log cl
-        JOIN rooms r ON r.id = cl.room_id
+        JOIN rooms r ON r.id = cl.room_id AND r.type = 'team'
         WHERE cl.created_at > now() - interval '7 days' AND cl.room_id IS NOT NULL
         GROUP BY cl.room_id, r.name
         ORDER BY total_cost DESC
@@ -193,13 +217,15 @@ export async function GET(request: NextRequest) {
       }));
     } catch { /* table may not exist yet */ }
 
-    // ---- Top feedback (by frequency — schema has no free-text field, only action/target_type) ----
+    // ---- Top feedback (team members only, by frequency — schema has no free-text field) ----
     let topFeedback: Array<{ targetType: string; action: string; count: number }> = [];
     try {
       const fbRes = await client.query(`
-        SELECT target_type, action, COUNT(*) AS n
-        FROM feedback
-        GROUP BY target_type, action
+        WITH ${TEAM_MEMBERS_CTE}
+        SELECT f.target_type, f.action, COUNT(*) AS n
+        FROM feedback f
+        JOIN team_members tm ON tm.anonymous_user_id = f.anonymous_user_id
+        GROUP BY f.target_type, f.action
         ORDER BY n DESC
         LIMIT 10
       `);
