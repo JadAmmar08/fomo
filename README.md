@@ -1,18 +1,18 @@
 # FOMO
 
-Turn a team's separate browsing into shared intelligence — without anyone changing how they work.
+Give every project team a shared research brain.
 
-FOMO is a free, private Chrome extension + web app for research-heavy teams. It quietly reads what each person is already researching in their browser and uses AI to surface the connections, tensions, and open questions between what different teammates are separately looking into — never who found what, only how it connects.
+FOMO is a free, private Chrome extension + web app for project teams — a consulting case, a diligence sprint, a research assignment, any group assigned to something together for a bounded stretch of time. It quietly reads what each person is already researching in their browser and uses AI to surface the connections, tensions, and open questions between what different teammates are separately looking into — never who found what, only how it connects. No workspace setup, no integrations, no IT approval: spin one up for the project, archive it when the project ends.
 
 **Live at [usefomo.co](https://usefomo.co)** · **[Chrome Web Store](https://chromewebstore.google.com/detail/FOMO/dfnmincjfmcbhnilbhbfhgkhegdhdnal)**
 
 ## How it works
 
-1. Install the Chrome extension and create or join a team
+1. Install the Chrome extension and create or join a project team
 2. Browse normally — FOMO classifies pages in the background, no manual input
 3. **Team Pulse** surfaces cross-member connections, tensions, and standout solo research, filtered against the team's own stated focus
 4. **Team Mirror** builds the team's evolving mental model — working theses, stale assumptions nobody's revisited, and how thinking has shifted over time
-5. **Individual guidance** reads your own research pattern and points you toward directions worth exploring, distinct from the team view
+5. **Individual guidance** reads your own research pattern and points you toward directions worth exploring, useful from day one before the rest of the team joins
 
 No account needed beyond an anonymous ID. No one can see who researched what — only the aggregate, anonymized signal.
 
@@ -32,7 +32,7 @@ No account needed beyond an anonymous ID. No one can see who researched what —
 - **Individual guidance** — a private read on your own research pattern, with directions and open questions to explore next
 - **Mechanical safety nets on every AI output** — em-dash stripping, one-sentence enforcement, fabricated-stat filtering, and anonymity-leak filtering sit underneath every prompt, not just the prompt itself
 - **AI-powered classification with server-side cache** — every page is classified once and never reclassified
-- **Admin dashboard** — per-team pilot health: member counts, active members, signal volume, connection/thesis counts, and per-member engagement, to see whether a team is actually using it
+- **Admin dashboard** — team-scoped health: DAU, retention cohorts, feature engagement, activation funnel, AI spend by call type and by team, and top feedback signals, all restricted to team usage (not solo/room browsing)
 
 ## Privacy
 
