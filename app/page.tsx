@@ -15,7 +15,7 @@ export default function LandingPage() {
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          Create a private FOMO for any case, diligence, or research project. As each person works normally, FOMO connects their separate findings, flags contradictions, and shows the team what it needs to resolve next.
+          Create a private FOMO for any project. As everyone researches normally, FOMO connects their findings, flags contradictions, and shows the team what to resolve next.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
@@ -107,7 +107,7 @@ export default function LandingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 20, maxWidth: 780, margin: "0 auto" }}>
           <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>◐</span>
           <p style={{ fontSize: "0.98rem", lineHeight: 1.7, color: "var(--muted)", margin: 0 }}>
-            <strong style={{ color: "var(--text)" }}>Useful before your team is, too.</strong> Even before teammates join, FOMO reads the pattern in your own research and points you toward a direction worth exploring, built entirely from your own browsing, visible only to you.
+            <strong style={{ color: "var(--text)" }}>Start before the whole team joins.</strong> FOMO begins organizing your project research immediately, then starts finding cross-team connections as collaborators arrive.
           </p>
         </div>
       </section>
@@ -176,7 +176,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {[
-            { n: "01", title: "Install. Work normally.", body: "A lightweight Chrome extension runs silently in the background. No setup, no forms, no logins." },
+            { n: "01", title: "Install. Work normally.", body: "A lightweight Chrome extension runs silently in the background. No workspace setup, no integrations, no manual updates." },
             { n: "02", title: "Invite your team.", body: "A private, invite-only team. Nobody sees who found what, only how it connects." },
             { n: "03", title: "Open it at your next meeting.", body: "Real connections between separate research, plus an evolving model of what the team believes, ready before anyone says a word." },
           ].map((step) => (
@@ -212,7 +212,7 @@ export default function LandingPage() {
         <div style={{ display: "grid", gap: 18 }}>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>What FOMO sees</h3>
-            <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and content, used only to classify attention. Nothing else.</p>
+            <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and visible page content, used only to understand project topics, evidence, and connections.</p>
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ color: "var(--subtle)", marginBottom: 10, fontSize: "1.1rem" }}>What FOMO never touches</h3>

@@ -47,7 +47,7 @@ export function HeroCta() {
         Get the extension →
       </Link>
       <Link href={"/teams" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
-        See a team
+        See FOMO in action
       </Link>
     </div>
   );
