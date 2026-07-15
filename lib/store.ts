@@ -18,6 +18,7 @@ import {
   insertDatabaseFeedback,
   insertDatabaseSignal,
   isDatabaseMode,
+  isInAnyRoom,
   getCachedClassification,
   materializeDatabaseTrends,
   upsertDatabasePrivacySettings
@@ -160,6 +161,23 @@ export async function createSignal(input: {
     Array.isArray(input.localTopicTags) &&
     typeof input.localConfidence === "number" &&
     typeof input.localReasoning === "string";
+
+  if (isDatabaseMode() && !canUsePreclassified && !(await isInAnyRoom(anonymousUserId))) {
+    return {
+      id: id("signal"),
+      anonymousUserId,
+      normalizedDomain: input.normalizedDomain,
+      urlPath: sanitizePath(input.urlPath),
+      pageTitle: input.pageTitle,
+      timestampBucket: toHourBucket(new Date()),
+      category: "technology" as Category,
+      topicLabel: input.pageTitle,
+      topicTags: [],
+      confidence: 0,
+      reasoning: "Skipped: user not in an active room",
+      source: input.source ?? "extension"
+    };
+  }
 
   let classification;
   if (canUsePreclassified) {

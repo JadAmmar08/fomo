@@ -293,11 +293,13 @@ async function getAiClassificationForTab(url, title, tabId, existingStore) {
 
   const pageContext = await getPageContext(tabId);
   const localClassification = classifyPage(url, cleanedTitle);
+  const anonymousUserId = await ensureAnonymousUserId(store);
   const response = await fetch(`${API_BASE_URL}/api/classify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...signal,
+      anonymousUserId,
       rawTitle: cleanedTitle,
       pageHints: pageContext.pageHints,
       pageContent: pageContext.pageContent,

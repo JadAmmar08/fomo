@@ -24,6 +24,17 @@ function defaultPrivacySettings(anonymousUserId: string): PrivacySettings {
   };
 }
 
+export async function isInAnyRoom(anonymousUserId: string) {
+  const result = await withClient(async (client) => {
+    const res = await client.query(
+      `select 1 from room_members where anonymous_user_id = $1 limit 1`,
+      [anonymousUserId]
+    );
+    return res.rows.length > 0;
+  });
+  return result === true;
+}
+
 export async function getCachedClassification(domain: string, urlPath: string) {
   return withClient(async (client) => {
     const res = await client.query(

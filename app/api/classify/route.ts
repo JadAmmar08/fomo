@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { classifySignal } from "@/lib/classifier";
 import { isSensitiveMetadata, sanitizePath } from "@/lib/privacy";
-import { getCachedClassification, isDatabaseMode } from "@/lib/database-store";
+import { getCachedClassification, isDatabaseMode, isInAnyRoom } from "@/lib/database-store";
+import { getRequestAnonymousUserId } from "@/lib/session";
 import { logApiCall } from "@/lib/cost-log";
 
 export async function POST(request: NextRequest) {
@@ -27,6 +28,20 @@ export async function POST(request: NextRequest) {
     if (cached) {
       logApiCall({ callType: "classification", model: "cache", inputTokens: 0, outputTokens: 0, cacheHit: true });
       return NextResponse.json(cached);
+    }
+
+    const anonymousUserId = getRequestAnonymousUserId(
+      request,
+      typeof body.anonymousUserId === "string" ? body.anonymousUserId : undefined
+    );
+    if (!(await isInAnyRoom(anonymousUserId))) {
+      return NextResponse.json({
+        category: body.localCategory ?? "technology",
+        topicLabel: body.localTopicLabel ?? rawTitle,
+        topicTags: Array.isArray(body.localTopicTags) ? body.localTopicTags : [],
+        confidence: typeof body.localConfidence === "number" ? body.localConfidence : 0,
+        reasoning: body.localReasoning ?? "Skipped paid classification: user not in an active room"
+      });
     }
   }
 
