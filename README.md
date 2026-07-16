@@ -4,7 +4,7 @@ Give every project team a shared research brain.
 
 FOMO is a free, private Chrome extension + web app for project teams — a consulting case, a diligence sprint, a research assignment, any group assigned to something together for a bounded stretch of time. It quietly reads what each person is already researching in their browser and uses AI to surface the connections, tensions, and open questions between what different teammates are separately looking into — never who found what, only how it connects. No workspace setup, no integrations, no IT approval: spin one up for the project, archive it when the project ends.
 
-**Live at [usefomo.co](https://usefomo.co)** · **[Chrome Web Store](https://chromewebstore.google.com/detail/FOMO/dfnmincjfmcbhnilbhbfhgkhegdhdnal)**
+**Live at [usefomo.net](https://usefomo.net)** · **[Chrome Web Store](https://chromewebstore.google.com/detail/FOMO/dfnmincjfmcbhnilbhbfhgkhegdhdnal)**
 
 ## How it works
 
@@ -70,9 +70,7 @@ npm run dev
 
 - `DATABASE_URL` — Supabase PostgreSQL connection string
 - `ANTHROPIC_API_KEY` — Claude API key
-- `RESEND_API_KEY` — Resend email API key
-- `RESEND_FROM_EMAIL` — sender email address
-- `NEXT_PUBLIC_APP_URL` — app URL (https://usefomo.co)
+- `NEXT_PUBLIC_APP_URL` — app URL (https://usefomo.net)
 - `NEXT_PUBLIC_CHROME_STORE_URL` — Chrome Web Store listing URL
 - `CRON_SECRET` — Vercel cron authentication
 - `DIGEST_API_KEY` — manual digest trigger auth
