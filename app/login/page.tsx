@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const ERROR_MESSAGES: Record<string, string> = {
   unavailable: "Sign-in is temporarily unavailable."
 };
 
 function LoginInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const errorCode = searchParams.get("error");
   const redirectTo = searchParams.get("redirect") ?? "/teams";
@@ -37,7 +36,9 @@ function LoginInner() {
       setStatus("error");
       return;
     }
-    router.push(data.redirectTo ?? redirectTo);
+    // A full navigation (not router.push) so the nav bar's session check re-runs
+    // and actually notices the cookie that just changed.
+    window.location.href = data.redirectTo ?? redirectTo;
   }
 
   return (
