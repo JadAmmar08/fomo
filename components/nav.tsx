@@ -74,6 +74,9 @@ export function Nav() {
         </Link>
       ) : (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>
+          <Link href={"/login" as Route} style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+            Log in
+          </Link>
           <Link
             href="/download"
             style={{
