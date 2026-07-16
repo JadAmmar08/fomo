@@ -13,7 +13,7 @@ export default function TermsPage() {
 
       <section className="panel">
         <h2>Acceptance</h2>
-        <p>By installing the FOMO extension or using usefomo.co, you agree to these terms. If you don't agree, don't use FOMO.</p>
+        <p>By installing the FOMO extension or using usefomo.net, you agree to these terms. If you don't agree, don't use FOMO.</p>
       </section>
 
       <section className="panel">

@@ -64,6 +64,18 @@ export default function PrivacyPage() {
       </section>
 
       <section className="panel">
+        <h2>Browser extension permissions</h2>
+        <p>When you install FOMO, Chrome will show a permission prompt that says the extension &quot;can read and change all your data on all websites.&quot; That prompt is broad by default for any extension that needs to see what page you&apos;re on, and it&apos;s worth being direct about what it means in practice:</p>
+        <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
+          <li><strong>Why we need it:</strong> FOMO classifies what you&apos;re researching into a topic, which requires seeing what page you&apos;re currently on, regardless of which site it is. There is no narrower permission that allows this.</li>
+          <li><strong>What we actually extract:</strong> the page title, URL, and a snippet of visible text (used only to generate a category and topic label). Sensitive pages (banking, health, and similar) are automatically excluded before anything is sent anywhere.</li>
+          <li><strong>What we never do with this access:</strong> read what you type, capture screenshots, read cookies from sites other than our own, or store raw page content after classification.</li>
+          <li><strong>Cookie access:</strong> the extension&apos;s cookie permission is used only to read and set FOMO&apos;s own session cookie (on usefomo.net), so you stay signed in across devices. It is never used to read cookies from other sites you visit.</li>
+        </ul>
+        <p>If your organization&apos;s IT or security team needs more detail before approving FOMO for a team, email <a href="mailto:hi@usefomo.co" style={{ color: "var(--accent)" }}>hi@usefomo.co</a> and we&apos;ll walk through it directly.</p>
+      </section>
+
+      <section className="panel">
         <h2>How data is shared</h2>
         <p>Your browsing signals contribute anonymously to the team you join. Other members see found connections and the team's evolving mental model, never individual browsing activity, never your user ID, never anything that could identify you.</p>
         <p>We share data with the following third parties, solely to operate FOMO:</p>

@@ -5,7 +5,7 @@ import {
   shouldBlock
 } from "./classifier.js";
 
-const API_BASE_URL = "https://usefomo.co";
+const API_BASE_URL = "https://usefomo.net";
 const DEFAULTS = {
   trackingEnabled: true,
   blockedDomains: [],

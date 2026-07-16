@@ -4,7 +4,7 @@ import { attachAnonymousCookie } from "@/lib/session";
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.net";
 
   if (!token) {
     return NextResponse.redirect(`${appUrl}/login?error=missing_token`);

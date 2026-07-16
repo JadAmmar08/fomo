@@ -218,6 +218,10 @@ export default function LandingPage() {
             <h3 style={{ color: "var(--subtle)", marginBottom: 10, fontSize: "1.1rem" }}>What FOMO never touches</h3>
             <p style={{ lineHeight: 1.75 }}>Passwords, messages, form inputs, banking pages, health records. Ever.</p>
           </div>
+          <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
+            <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>Evaluating FOMO for your team?</h3>
+            <p style={{ lineHeight: 1.75 }}>We&apos;ve written up exactly what the browser extension permission does, what data goes where, and who we share it with, in plain language for IT and security reviewers. <a href="/privacy" style={{ color: "var(--accent)" }}>Read the full breakdown</a>.</p>
+          </div>
         </div>
       </section>
 

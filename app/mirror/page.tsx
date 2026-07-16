@@ -208,13 +208,13 @@ export default async function MirrorPage({ searchParams }: { searchParams: Promi
         <p style={{ marginBottom: 32, fontSize: "1rem" }}>The more people on FOMO, the better everyone&apos;s pulse gets.</p>
         <div className="button-row" style={{ justifyContent: "center" }}>
           <a
-            href={`sms:&body=Check out FOMO. It shows you what your community is actually paying attention to online. Install it here: https://usefomo.co/download`}
+            href={`sms:&body=Check out FOMO. It shows you what your community is actually paying attention to online. Install it here: https://usefomo.net/download`}
             className="button"
           >
             Text a friend
           </a>
           <a
-            href={`https://twitter.com/intent/tweet?text=Just%20started%20using%20FOMO.%20It%20shows%20you%20what%20your%20community%20is%20actually%20paying%20attention%20to%20online.%20Try%20it%3A%20https%3A%2F%2Fusefomo.co`}
+            href={`https://twitter.com/intent/tweet?text=Just%20started%20using%20FOMO.%20It%20shows%20you%20what%20your%20community%20is%20actually%20paying%20attention%20to%20online.%20Try%20it%3A%20https%3A%2F%2Fusefomo.net`}
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"

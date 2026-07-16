@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     ).catch(() => {});
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.net";
   const destination = to === "mirror" ? `${appUrl}/mirror` : `${appUrl}/rooms`;
 
   return NextResponse.redirect(destination);

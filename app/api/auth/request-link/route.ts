@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     [token, email, anonymousUserId, redirectTo, expiresAt]
   );
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.net";
   const link = `${appUrl}/api/auth/verify?token=${token}`;
 
   await resendClient.emails.send({

@@ -88,7 +88,7 @@ RULES:
 }
 
 function digestHtml(recipientName: string, briefing: string, anonymousUserId: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.co";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usefomo.net";
   const firstName = recipientName ? recipientName.split(" ")[0] : "";
   const pulseLink = `${appUrl}/api/digest/click?to=pulse&uid=${anonymousUserId}`;
   const mirrorLink = `${appUrl}/api/digest/click?to=mirror&uid=${anonymousUserId}`;

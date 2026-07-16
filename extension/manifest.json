@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FOMO",
   "description": "See what your community is paying attention to. FOMO builds your attention profile as you browse and shows a live pulse of trends.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "permissions": ["storage", "tabs", "activeTab", "cookies"],
   "host_permissions": ["<all_urls>"],
   "icons": {
@@ -22,7 +22,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://usefomo.co/*"],
+      "matches": ["https://usefomo.net/*"],
       "js": ["fomo-sync.js"],
       "run_at": "document_start"
     }

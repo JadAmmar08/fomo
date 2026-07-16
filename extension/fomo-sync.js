@@ -1,4 +1,4 @@
-// Runs on usefomo.co pages — syncs the anonymous ID so the mirror/room/team pages find the
+// Runs on usefomo.net pages — syncs the anonymous ID so the mirror/room/team pages find the
 // right user. Direction matters: if someone just logged in on the website with their own
 // account, the resulting cookie is a deliberate signal and must win over whatever identity
 // happens to be cached in this browser's extension storage (e.g. from a sibling, a shared

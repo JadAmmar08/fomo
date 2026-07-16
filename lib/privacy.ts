@@ -1,4 +1,5 @@
 export const BLOCKED_DOMAINS = [
+  "usefomo.net",
   "usefomo.co",
   "fomo-kappa-eight.vercel.app",
   "localhost"
