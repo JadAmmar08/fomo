@@ -1,10 +1,8 @@
 import { classifySignal, isWeakTopicLabel } from "@/lib/classifier";
-import { inferCommunities } from "@/lib/communities";
 import { CATEGORIES } from "@/lib/types";
 import {
   deleteLocalData,
   deleteUserData,
-  getDemoState,
   getPulse,
   addBlockedDomain,
   addFeedback,
@@ -13,7 +11,6 @@ import {
 } from "@/lib/demo-data";
 import {
   deleteDatabaseData,
-  getDatabaseMirrorState,
   getDatabasePulseState,
   insertDatabaseFeedback,
   insertDatabaseSignal,
@@ -29,7 +26,6 @@ import type {
   BrowsingSignal,
   Category,
   FeedbackEntry,
-  MirrorResponse,
   PrivacySettings,
   PulseResponse
 } from "@/lib/types";
@@ -37,82 +33,6 @@ import { id, toHourBucket } from "@/lib/utils";
 
 async function resolveAnonymousUserId(anonymousUserId?: string) {
   return anonymousUserId ?? (await getServerAnonymousUserId());
-}
-
-function baseWhatFomoKnows(mirror: {
-  privacy: PrivacySettings;
-  interests: MirrorResponse["interests"];
-}) {
-  return {
-    sharedAnonymously: mirror.privacy.shareableCategories,
-    neverShared: [
-      "Passwords",
-      "Form inputs",
-      "Cookies",
-      "Screenshots",
-      "Sensitive banking, health, adult, or messaging pages"
-    ],
-    collectedData: [
-      "Page title",
-      "Normalized domain",
-      "URL path without query parameters",
-      "Timestamp rounded to the hour",
-      "Broad category and confidence"
-    ],
-    hiddenTopics: mirror.interests.filter((interest) => interest.hidden).map((interest) => interest.category)
-  };
-}
-
-export async function getMirror(anonymousUserId?: string): Promise<MirrorResponse> {
-  const resolvedAnonymousUserId = await resolveAnonymousUserId(anonymousUserId);
-
-  if (isDatabaseMode()) {
-    const state = await getDatabaseMirrorState(resolvedAnonymousUserId);
-    if (state) {
-      const visibleInterests = state.interests.filter((interest) => !interest.hidden);
-      const inference = await inferCommunities(visibleInterests);
-      const mirror = {
-        user: state.user,
-        interests: visibleInterests,
-        communities: inference.communities,
-        personalProfile: inference.personalProfile,
-        recentSignals: state.ownSignals.slice(0, 10),
-        privacy: state.privacySettings
-      };
-
-      return {
-        ...mirror,
-        storageMode: "database",
-        blockedDomains: state.blockedDomains.map((entry) => entry.domain),
-        whatFomoKnows: baseWhatFomoKnows({
-          ...mirror,
-          interests: state.interests
-        })
-      };
-    }
-  }
-
-  const state = getDemoState(resolvedAnonymousUserId);
-  const visibleInterests = state.interests.filter((interest) => !interest.hidden);
-  const inference = await inferCommunities(visibleInterests);
-  const mirror = {
-    user: state.user,
-    interests: visibleInterests,
-    communities: inference.communities,
-    personalProfile: inference.personalProfile,
-    recentSignals: state.ownSignals.slice(0, 10),
-    privacy: state.privacySettings
-  };
-
-  return {
-    ...mirror,
-    storageMode: "demo",
-    blockedDomains: state.blockedDomains.map((entry) => entry.domain),
-    whatFomoKnows: baseWhatFomoKnows({
-      ...mirror,
-      interests: state.interests
-    })
-  };
 }
 
 export async function getPulseResponse(): Promise<PulseResponse> {
@@ -264,7 +184,7 @@ export async function savePrivacySettings(
 
   if (isDatabaseMode()) {
     await upsertDatabasePrivacySettings(anonymousUserId, input);
-    return getMirror(anonymousUserId);
+    return { ok: true };
   }
 
   if (input.blockDomain) {
@@ -273,7 +193,7 @@ export async function savePrivacySettings(
 
   const { blockDomain: _blockDomain, anonymousUserId: _anonymousUserId, ...settingsUpdate } = input;
   updatePrivacySettings(anonymousUserId, settingsUpdate);
-  return getMirror(anonymousUserId);
+  return { ok: true };
 }
 
 export async function destroyUserData(scope: "local" | "account", anonymousUserId?: string) {

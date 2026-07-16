@@ -82,25 +82,6 @@ function mapSignal(row: Record<string, unknown>): BrowsingSignal {
   };
 }
 
-function mapFeedback(row: Record<string, unknown>): FeedbackEntry {
-  return {
-    id: String(row.id),
-    anonymousUserId: String(row.anonymous_user_id),
-    targetType: String(row.target_type) as FeedbackEntry["targetType"],
-    targetId: String(row.target_id),
-    action: String(row.action) as FeedbackEntry["action"],
-    createdAt: new Date(String(row.created_at)).toISOString()
-  };
-}
-
-function mapBlockedDomain(row: Record<string, unknown>): BlockedDomain {
-  return {
-    id: String(row.id),
-    anonymousUserId: String(row.anonymous_user_id),
-    domain: String(row.domain),
-    reason: String(row.reason)
-  };
-}
 
 function mapPrivacy(
   anonymousUserId: string,
@@ -200,52 +181,6 @@ export async function ensureDatabaseUser(anonymousUserId: string) {
     if (isNew) return mapUser(userResult.rows[0]);
     const existing = await client.query(`select * from users where anonymous_user_id = $1 limit 1`, [anonymousUserId]);
     return mapUser(existing.rows[0]);
-  });
-}
-
-export async function getDatabaseMirrorState(anonymousUserId: string) {
-  return withClient(async (client) => {
-    await ensureDatabaseUser(anonymousUserId);
-
-    const [userRes, signalsRes, feedbackRes, blockedRes, privacyRes] = await Promise.all([
-      client.query(`select * from users where anonymous_user_id = $1 limit 1`, [anonymousUserId]),
-      client.query(
-        `select * from browsing_signals where anonymous_user_id = $1 order by timestamp_bucket desc limit 200`,
-        [anonymousUserId]
-      ),
-      client.query(
-        `select * from feedback where anonymous_user_id = $1 order by created_at desc`,
-        [anonymousUserId]
-      ),
-      client.query(
-        `select * from blocked_domains where anonymous_user_id = $1 order by created_at desc`,
-        [anonymousUserId]
-      ),
-      client.query(`select * from privacy_settings where anonymous_user_id = $1 limit 1`, [
-        anonymousUserId
-      ])
-    ]);
-
-    const user = mapUser(userRes.rows[0]);
-    const ownSignals = signalsRes.rows.map(mapSignal);
-    const ownFeedback = feedbackRes.rows.map(mapFeedback);
-    const blockedDomains = blockedRes.rows.map(mapBlockedDomain);
-    const privacySettings = mapPrivacy(anonymousUserId, privacyRes.rows[0]);
-    const interests = buildUserInterests(
-      anonymousUserId,
-      ownSignals,
-      ownFeedback,
-      privacySettings
-    );
-
-    return {
-      user,
-      ownSignals,
-      ownFeedback,
-      blockedDomains,
-      privacySettings,
-      interests
-    };
   });
 }
 
