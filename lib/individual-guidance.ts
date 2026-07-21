@@ -87,6 +87,7 @@ function normalizeRecommendations(raw: unknown): GuidanceRecommendation[] {
 }
 
 interface TeamContext {
+  description: string | null;
   connectionSummaries: string[];
   theses: string[];
   staleAssumptions: string[];
@@ -98,10 +99,12 @@ interface TeamContext {
  * pages already do.
  */
 async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string): Promise<TeamContext | null> {
-  const [connectionsRes, mirrorRes] = await Promise.all([
+  const [roomRes, connectionsRes, mirrorRes] = await Promise.all([
+    pool.query(`select description from rooms where id = $1`, [roomId]),
     pool.query(`select connections from room_connections where room_id = $1`, [roomId]),
     pool.query(`select theses, stale_assumptions from team_mirror_state where room_id = $1`, [roomId])
   ]);
+  const description = roomRes.rows[0]?.description ? String(roomRes.rows[0].description) : null;
 
   const connectionSummaries: string[] = [];
   if (connectionsRes.rows.length > 0) {
@@ -120,8 +123,8 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
     for (const s of rawStale ?? []) staleAssumptions.push(s.statement);
   }
 
-  if (connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0) return null;
-  return { connectionSummaries, theses, staleAssumptions };
+  if (!description && connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0) return null;
+  return { description, connectionSummaries, theses, staleAssumptions };
 }
 
 async function computeGuidanceWithHaiku(
@@ -138,7 +141,7 @@ async function computeGuidanceWithHaiku(
     const client = new Anthropic({ apiKey });
 
     const teamContextBlock = teamContext
-      ? `\n\nThe team this person is on has already found the following (never reveal who found what, this is team-wide, not personal):\n${[
+      ? `\n\n${teamContext.description ? `This team's actual focus: ${teamContext.description}\n\n` : ""}The team this person is on has already found the following (never reveal who found what, this is team-wide, not personal):\n${[
           ...teamContext.connectionSummaries.map((c) => `- Connection: ${c}`),
           ...teamContext.theses.map((t) => `- Team thesis: ${t}`),
           ...teamContext.staleAssumptions.map((s) => `- Unrevisited team assumption: ${s}`)
@@ -183,7 +186,7 @@ STEP 1, understand the goal: don't just describe their topics, infer what they'r
 
 STEP 2, point in different directions: recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
 
-STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE recommendation should point that out directly and must use type "team_signal", e.g. "your research on X could speak to the team's open question about Y." Only make this connection if it's real and specific, don't force one. If there's no genuine link, ignore the team context and give purely personal directions instead.
+STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE recommendation should point that out directly and must use type "team_signal", e.g. "your research on X could speak to the team's open question about Y." Only make this connection if it's real and specific, don't force one. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not just share a surface theme (e.g. "loan repricing" language) with something the team found while actually being personal and off-scope (student loans, coursework, job hunting). If a topic is off-scope for this team, it can still inform the pattern and a plain "direction"/"question", just never a "team_signal". If there's no genuine in-scope link, ignore the team context and give purely personal directions instead.
 
 Each recommendation gets a type:
 - "direction": a concrete next thing to look into, phrased as a statement, not a question.
