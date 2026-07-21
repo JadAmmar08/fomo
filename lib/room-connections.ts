@@ -245,6 +245,11 @@ function looksComplete(clause: string): boolean {
   if (c.length < 25) return false;
   // Dangling conjunctions/fragments at the end are the tell of an unsafe cut
   if (/\b(if|whether|because|since|that|which|who|what|and|or|but|to|for|of|the|a|an)$/i.test(c)) return false;
+  // A conditional/subordinate opener ("If X is true...") needs a following main clause to say
+  // anything — cutting right after the dependent clause (no comma survives inside it) leaves a
+  // grammatically clean-looking but meaningless fragment, the real cause of orphaned "If..."
+  // sentences with no actual claim in production output.
+  if (/^(if|when|while|unless|though|although|since|because)\b/i.test(c) && !c.includes(",")) return false;
   return true;
 }
 
