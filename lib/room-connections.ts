@@ -76,13 +76,18 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     description: roomRes.rows[0]?.description ? String(roomRes.rows[0].description) : null
   };
 
-  // Per-member topic lists, kept internal only — the AI sees "Member 1, Member 2..." never a name
+  // Per-member topic lists, kept internal only — the AI sees "Member 1, Member 2..." never a name.
+  // Fetch far more than we expect to use (40, not 15): the model's own relevance filtering below
+  // (against the room's description) is what should decide what's on-topic, not raw frequency.
+  // A real but occasional research topic was previously getting silently dropped before the model
+  // ever saw it, because high-frequency personal browsing (messages, course registration, etc.)
+  // filled all 15 slots first.
   const perMemberTopics: string[][] = [];
   for (const memberId of memberIds) {
     const res = await pool.query(
       `select topic_label from browsing_signals
        where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '7 days'
-       group by topic_label order by count(*) desc limit 15`,
+       group by topic_label order by count(*) desc limit 40`,
       [memberId]
     );
     perMemberTopics.push(res.rows.map((r) => String(r.topic_label)));
