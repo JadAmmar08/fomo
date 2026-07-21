@@ -1,6 +1,7 @@
 type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
 interface IdeaConnection {
+  headline: string;
   from: string;
   to: string;
   explanation: string;
@@ -47,7 +48,7 @@ export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>
-                    {conn.from} <span style={{ color: "var(--accent)", fontWeight: 400 }}>↔</span> {conn.to}
+                    {conn.headline}
                   </div>
                   <span className="chip" style={{ flexShrink: 0, fontSize: "0.7rem" }}>
                     {conn.peopleCount} people, independently

@@ -7,6 +7,7 @@ import { WebOfIdeas } from "@/components/web-of-ideas";
 import { logFeatureView } from "@/lib/cost-log";
 
 interface IdeaConnection {
+  headline: string;
   from: string;
   to: string;
   explanation: string;

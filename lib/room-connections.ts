@@ -4,6 +4,7 @@ import { logApiCall } from "@/lib/cost-log";
 export type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
 export interface IdeaConnection {
+  headline: string;
   from: string;
   to: string;
   explanation: string;
@@ -332,6 +333,10 @@ async function computeConnectionsWithHaiku(
                 items: {
                   type: "object",
                   properties: {
+                    headline: {
+                      type: "string",
+                      description: "A short, punchy phrasing of the actual insight, as a question or statement (e.g. 'Are UK policy risks missing from small-cap valuations?'). This is the title shown to the user — never the two topic labels concatenated."
+                    },
                     from: { type: "string" },
                     to: { type: "string" },
                     explanation: { type: "string" },
@@ -345,7 +350,7 @@ async function computeConnectionsWithHaiku(
                       description: "The exact topic labels this connection is grounded in, copied verbatim (character for character) from the input lists — at least one from each side. Never paraphrase, merge, or clean these up, even if 'from'/'to' above are a tidied-up display version."
                     }
                   },
-                  required: ["from", "to", "explanation", "insightType", "sourceTopics"]
+                  required: ["headline", "from", "to", "explanation", "insightType", "sourceTopics"]
                 },
                 description: "Ordered by insight value, most valuable first — not by how obviously related the topics are."
               },
@@ -375,6 +380,8 @@ Not "these two topics are related" — that's a fact, not an insight. Each label
 - a BLIND_SPOT: name the specific thing one side is missing, and (implicitly) who already has it.
 
 RULES:
+- headline: a short, punchy phrasing of the actual insight (max ~12 words), as a question or statement — e.g. "Are UK policy risks missing from small-cap valuations?" NEVER just the two topic labels stitched together with an arrow. This is what the user reads first; the raw topic labels are shown separately as evidence, so the headline's job is to state the discovery, not list its ingredients.
+- Hedge confidence to match how solid the link actually is. If the mechanism is well-established and directly stated by the topics (e.g. "fiscal tightening pressures financing"), state it plainly. If it's a plausible but inferential leap (e.g. a framework from one domain might transfer to another), say so honestly — "may," "could," "worth checking whether" — rather than asserting a leap as settled fact.
 - Only connect topics from DIFFERENT members — never connect a member's topics to their own other topics.
 - sourceTopics must be copied verbatim from the input, character for character, even if two members phrased the same idea differently (e.g. "off-target effects" vs "off target risk"). List each real label separately in sourceTopics rather than merging them into one — the "from"/"to" fields can be a cleaner display version, but sourceTopics must trace back to exactly what was written in the input.
 - Reject superficial overlap. Two things being in the same broad field (both "biotech," both "tech") is NOT enough — there must be a specific, concrete link between them.
@@ -417,7 +424,11 @@ RULES:
     const raw = toolBlock.input as { connections: RawConnectionWithSources[]; soloHighlights: string[] };
     return {
       connections: Array.isArray(raw.connections)
-        ? raw.connections.slice(0, 6).map((c) => ({ ...c, sourceTopics: Array.isArray(c.sourceTopics) ? c.sourceTopics : [] }))
+        ? raw.connections.slice(0, 6).map((c) => ({
+            ...c,
+            headline: typeof c.headline === "string" && c.headline.trim() ? c.headline : `${c.from} ↔ ${c.to}`,
+            sourceTopics: Array.isArray(c.sourceTopics) ? c.sourceTopics : []
+          }))
         : [],
       soloHighlights: Array.isArray(raw.soloHighlights) ? raw.soloHighlights.slice(0, 8) : []
     };
