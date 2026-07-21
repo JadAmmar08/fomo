@@ -23,7 +23,7 @@ export default function LandingPage() {
 
       {/* Concrete value props */}
       <section data-reveal style={{ padding: "40px 0 90px", borderTop: "1px solid var(--line)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+        <div className="grid three" style={{ gap: 24 }}>
           {[
             { title: "Shorter meetings.", body: "Open it at the start of the call. Nobody spends the first ten minutes catching everyone up, the team already knows what everyone found." },
             { title: "Fewer blind spots.", body: "See when two people are independently converging on the same problem, or missing something the other already knows." },
@@ -38,7 +38,7 @@ export default function LandingPage() {
       </section>
 
       {/* The pulse — text left, product card right */}
-      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
@@ -113,7 +113,7 @@ export default function LandingPage() {
       </section>
 
       {/* The mirror — text left, product card right (keeps the alternating rhythm) */}
-      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
@@ -174,7 +174,7 @@ export default function LandingPage() {
             Three steps. No friction.
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+        <div className="grid three" style={{ gap: 24 }}>
           {[
             { n: "01", title: "Install. Work normally.", body: "A lightweight Chrome extension runs silently in the background. No workspace setup, no integrations, no manual updates." },
             { n: "02", title: "Invite your team.", body: "A private, invite-only team. Nobody sees who found what, only how it connects." },
@@ -196,7 +196,7 @@ export default function LandingPage() {
       </section>
 
       {/* Privacy */}
-      <section data-reveal style={{ padding: "90px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 90, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
