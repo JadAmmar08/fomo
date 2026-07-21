@@ -47,10 +47,13 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
     }
   }
 
+  // Widened from 20 to 40 for the same reason as Pulse (lib/room-connections.ts): frequent
+  // personal browsing was filling the cutoff before the model's own relevance filtering against
+  // team context ever got a chance to see lower-frequency but genuinely relevant research.
   const topicsRes = await pool.query(
     `select topic_label from browsing_signals
      where anonymous_user_id = $1 and timestamp_bucket >= now() - interval '14 days'
-     group by topic_label order by count(*) desc limit 20`,
+     group by topic_label order by count(*) desc limit 40`,
     [anonymousUserId]
   );
   const topics = topicsRes.rows.map((r) => String(r.topic_label));
