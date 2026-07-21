@@ -6,6 +6,7 @@ interface IdeaConnection {
   explanation: string;
   insightType: InsightType;
   peopleCount: number;
+  sourceTopics: string[];
   isNew?: boolean;
 }
 
@@ -67,6 +68,11 @@ export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
                   )}
                 </div>
                 <p style={{ fontSize: "0.85rem", margin: 0, lineHeight: 1.6, color: "var(--text-strong)" }}>{conn.explanation}</p>
+                {conn.sourceTopics?.length > 0 && (
+                  <p style={{ fontSize: "0.76rem", margin: "6px 0 0", lineHeight: 1.5, color: "var(--subtle)" }}>
+                    Based on: {conn.sourceTopics.map((t) => `"${t}"`).join(", ")}
+                  </p>
+                )}
               </div>
             );
           })}

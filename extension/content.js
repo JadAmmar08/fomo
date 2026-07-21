@@ -35,6 +35,28 @@ function collectPageContent() {
     }
   });
 
+  // AI chat tools: extract only the topic being researched, not the full conversation.
+  // We deliberately grab just the first user message (the "ask"), not every back-and-forth
+  // turn — a full transcript can contain far more sensitive material than a page visit ever
+  // would, and all we actually need is a sense of what the person is working on.
+  if (host === "claude.ai" || host.includes("chatgpt.com") || host === "chat.openai.com") {
+    const userMessageSelectors = [
+      '[data-testid="user-message"]',
+      '[data-message-author-role="user"]',
+      '[data-testid*="user-turn"]'
+    ];
+    let firstUserMessage = "";
+    for (const selector of userMessageSelectors) {
+      const el = document.querySelector(selector);
+      if (el) {
+        firstUserMessage = cleanText(el.textContent).slice(0, 400);
+        break;
+      }
+    }
+    if (firstUserMessage) parts.push("INITIAL QUERY: " + firstUserMessage);
+    return parts.join("\n\n").slice(0, 25000);
+  }
+
   // YouTube: extract only what matters — channel and description (title comes from tab.title)
   if (host.includes("youtube.com")) {
     const channel = cleanText(

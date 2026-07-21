@@ -12,6 +12,7 @@ interface IdeaConnection {
   explanation: string;
   insightType: "implication" | "tension" | "question" | "opportunity" | "blind_spot";
   peopleCount: number;
+  sourceTopics: string[];
   isNew: boolean;
 }
 

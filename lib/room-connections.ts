@@ -9,6 +9,7 @@ export interface IdeaConnection {
   explanation: string;
   insightType: InsightType;
   peopleCount: number;
+  sourceTopics: string[];
 }
 
 // sourceTopics is internal only, stripped before caching/returning to the UI. It exists so
@@ -116,6 +117,10 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
         return {
           ...rest,
           explanation,
+          // Shown to the user as "Based on: ..." so a connection isn't just a bare assertion —
+          // verifiedTopics (not the model's raw sourceTopics) guarantees every label shown here
+          // actually exists in some member's real browsing data.
+          sourceTopics: verifiedTopics,
           // A card labeled "Open question" that isn't actually phrased as a question is a
           // mislabel, not an insight type — downgrade rather than show false framing.
           insightType: c.insightType === "question" && !explanation.trim().endsWith("?")

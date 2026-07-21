@@ -78,7 +78,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await chrome.storage.local.set(DEFAULTS);
   }
   const updated = await chrome.storage.local.get(DEFAULTS);
-  await ensureAnonymousUserId(updated);
+  const anonymousUserId = await ensureAnonymousUserId(updated);
+
+  if (anonymousUserId) {
+    const manifest = chrome.runtime.getManifest();
+    await fetch(`${API_BASE_URL}/api/extension/ping`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anonymousUserId, extensionVersion: manifest.version })
+    }).catch(() => undefined);
+  }
 
   if (details.reason === "install") {
     chrome.tabs.create({ url: `${API_BASE_URL}/teams` });
@@ -228,7 +237,7 @@ async function ensureAnonymousUserId(store) {
     await syncCookieToApp(store.anonymousUserId);
     return store.anonymousUserId;
   }
-  const response = await fetch(`${API_BASE_URL}/api/session`).catch(() => null);
+  const response = await fetch(`${API_BASE_URL}/api/session`, { credentials: "include" }).catch(() => null);
   if (!response?.ok) return null;
   const data = await response.json();
   if (data?.anonymousUserId) {
