@@ -6,6 +6,7 @@ export type GuidanceType = "direction" | "question" | "team_signal";
 export interface GuidanceRecommendation {
   type: GuidanceType;
   text: string;
+  sourceTopics: string[];
 }
 
 export interface IndividualGuidance {
@@ -79,10 +80,11 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
 function normalizeRecommendations(raw: unknown): GuidanceRecommendation[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r) => {
-    if (typeof r === "string") return { type: "direction" as const, text: r };
-    const obj = r as { type?: string; text?: string };
+    if (typeof r === "string") return { type: "direction" as const, text: r, sourceTopics: [] };
+    const obj = r as { type?: string; text?: string; sourceTopics?: unknown };
     const type: GuidanceType = obj.type === "question" || obj.type === "team_signal" ? obj.type : "direction";
-    return { type, text: String(obj.text ?? "") };
+    const sourceTopics = Array.isArray(obj.sourceTopics) ? obj.sourceTopics.map((t) => String(t)) : [];
+    return { type, text: String(obj.text ?? ""), sourceTopics };
   }).filter((r) => r.text);
 }
 
@@ -168,9 +170,14 @@ async function computeGuidanceWithHaiku(
                       type: "string",
                       enum: ["direction", "question", "team_signal"]
                     },
-                    text: { type: "string" }
+                    text: { type: "string" },
+                    sourceTopics: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "The literal topic name(s) from the input list that this recommendation is grounded in, copied verbatim."
+                    }
                   },
-                  required: ["type", "text"]
+                  required: ["type", "text", "sourceTopics"]
                 }
               }
             },
@@ -198,6 +205,7 @@ RULES:
 - recommendations: 1-3 items. ONE CLAIM PER ITEM, ONE sentence, not two. "direction" and "question" are max 20 words. "team_signal" is max 28 words, still one sentence, state the connection only, do not also add a follow-up question in the same item. Do not repeat or lightly rephrase a topic they already have.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
 - Ground everything in the literal topic names and team context given, don't invent facts, statistics, or timelines not derivable from them.
+- sourceTopics: for each recommendation, copy verbatim the topic name(s) from the input list (character for character) that it's actually grounded in. This is shown to the user as evidence, so it must trace back to something real in the input, not be invented or paraphrased.
 - Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.
 - If the topics are too scattered to infer a real goal, say so honestly in the pattern field rather than forcing one.`,
       messages: [
@@ -220,7 +228,7 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string }[] };
+    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string; sourceTopics?: unknown }[] };
     if (!raw.pattern) return null;
 
     const recommendations: GuidanceRecommendation[] = (Array.isArray(raw.recommendations) ? raw.recommendations : [])
@@ -228,7 +236,13 @@ RULES:
       .map((r) => {
         const type = (r.type === "question" || r.type === "team_signal" ? r.type : "direction") as GuidanceType;
         const maxWords = type === "team_signal" ? 28 : 20;
-        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords) };
+        // Only keep topics that are verifiably real (exist in what this person actually
+        // researched), the same safety net Pulse uses — a hallucinated sourceTopic gets dropped
+        // rather than shown as if it were evidence.
+        const sourceTopics = (Array.isArray(r.sourceTopics) ? r.sourceTopics : [])
+          .map((t) => String(t))
+          .filter((t) => topics.includes(t));
+        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords), sourceTopics };
       })
       .filter((r) => r.text && !hasMemberLeak(r.text));
 

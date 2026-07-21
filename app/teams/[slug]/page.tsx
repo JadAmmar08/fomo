@@ -45,6 +45,7 @@ async function getTeamPulse(slug: string) {
 interface GuidanceRecommendation {
   type: "direction" | "question" | "team_signal";
   text: string;
+  sourceTopics: string[];
 }
 
 interface GuidanceData {
@@ -184,6 +185,11 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
                         {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
                       </span>
                       <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec.text}</p>
+                      {rec.sourceTopics?.length > 0 && (
+                        <p style={{ fontSize: "0.76rem", margin: "6px 0 0", lineHeight: 1.5, color: "var(--subtle)" }}>
+                          Based on: {rec.sourceTopics.map((t) => `"${t}"`).join(", ")}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
