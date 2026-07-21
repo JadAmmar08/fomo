@@ -479,3 +479,57 @@ p {
     margin: 24px auto 60px;
   }
 }
+
+/* At phone widths the nav's five items (brand, Teams, Privacy, Log in, Get started) no longer
+   fit on one line inside the pill-shaped topbar and were overflowing off-screen. Privacy is
+   dropped here (it's still reachable from the footer on every page) and everything else shrinks
+   rather than wrapping, since a wrapped pill nav looks broken. */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 8px 8px 8px 16px;
+  }
+
+  .brand {
+    font-size: 1.05rem;
+  }
+
+  .topnav {
+    gap: 0;
+  }
+
+  .topnav .nav-item {
+    padding: 6px 8px;
+    font-size: 0.78rem;
+  }
+
+  .nav-item-privacy {
+    display: none;
+  }
+
+  .nav-login {
+    font-size: 0.78rem !important;
+  }
+
+  .nav-cta {
+    padding: 7px 12px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .nav-account {
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    max-width: 130px;
+  }
+
+  .nav-account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 90px;
+    display: inline-block;
+  }
+
+  .nav-auth {
+    gap: 8px !important;
+  }
+}

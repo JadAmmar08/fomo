@@ -47,7 +47,7 @@ export function Nav() {
         <Link
           key={item.href}
           href={item.href}
-          className={pathname === item.href ? "active" : ""}
+          className={`nav-item${item.href === "/privacy" ? " nav-item-privacy" : ""}${pathname === item.href ? " active" : ""}`}
         >
           {item.label}
         </Link>
@@ -55,6 +55,7 @@ export function Nav() {
       {isMember ? (
         <Link
           href={"/teams" as Route}
+          className="nav-account"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -70,15 +71,16 @@ export function Nav() {
           }}
         >
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }} />
-          {name ?? "My account"}
+          <span className="nav-account-name">{name ?? "My account"}</span>
         </Link>
       ) : (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>
-          <Link href={"/login" as Route} style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+        <span className="nav-auth" style={{ display: "inline-flex", alignItems: "center", gap: 12, marginLeft: 8, visibility: isMember === null ? "hidden" : "visible" }}>
+          <Link href={"/login" as Route} className="nav-login" style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
             Log in
           </Link>
           <Link
             href="/download"
+            className="nav-cta"
             style={{
               background: "var(--text)",
               color: "var(--bg)",
