@@ -36,6 +36,7 @@ function connectionKey(c: { from: string; to: string; insightType: InsightType }
 }
 
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours — small pilot rooms don't need live recompute
+const MIN_CONNECTIONS = 3; // backfilled from the previous run if a fresh pass finds fewer
 
 /**
  * The room-only "connections" layer. This is a separate, deliberate AI call from the
@@ -47,17 +48,20 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
   const pool = getPool();
   if (!pool) return null;
 
-  if (!forceRefresh) {
-    const cached = await pool.query(
-      `select connections, generated_at from room_connections where room_id = $1`,
-      [roomId]
-    );
-    if (cached.rows.length > 0) {
-      const generatedAtIso = new Date(cached.rows[0].generated_at as string | Date).toISOString();
-      if (Date.now() - new Date(generatedAtIso).getTime() < CACHE_TTL_MS) {
-        const data = cached.rows[0].connections as { connections: IdeaConnection[]; soloHighlights: string[] };
-        return attachViewState(pool, roomId, { ...data, generatedAt: generatedAtIso });
-      }
+  const cached = await pool.query(
+    `select connections, generated_at from room_connections where room_id = $1`,
+    [roomId]
+  );
+  const previousConnections: IdeaConnection[] =
+    cached.rows.length > 0
+      ? (cached.rows[0].connections as { connections?: IdeaConnection[] }).connections ?? []
+      : [];
+
+  if (!forceRefresh && cached.rows.length > 0) {
+    const generatedAtIso = new Date(cached.rows[0].generated_at as string | Date).toISOString();
+    if (Date.now() - new Date(generatedAtIso).getTime() < CACHE_TTL_MS) {
+      const data = cached.rows[0].connections as { connections: IdeaConnection[]; soloHighlights: string[] };
+      return attachViewState(pool, roomId, { ...data, generatedAt: generatedAtIso });
     }
   }
 
@@ -145,6 +149,22 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
       .filter((c) => !hasFabricatedSpecifics(c.explanation))
       .filter((c) => !hasMemberLeak(c.explanation) && !hasMemberLeak(c.from) && !hasMemberLeak(c.to))
   };
+
+  // A fresh run finding fewer genuine insights than last time shouldn't make good, still-true
+  // connections disappear — that reads as the product regressing when nothing false happened,
+  // it just means this particular pass surfaced less. Backfill from the previous cache (not
+  // shown as "new") up to MIN_CONNECTIONS, but only if every one of that old connection's
+  // sourceTopics is still present in someone's current topic list — if the underlying research
+  // that grounded it has aged out of the 7-day window, it should age out here too, not linger
+  // forever as stale evidence.
+  const freshKeys = new Set(connections.connections.map(connectionKey));
+  const carryForward = previousConnections
+    .filter((c) => !freshKeys.has(connectionKey(c)))
+    .filter((c) => c.sourceTopics.length > 0 && c.sourceTopics.every((t) => perMemberTopics.some((topics) => topics.includes(t))));
+  for (const c of carryForward) {
+    if (connections.connections.length >= MIN_CONNECTIONS) break;
+    connections.connections.push(c);
+  }
 
   await pool.query(
     `insert into room_connections (room_id, connections, generated_at)
