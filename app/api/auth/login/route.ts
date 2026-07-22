@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
-import { createAnonymousUserId, attachAnonymousCookie } from "@/lib/session";
+import { createAnonymousUserId, attachAnonymousCookie, SESSION_COOKIE } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,18 @@ export async function POST(req: NextRequest) {
   if (existingRes.rows.length > 0) {
     anonymousUserId = String(existingRes.rows[0].anonymous_user_id);
   } else {
-    anonymousUserId = createAnonymousUserId();
+    // First-ever login for this email. If this browser already has real history (rooms joined,
+    // signals tracked via the extension) under a cookie, reattach the account to that identity
+    // instead of minting a fresh one — otherwise someone who's been using the extension for days
+    // loses all of it the moment they create an account, which reads as a data-loss bug, not a
+    // feature. Only reuse it if no other account has already claimed that anonymous_user_id.
+    const cookieAnonymousId = req.cookies.get(SESSION_COOKIE)?.value;
+    let reuseCookieId = false;
+    if (cookieAnonymousId) {
+      const claimedRes = await pool.query(`select 1 from accounts where anonymous_user_id = $1`, [cookieAnonymousId]);
+      reuseCookieId = claimedRes.rows.length === 0;
+    }
+    anonymousUserId = reuseCookieId && cookieAnonymousId ? cookieAnonymousId : createAnonymousUserId();
     await pool.query(
       `insert into accounts (email, anonymous_user_id) values ($1, $2)`,
       [email, anonymousUserId]
