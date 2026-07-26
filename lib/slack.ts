@@ -6,7 +6,7 @@ const SLACK_OAUTH_ACCESS_URL = "https://slack.com/api/oauth.v2.access";
 // Bot-level scopes for a single workspace install (not a per-user token). channels:history
 // and channels:read are the two that matter — everything else stays off by design, since
 // this only ever reads channels a room's members have explicitly linked, never a user's DMs.
-export const SLACK_SCOPES = ["channels:history", "channels:read", "team:read"].join(",");
+export const SLACK_SCOPES = ["channels:history", "channels:read", "channels:join", "team:read"].join(",");
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -109,6 +109,22 @@ export async function listChannels(accessToken: string) {
   const data = await res.json();
   if (!data.ok) throw new Error(`Slack channel list failed: ${data.error}`);
   return data.channels as Array<{ id: string; name: string; is_member: boolean }>;
+}
+
+// Joins a public channel on the caller's explicit, one-time selection — never on its own
+// initiative. This replaces the old "type /invite @FOMO manually" step with a single click,
+// but the consent moment is the same: nothing happens until someone picks this exact channel.
+export async function joinChannel(accessToken: string, channelId: string) {
+  const res = await fetch("https://slack.com/api/conversations.join", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({ channel: channelId })
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(`Slack channel join failed: ${data.error}`);
 }
 
 export async function fetchChannelHistory(accessToken: string, channelId: string, limit = 100) {

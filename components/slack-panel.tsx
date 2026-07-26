@@ -102,7 +102,7 @@ export function SlackPanel({ roomId }: { roomId: string }) {
             ))}
             {channels.channels?.length === 0 && (
               <p style={{ color: "var(--subtle)", fontSize: "0.9rem" }}>
-                No channels found — invite the Slack app to a channel first, then refresh.
+                No public channels found in this workspace yet.
               </p>
             )}
           </div>

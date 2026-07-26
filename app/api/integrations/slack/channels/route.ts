@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSlackConnection, linkSlackChannel, listChannels } from "@/lib/slack";
+import { getSlackConnection, joinChannel, linkSlackChannel, listChannels } from "@/lib/slack";
 
 export async function GET(req: NextRequest) {
   const roomId = req.nextUrl.searchParams.get("roomId") ?? "";
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       connected: true,
       teamName: connection.slack_team_name,
       linkedChannelId: connection.linked_channel_id,
-      channels: channels.filter((c) => c.is_member).map((c) => ({ id: c.id, name: c.name }))
+      channels: channels.map((c) => ({ id: c.id, name: c.name }))
     });
   } catch (err) {
     console.error("[slack channels] failed:", err);
@@ -28,6 +28,18 @@ export async function POST(req: NextRequest) {
 
   if (!roomId || !channelId) {
     return NextResponse.json({ error: "roomId and channelId required" }, { status: 400 });
+  }
+
+  const connection = await getSlackConnection(roomId);
+  if (!connection) {
+    return NextResponse.json({ error: "No Slack connection for this room" }, { status: 400 });
+  }
+
+  try {
+    await joinChannel(connection.access_token, channelId);
+  } catch (err) {
+    console.error("[slack channels] join failed:", err);
+    return NextResponse.json({ error: "Could not join channel" }, { status: 500 });
   }
 
   await linkSlackChannel(roomId, channelId, channelName);
