@@ -230,6 +230,20 @@ create index if not exists idx_feature_views_user on feature_views(anonymous_use
 -- GOOGLE CONNECTIONS (per-user, per-room OAuth grant to read Drive file/revision
 -- history for the workstream-handoff feature. room_id is '' for a solo connection
 -- not yet tied to a team. One row per (anonymous_user_id, room_id) pair.)
+create table if not exists slack_connections (
+  room_id text primary key,
+  slack_team_id text not null,
+  slack_team_name text,
+  access_token text not null,
+  bot_user_id text,
+  scope text not null,
+  installed_by text not null,
+  linked_channel_id text,
+  linked_channel_name text,
+  installed_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists google_connections (
   anonymous_user_id text not null,
   room_id text not null default '',
