@@ -139,7 +139,7 @@ export async function fetchChannelHistory(accessToken: string, channelId: string
 
 // Turns a channel's recent messages into a short summary of what's being actively discussed —
 // never a per-person behavior model, just a readable digest of the conversation itself.
-export async function summarizeChannelActivity(messages: Array<{ user?: string; text: string; ts: string }>): Promise<string | null> {
+export async function summarizeChannelActivity(messages: Array<{ user?: string; text: string; ts: string }>, previousSummary?: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || messages.length === 0) return null;
 
@@ -148,6 +148,10 @@ export async function summarizeChannelActivity(messages: Array<{ user?: string; 
     .reverse()
     .map((m) => `[${new Date(Number(m.ts) * 1000).toLocaleDateString()}] ${m.text}`)
     .join("\n");
+
+  const historyBlock = previousSummary
+    ? `\n\nHere is the summary from the last time this channel was checked, for context:\n"${previousSummary}"\n\nIf things look materially the same, say so briefly and note what's new instead of repeating the same description. If it looks meaningfully different, lead with what changed.`
+    : "";
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -159,7 +163,7 @@ export async function summarizeChannelActivity(messages: Array<{ user?: string; 
       messages: [
         {
           role: "user",
-          content: `Here are recent messages from a team Slack channel:\n\n${transcript}\n\nWrite a short (3-5 sentence) plain-English summary of what's actively being discussed, any open questions or decisions pending, and anything that looks unresolved. No preamble, just the summary.`
+          content: `Here are recent messages from a team Slack channel:\n\n${transcript}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of what's actively being discussed, any open questions or decisions pending, and anything that looks unresolved. No preamble, just the summary.`
         }
       ]
     });

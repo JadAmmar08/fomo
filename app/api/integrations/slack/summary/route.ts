@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchChannelHistory, getSlackConnection, summarizeChannelActivity } from "@/lib/slack";
+import { getLatestSnapshot, saveSnapshot } from "@/lib/snapshots";
 
 export async function GET(req: NextRequest) {
   const roomId = req.nextUrl.searchParams.get("roomId") ?? "";
@@ -12,7 +13,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const messages = await fetchChannelHistory(connection.access_token, connection.linked_channel_id, 100);
-    const summary = await summarizeChannelActivity(messages);
+    const previous = await getLatestSnapshot(roomId, "slack");
+    const summary = await summarizeChannelActivity(messages, previous?.summary);
+    await saveSnapshot(roomId, "slack", messages, summary);
+
     return NextResponse.json({
       connected: true,
       linked: true,

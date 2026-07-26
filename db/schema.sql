@@ -252,7 +252,24 @@ create table if not exists google_connections (
   refresh_token text,
   token_expires_at timestamptz not null,
   scope text not null,
+  linked_folder_id text,
+  linked_folder_name text,
   connected_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (anonymous_user_id, room_id)
 );
+alter table google_connections add column if not exists linked_folder_id text;
+alter table google_connections add column if not exists linked_folder_name text;
+
+-- WORKSTREAM SNAPSHOTS (one row per summary generation, across both Drive and Slack
+-- sources — lets a new summary say "what changed since last time" instead of
+-- re-describing the same static state from scratch on every page load.)
+create table if not exists workstream_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  room_id text not null,
+  source text not null check (source in ('google', 'slack')),
+  raw_data jsonb not null,
+  summary text,
+  captured_at timestamptz not null default now()
+);
+create index if not exists idx_workstream_snapshots_room_source on workstream_snapshots(room_id, source, captured_at desc);

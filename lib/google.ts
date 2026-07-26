@@ -149,16 +149,59 @@ export async function hasGoogleConnection(anonymousUserId: string, roomId: strin
   return res.rows.length > 0;
 }
 
-// Lists files a user has recently modified, with their revision history — the raw
-// material for a workstream handoff summary (who touched what, in what order).
-export async function listRecentFilesWithRevisions(accessToken: string, maxFiles = 10) {
-  const filesRes = await fetch(
+export async function getGoogleConnection(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) return null;
+  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null }>(
+    `select linked_folder_id, linked_folder_name from google_connections
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function linkGoogleFolder(anonymousUserId: string, roomId: string, folderId: string, folderName: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update google_connections set linked_folder_id = $1, linked_folder_name = $2, updated_at = now()
+     where anonymous_user_id = $3 and room_id = $4`,
+    [folderId, folderName, anonymousUserId, roomId]
+  );
+}
+
+// Lists the user's Drive folders (not files) — the picker only shows folders so a
+// specific team's shared workspace can be scoped to, instead of reading their whole
+// personal Drive.
+export async function listFolders(accessToken: string) {
+  const res = await fetch(
     "https://www.googleapis.com/drive/v3/files?" +
       new URLSearchParams({
-        pageSize: String(maxFiles),
-        orderBy: "modifiedTime desc",
-        fields: "files(id,name,mimeType,modifiedTime,webViewLink)"
+        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        pageSize: "100",
+        orderBy: "name",
+        fields: "files(id,name)"
       }),
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`Drive folder list failed: ${await res.text()}`);
+  const { files } = (await res.json()) as { files: Array<{ id: string; name: string }> };
+  return files;
+}
+
+// Lists files a user has recently modified, with their revision history — the raw
+// material for a workstream handoff summary (who touched what, in what order).
+// Scoped to a single linked folder when provided, instead of the whole personal Drive.
+export async function listRecentFilesWithRevisions(accessToken: string, maxFiles = 10, folderId?: string | null) {
+  const params: Record<string, string> = {
+    pageSize: String(maxFiles),
+    orderBy: "modifiedTime desc",
+    fields: "files(id,name,mimeType,modifiedTime,webViewLink)"
+  };
+  if (folderId) params.q = `'${folderId}' in parents and trashed = false`;
+
+  const filesRes = await fetch(
+    "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams(params),
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!filesRes.ok) throw new Error(`Drive files list failed: ${await filesRes.text()}`);
@@ -192,7 +235,7 @@ interface FileActivity {
 // Turns raw Drive file/revision data into a short, readable workstream summary —
 // the first slice of the handoff feature: "here's what changed and who touched it,"
 // not a behavior model of any individual.
-export async function summarizeWorkstream(files: FileActivity[]): Promise<string | null> {
+export async function summarizeWorkstream(files: FileActivity[], previousSummary?: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || files.length === 0) return null;
 
@@ -200,6 +243,10 @@ export async function summarizeWorkstream(files: FileActivity[]): Promise<string
     const editors = [...new Set(f.revisions.map((r) => r.lastModifyingUser?.displayName).filter(Boolean))];
     return `- "${f.name}" (${f.mimeType.split(".").pop()}), last modified ${f.modifiedTime}, edited by: ${editors.join(", ") || "unknown"}, ${f.revisions.length} revisions`;
   });
+
+  const historyBlock = previousSummary
+    ? `\n\nHere is the summary from the last time this was checked, for context:\n"${previousSummary}"\n\nIf the current activity looks materially the same as last time, say so briefly and note what's new instead of repeating the same description. If it looks meaningfully different, lead with what changed.`
+    : "";
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -211,7 +258,7 @@ export async function summarizeWorkstream(files: FileActivity[]): Promise<string
       messages: [
         {
           role: "user",
-          content: `Here is a list of recently modified Google Drive files and their edit history:\n\n${activityLines.join("\n")}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what's been worked on, who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the activity on the files themselves. No preamble, just the summary.`
+          content: `Here is a list of recently modified Google Drive files and their edit history:\n\n${activityLines.join("\n")}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what's been worked on, who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the activity on the files themselves. No preamble, just the summary.`
         }
       ]
     });
