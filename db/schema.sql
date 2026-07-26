@@ -226,3 +226,19 @@ create table if not exists feature_views (
 );
 create index if not exists idx_feature_views_type_time on feature_views(event_type, viewed_at desc);
 create index if not exists idx_feature_views_user on feature_views(anonymous_user_id);
+
+-- GOOGLE CONNECTIONS (per-user, per-room OAuth grant to read Drive file/revision
+-- history for the workstream-handoff feature. room_id is '' for a solo connection
+-- not yet tied to a team. One row per (anonymous_user_id, room_id) pair.)
+create table if not exists google_connections (
+  anonymous_user_id text not null,
+  room_id text not null default '',
+  google_email text,
+  access_token text not null,
+  refresh_token text,
+  token_expires_at timestamptz not null,
+  scope text not null,
+  connected_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (anonymous_user_id, room_id)
+);
