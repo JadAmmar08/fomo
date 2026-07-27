@@ -109,11 +109,30 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
         <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
           <SourceDot color={meta.color} /> {meta.name}
         </span>
+        {source === "slack" && (
+          <button
+            onClick={async () => {
+              setLinking(true);
+              await fetch("/api/integrations/slack/auto-join", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId })
+              });
+              setLinking(false);
+              onLinked();
+            }}
+            disabled={linking}
+            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
+          >
+            {linking ? "Connecting…" : "Read all internal channels →"}
+          </button>
+        )}
         <button
           onClick={openPicker}
-          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
+          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: source === "slack" ? "0.78rem" : "0.88rem", fontWeight: source === "slack" ? 500 : 600, color: source === "slack" ? "var(--subtle)" : "var(--accent)" }}
         >
-          {meta.pickVerb} →
+          {source === "slack" ? "or pick one channel →" : `${meta.pickVerb} →`}
         </button>
         {picking && (
           <div style={{

@@ -36,8 +36,12 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
     },
     slack: {
       connected: Boolean(slackConn),
-      linked: Boolean(slackConn?.linked_channel_id),
-      label: slackConn?.linked_channel_name ? `#${slackConn.linked_channel_name}` : "Slack"
+      linked: Boolean(slackConn?.linked_channel_id) || Boolean(slackConn?.auto_join_all),
+      label: slackConn?.auto_join_all
+        ? "All internal channels"
+        : slackConn?.linked_channel_name
+          ? `#${slackConn.linked_channel_name}`
+          : "Slack"
     },
     microsoft: {
       connected: Boolean(msToken),
@@ -77,7 +81,19 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   }
 
   const slackConn = await slack.getSlackConnection(roomId);
-  if (slackConn?.linked_channel_id) {
+  if (slackConn?.auto_join_all) {
+    const channelActivity = await slack.fetchAllInternalChannelsActivity(slackConn.access_token, 30);
+    for (const { channel, messages } of channelActivity) {
+      items.push({
+        source: "slack",
+        label: `#${channel}`,
+        name: "Recent conversation",
+        modifiedTime: new Date(Number(messages[0].ts) * 1000).toISOString(),
+        link: "#",
+        content: messages.slice().reverse().map((m) => m.text).join("\n")
+      });
+    }
+  } else if (slackConn?.linked_channel_id) {
     const messages = await slack.fetchChannelHistory(slackConn.access_token, slackConn.linked_channel_id, 50);
     if (messages.length > 0) {
       items.push({

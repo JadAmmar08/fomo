@@ -84,8 +84,9 @@ export async function getSlackConnection(roomId: string) {
     slack_team_name: string;
     linked_channel_id: string | null;
     linked_channel_name: string | null;
+    auto_join_all: boolean;
   }>(
-    `select access_token, slack_team_name, linked_channel_id, linked_channel_name
+    `select access_token, slack_team_name, linked_channel_id, linked_channel_name, auto_join_all
      from slack_connections where room_id = $1`,
     [roomId]
   );
@@ -96,10 +97,44 @@ export async function linkSlackChannel(roomId: string, channelId: string, channe
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update slack_connections set linked_channel_id = $1, linked_channel_name = $2, linked_channel_is_external = $3, updated_at = now()
+    `update slack_connections set linked_channel_id = $1, linked_channel_name = $2, linked_channel_is_external = $3, auto_join_all = false, updated_at = now()
      where room_id = $4`,
     [channelId, channelName, isExternal, roomId]
   );
+}
+
+// One organizational decision, made once by whoever installed the app: read every
+// internal channel it can join. Channels shared with another organization
+// (is_ext_shared) are always excluded here, no matter what — a workspace admin does
+// not have standing to consent on behalf of a client sitting in a shared channel,
+// so those always require their own separate, explicit confirmation regardless of
+// this setting.
+export async function enableAutoJoinAll(roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update slack_connections set auto_join_all = true, linked_channel_id = null, linked_channel_name = null, updated_at = now()
+     where room_id = $1`,
+    [roomId]
+  );
+}
+
+export async function joinAllInternalChannels(accessToken: string) {
+  const channels = await listChannels(accessToken);
+  const internal = channels.filter((c) => !c.is_ext_shared);
+  const joined: Array<{ id: string; name: string }> = [];
+  for (const channel of internal) {
+    if (!channel.is_member) {
+      try {
+        await joinChannel(accessToken, channel.id);
+      } catch (err) {
+        console.error(`[joinAllInternalChannels] failed to join ${channel.name}:`, err);
+        continue;
+      }
+    }
+    joined.push({ id: channel.id, name: channel.name });
+  }
+  return joined;
 }
 
 export async function listChannels(accessToken: string) {
@@ -139,6 +174,27 @@ export async function fetchChannelHistory(accessToken: string, channelId: string
   const data = await res.json();
   if (!data.ok) throw new Error(`Slack history fetch failed: ${data.error}`);
   return data.messages as Array<{ user?: string; text: string; ts: string }>;
+}
+
+// Aggregates recent activity across every internal channel the bot has joined —
+// used only when auto-join-all was explicitly turned on. Still never touches
+// anything marked is_ext_shared, regardless of that setting.
+export async function fetchAllInternalChannelsActivity(accessToken: string, perChannelLimit = 30) {
+  const channels = await listChannels(accessToken);
+  const internal = channels.filter((c) => c.is_member && !c.is_ext_shared);
+
+  const results = await Promise.all(
+    internal.map(async (channel) => {
+      try {
+        const messages = await fetchChannelHistory(accessToken, channel.id, perChannelLimit);
+        return { channel: channel.name, messages };
+      } catch {
+        return { channel: channel.name, messages: [] as Array<{ user?: string; text: string; ts: string }> };
+      }
+    })
+  );
+
+  return results.filter((r) => r.messages.length > 0);
 }
 
 // Turns a channel's recent messages into a short summary of what's being actively discussed —
