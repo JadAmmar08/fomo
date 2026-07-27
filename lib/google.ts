@@ -152,8 +152,8 @@ export async function hasGoogleConnection(anonymousUserId: string, roomId: strin
 export async function getGoogleConnection(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) return null;
-  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null }>(
-    `select linked_folder_id, linked_folder_name from google_connections
+  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null; auto_all_files: boolean }>(
+    `select linked_folder_id, linked_folder_name, auto_all_files from google_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -164,9 +164,24 @@ export async function linkGoogleFolder(anonymousUserId: string, roomId: string, 
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update google_connections set linked_folder_id = $1, linked_folder_name = $2, updated_at = now()
+    `update google_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, updated_at = now()
      where anonymous_user_id = $3 and room_id = $4`,
     [folderId, folderName, anonymousUserId, roomId]
+  );
+}
+
+// One person's own explicit decision about their own account: read every file they
+// actually own, not just one folder. Deliberately excludes anything merely shared
+// with them by someone else ('me' in owners, not just visible to them) — a file a
+// client or outside party shared into their Drive is that party's data, not theirs
+// to consent to sharing with FOMO.
+export async function enableAutoAllFiles(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update google_connections set auto_all_files = true, linked_folder_id = null, linked_folder_name = null, updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
   );
 }
 
@@ -191,14 +206,20 @@ export async function listFolders(accessToken: string) {
 
 // Lists files a user has recently modified, with their revision history — the raw
 // material for a workstream handoff summary (who touched what, in what order).
-// Scoped to a single linked folder when provided, instead of the whole personal Drive.
-export async function listRecentFilesWithRevisions(accessToken: string, maxFiles = 10, folderId?: string | null) {
+// Scoped to a single linked folder, or to every file the user actually owns when
+// ownedOnly is set — never to files merely shared with them by someone else, which
+// belong to whoever shared them, not to this person's consent to give.
+export async function listRecentFilesWithRevisions(accessToken: string, maxFiles = 10, folderId?: string | null, ownedOnly = false) {
   const params: Record<string, string> = {
     pageSize: String(maxFiles),
     orderBy: "modifiedTime desc",
     fields: "files(id,name,mimeType,modifiedTime,webViewLink)"
   };
-  if (folderId) params.q = `'${folderId}' in parents and trashed = false`;
+  if (folderId) {
+    params.q = `'${folderId}' in parents and trashed = false`;
+  } else if (ownedOnly) {
+    params.q = "'me' in owners and trashed = false";
+  }
 
   const filesRes = await fetch(
     "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams(params),

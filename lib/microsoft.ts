@@ -137,8 +137,8 @@ export async function getValidAccessToken(anonymousUserId: string, roomId: strin
 export async function getMicrosoftConnection(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) return null;
-  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null }>(
-    `select linked_folder_id, linked_folder_name from microsoft_connections
+  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null; auto_all_files: boolean }>(
+    `select linked_folder_id, linked_folder_name, auto_all_files from microsoft_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -149,9 +149,21 @@ export async function linkMicrosoftFolder(anonymousUserId: string, roomId: strin
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update microsoft_connections set linked_folder_id = $1, linked_folder_name = $2, updated_at = now()
+    `update microsoft_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, updated_at = now()
      where anonymous_user_id = $3 and room_id = $4`,
     [folderId, folderName, anonymousUserId, roomId]
+  );
+}
+
+// One person's own explicit decision about their own account: read every file they
+// actually own, not just one folder.
+export async function enableAutoAllFiles(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update microsoft_connections set auto_all_files = true, linked_folder_id = null, linked_folder_name = null, updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
   );
 }
 
@@ -284,6 +296,18 @@ async function extractFileContent(accessToken: string, fileId: string, fileName:
   }
 }
 
+async function enrichFiles(accessToken: string, files: OneDriveFile[]) {
+  return Promise.all(
+    files.map(async (f) => {
+      const [versions, content] = await Promise.all([
+        listFileVersions(accessToken, f.id),
+        extractFileContent(accessToken, f.id, f.name)
+      ]);
+      return { ...f, versions, content };
+    })
+  );
+}
+
 // Lists files recently modified in a linked OneDrive folder, along with per-version
 // edit history and — where the format supports it — real extracted content.
 export async function listRecentFiles(accessToken: string, folderId: string, maxFiles = 10) {
@@ -294,16 +318,23 @@ export async function listRecentFiles(accessToken: string, folderId: string, max
   if (!res.ok) throw new Error(`OneDrive files list failed: ${await res.text()}`);
   const data = await res.json();
   const files = (data.value as OneDriveFile[]).filter((f) => f.file);
+  return enrichFiles(accessToken, files);
+}
 
-  return Promise.all(
-    files.map(async (f) => {
-      const [versions, content] = await Promise.all([
-        listFileVersions(accessToken, f.id),
-        extractFileContent(accessToken, f.id, f.name)
-      ]);
-      return { ...f, versions, content };
-    })
+// Lists recently touched files across the user's entire OneDrive, not one folder.
+// Graph's /recent endpoint also includes items shared with the user by others, so
+// anything carrying a remoteItem (meaning it lives in someone else's drive, just
+// shared into this view) is filtered out — that file belongs to whoever owns it,
+// not to this person's consent to hand over.
+export async function listRecentFilesAcrossDrive(accessToken: string, maxFiles = 20) {
+  const res = await fetch(
+    `${GRAPH_BASE}/me/drive/recent?$top=${maxFiles}&$select=id,name,file,lastModifiedDateTime,webUrl,lastModifiedBy,remoteItem`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
+  if (!res.ok) throw new Error(`OneDrive recent files list failed: ${await res.text()}`);
+  const data = await res.json();
+  const files = (data.value as Array<OneDriveFile & { remoteItem?: unknown }>).filter((f) => f.file && !f.remoteItem);
+  return enrichFiles(accessToken, files);
 }
 
 // Turns raw OneDrive file activity, version history, and (where available) actual

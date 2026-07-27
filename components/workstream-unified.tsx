@@ -28,10 +28,12 @@ const SOURCE_META: Record<SourceKey, {
   pickKey: "folderId" | "channelId";
   nameKey: "folderName" | "channelName";
   pickVerb: string;
+  autoAllPath: string;
+  autoAllLabel: string;
 }> = {
-  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder" },
-  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder" },
-  slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel" }
+  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own" },
+  slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels" }
 };
 
 function SourceDot({ color }: { color: string }) {
@@ -109,30 +111,28 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
         <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
           <SourceDot color={meta.color} /> {meta.name}
         </span>
-        {source === "slack" && (
-          <button
-            onClick={async () => {
-              setLinking(true);
-              await fetch("/api/integrations/slack/auto-join", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ roomId })
-              });
-              setLinking(false);
-              onLinked();
-            }}
-            disabled={linking}
-            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
-          >
-            {linking ? "Connecting…" : "Read all internal channels →"}
-          </button>
-        )}
+        <button
+          onClick={async () => {
+            setLinking(true);
+            await fetch(meta.autoAllPath, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ roomId })
+            });
+            setLinking(false);
+            onLinked();
+          }}
+          disabled={linking}
+          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
+        >
+          {linking ? "Connecting…" : `${meta.autoAllLabel} →`}
+        </button>
         <button
           onClick={openPicker}
-          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: source === "slack" ? "0.78rem" : "0.88rem", fontWeight: source === "slack" ? 500 : 600, color: source === "slack" ? "var(--subtle)" : "var(--accent)" }}
+          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500, color: "var(--subtle)" }}
         >
-          {source === "slack" ? "or pick one channel →" : `${meta.pickVerb} →`}
+          or {meta.pickVerb.toLowerCase()} →
         </button>
         {picking && (
           <div style={{

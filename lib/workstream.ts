@@ -31,8 +31,8 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
   return {
     google: {
       connected: Boolean(googleToken),
-      linked: Boolean(googleConn?.linked_folder_id),
-      label: googleConn?.linked_folder_name ?? "Google Drive"
+      linked: Boolean(googleConn?.linked_folder_id) || Boolean(googleConn?.auto_all_files),
+      label: googleConn?.auto_all_files ? "Everything I own" : googleConn?.linked_folder_name ?? "Google Drive"
     },
     slack: {
       connected: Boolean(slackConn),
@@ -45,8 +45,8 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
     },
     microsoft: {
       connected: Boolean(msToken),
-      linked: Boolean(msConn?.linked_folder_id),
-      label: msConn?.linked_folder_name ?? "OneDrive"
+      linked: Boolean(msConn?.linked_folder_id) || Boolean(msConn?.auto_all_files),
+      label: msConn?.auto_all_files ? "Everything I own" : msConn?.linked_folder_name ?? "OneDrive"
     }
   };
 }
@@ -61,22 +61,26 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   const googleToken = await google.getValidAccessToken(anonymousUserId, roomId).catch(() => null);
   if (googleToken) {
     const conn = await google.getGoogleConnection(anonymousUserId, roomId);
-    if (conn?.linked_folder_id) {
-      const files = await google.listRecentFilesWithRevisions(googleToken, 10, conn.linked_folder_id);
-      for (const f of files) {
-        items.push({ source: "google", label: "Drive", name: f.name, modifiedTime: f.modifiedTime, link: f.webViewLink, content: f.content });
-      }
+    const files = conn?.auto_all_files
+      ? await google.listRecentFilesWithRevisions(googleToken, 20, null, true)
+      : conn?.linked_folder_id
+        ? await google.listRecentFilesWithRevisions(googleToken, 10, conn.linked_folder_id)
+        : [];
+    for (const f of files) {
+      items.push({ source: "google", label: "Drive", name: f.name, modifiedTime: f.modifiedTime, link: f.webViewLink, content: f.content });
     }
   }
 
   const msToken = await microsoft.getValidAccessToken(anonymousUserId, roomId).catch(() => null);
   if (msToken) {
     const conn = await microsoft.getMicrosoftConnection(anonymousUserId, roomId);
-    if (conn?.linked_folder_id) {
-      const files = await microsoft.listRecentFiles(msToken, conn.linked_folder_id, 10);
-      for (const f of files) {
-        items.push({ source: "microsoft", label: "OneDrive", name: f.name, modifiedTime: f.lastModifiedDateTime, link: f.webUrl, content: f.content });
-      }
+    const files = conn?.auto_all_files
+      ? await microsoft.listRecentFilesAcrossDrive(msToken, 20)
+      : conn?.linked_folder_id
+        ? await microsoft.listRecentFiles(msToken, conn.linked_folder_id, 10)
+        : [];
+    for (const f of files) {
+      items.push({ source: "microsoft", label: "OneDrive", name: f.name, modifiedTime: f.lastModifiedDateTime, link: f.webUrl, content: f.content });
     }
   }
 
