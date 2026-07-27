@@ -175,11 +175,83 @@ interface OneDriveFile {
   lastModifiedDateTime: string;
   webUrl: string;
   lastModifiedBy?: { user?: { displayName?: string } };
+  versions?: Array<{ lastModifiedDateTime: string; lastModifiedBy?: { user?: { displayName?: string } } }>;
+  content?: string | null;
 }
 
-// Lists files recently modified in a linked OneDrive folder. Graph doesn't expose
-// per-revision history as simply as Drive does, so this uses lastModifiedBy/time —
-// enough to say who touched what and when, same as Drive's activity-only baseline.
+interface FileVersion {
+  lastModifiedDateTime: string;
+  lastModifiedBy?: { user?: { displayName?: string } };
+}
+
+// Graph's version history — the equivalent of Drive's revisions endpoint. Not every
+// file type keeps versions (some plain uploads don't), so a missing history is
+// treated as "no version data" rather than an error.
+async function listFileVersions(accessToken: string, fileId: string): Promise<FileVersion[]> {
+  try {
+    const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}/versions`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.value as FileVersion[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+const OFFICE_EXTRACTORS: Record<string, "xlsx" | "docx"> = {
+  xlsx: "xlsx",
+  xls: "xlsx",
+  docx: "docx"
+};
+
+const MAX_CONTENT_CHARS = 3000;
+
+// Downloads a file's raw bytes and extracts its actual text content — Excel via
+// exceljs, Word via mammoth. Graph has no simple "export as text" like Drive does,
+// so this is real binary parsing, not a single API call. Anything else (PDFs,
+// PowerPoint, images) is skipped rather than guessed at.
+async function extractFileContent(accessToken: string, fileId: string, fileName: string): Promise<string | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  const kind = ext ? OFFICE_EXTRACTORS[ext] : undefined;
+  if (!kind) return null;
+
+  try {
+    const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}/content`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    if (kind === "xlsx") {
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+      const sheet = workbook.worksheets[0];
+      if (!sheet) return null;
+      const rows: string[] = [];
+      sheet.eachRow((row) => {
+        rows.push(row.values ? (row.values as unknown[]).filter(Boolean).join(", ") : "");
+      });
+      return rows.join("\n").slice(0, MAX_CONTENT_CHARS);
+    }
+
+    if (kind === "docx") {
+      const mammoth = await import("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value.slice(0, MAX_CONTENT_CHARS);
+    }
+
+    return null;
+  } catch (err) {
+    console.error(`[extractFileContent] failed for ${fileName}:`, err);
+    return null;
+  }
+}
+
+// Lists files recently modified in a linked OneDrive folder, along with per-version
+// edit history and — where the format supports it — real extracted content.
 export async function listRecentFiles(accessToken: string, folderId: string, maxFiles = 10) {
   const res = await fetch(
     `${GRAPH_BASE}/me/drive/items/${folderId}/children?$orderby=lastModifiedDateTime desc&$top=${maxFiles}&$select=id,name,file,lastModifiedDateTime,webUrl,lastModifiedBy`,
@@ -187,21 +259,32 @@ export async function listRecentFiles(accessToken: string, folderId: string, max
   );
   if (!res.ok) throw new Error(`OneDrive files list failed: ${await res.text()}`);
   const data = await res.json();
-  return (data.value as OneDriveFile[]).filter((f) => f.file);
+  const files = (data.value as OneDriveFile[]).filter((f) => f.file);
+
+  return Promise.all(
+    files.map(async (f) => {
+      const [versions, content] = await Promise.all([
+        listFileVersions(accessToken, f.id),
+        extractFileContent(accessToken, f.id, f.name)
+      ]);
+      return { ...f, versions, content };
+    })
+  );
 }
 
-// Turns raw OneDrive file activity into a short, readable workstream summary.
-// Content-level extraction (reading what's actually inside a .docx/.xlsx) isn't
-// wired up yet — Graph has no simple "export as text" like Drive does, so that
-// needs real Office file parsing as a follow-up, not just an OAuth scope.
+// Turns raw OneDrive file activity, version history, and (where available) actual
+// content into a short, readable workstream summary — never a per-person behavior
+// record, always framed as activity on the files themselves.
 export async function summarizeWorkstream(files: OneDriveFile[], previousSummary?: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || files.length === 0) return null;
 
-  const activityLines = files.map(
-    (f) =>
-      `- "${f.name}", last modified ${f.lastModifiedDateTime} by ${f.lastModifiedBy?.user?.displayName ?? "unknown"}`
-  );
+  const activityLines = files.map((f) => {
+    const editors = [...new Set((f.versions ?? []).map((v) => v.lastModifiedBy?.user?.displayName).filter(Boolean))];
+    const editorList = editors.length > 0 ? editors.join(", ") : f.lastModifiedBy?.user?.displayName ?? "unknown";
+    const header = `- "${f.name}", last modified ${f.lastModifiedDateTime}, edited by: ${editorList}, ${f.versions?.length ?? 0} versions`;
+    return f.content ? `${header}\n  Content excerpt:\n  ${f.content.replace(/\n/g, "\n  ")}` : header;
+  });
 
   const historyBlock = previousSummary
     ? `\n\nHere is the summary from the last time this was checked, for context:\n"${previousSummary}"\n\nIf the current activity looks materially the same as last time, say so briefly and note what's new instead of repeating the same description. If it looks meaningfully different, lead with what changed.`
@@ -217,7 +300,7 @@ export async function summarizeWorkstream(files: OneDriveFile[], previousSummary
       messages: [
         {
           role: "user",
-          content: `Here is a list of recently modified OneDrive files:\n\n${activityLines.join("\n")}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what's been worked on (based on filenames, since content isn't available yet), who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the activity on the files themselves. No preamble, just the summary.`
+          content: `Here is a list of recently modified OneDrive files, their edit history, and — where available — an excerpt of their actual content:\n\n${activityLines.join("\n\n")}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what it's actually about (using the content excerpts, not just filenames, when available), who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the work itself. No preamble, just the summary.`
         }
       ]
     });
