@@ -200,18 +200,48 @@ async function listFileVersions(accessToken: string, fileId: string): Promise<Fi
   }
 }
 
-const OFFICE_EXTRACTORS: Record<string, "xlsx" | "docx"> = {
+const OFFICE_EXTRACTORS: Record<string, "xlsx" | "docx" | "pptx"> = {
   xlsx: "xlsx",
   xls: "xlsx",
-  docx: "docx"
+  docx: "docx",
+  pptx: "pptx"
 };
 
 const MAX_CONTENT_CHARS = 3000;
 
+// A .pptx is just a zip of XML — each slide's text runs live in ppt/slides/slideN.xml
+// as <a:t> elements. No mainstream "mammoth for PowerPoint" library exists, so this
+// unzips and extracts text directly rather than pull in a heavier, less-trusted
+// pptx-parsing package for what's fundamentally simple XML text extraction.
+async function extractPptxText(buffer: Buffer): Promise<string | null> {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(buffer);
+
+  const slideFiles = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort((a, b) => {
+      const na = Number(a.match(/slide(\d+)\.xml/)?.[1] ?? 0);
+      const nb = Number(b.match(/slide(\d+)\.xml/)?.[1] ?? 0);
+      return na - nb;
+    });
+
+  if (slideFiles.length === 0) return null;
+
+  const slideTexts = await Promise.all(
+    slideFiles.map(async (name, i) => {
+      const xml = await zip.files[name].async("text");
+      const texts = [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1]).filter(Boolean);
+      return texts.length > 0 ? `Slide ${i + 1}: ${texts.join(" ")}` : null;
+    })
+  );
+
+  return slideTexts.filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS) || null;
+}
+
 // Downloads a file's raw bytes and extracts its actual text content — Excel via
-// exceljs, Word via mammoth. Graph has no simple "export as text" like Drive does,
-// so this is real binary parsing, not a single API call. Anything else (PDFs,
-// PowerPoint, images) is skipped rather than guessed at.
+// exceljs, Word via mammoth, PowerPoint via direct XML parsing. Graph has no simple
+// "export as text" like Drive does, so this is real binary parsing, not a single
+// API call. Anything else (PDFs, images) is skipped rather than guessed at.
 async function extractFileContent(accessToken: string, fileId: string, fileName: string): Promise<string | null> {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const kind = ext ? OFFICE_EXTRACTORS[ext] : undefined;
@@ -241,6 +271,10 @@ async function extractFileContent(accessToken: string, fileId: string, fileName:
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
       return result.value.slice(0, MAX_CONTENT_CHARS);
+    }
+
+    if (kind === "pptx") {
+      return extractPptxText(buffer);
     }
 
     return null;
