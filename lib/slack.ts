@@ -92,23 +92,27 @@ export async function getSlackConnection(roomId: string) {
   return res.rows[0] ?? null;
 }
 
-export async function linkSlackChannel(roomId: string, channelId: string, channelName: string) {
+export async function linkSlackChannel(roomId: string, channelId: string, channelName: string, isExternal: boolean) {
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update slack_connections set linked_channel_id = $1, linked_channel_name = $2, updated_at = now()
-     where room_id = $3`,
-    [channelId, channelName, roomId]
+    `update slack_connections set linked_channel_id = $1, linked_channel_name = $2, linked_channel_is_external = $3, updated_at = now()
+     where room_id = $4`,
+    [channelId, channelName, isExternal, roomId]
   );
 }
 
 export async function listChannels(accessToken: string) {
-  const res = await fetch("https://slack.com/api/conversations.list?types=public_channel&limit=200", {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const res = await fetch(
+    "https://slack.com/api/conversations.list?types=public_channel&limit=200",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
   const data = await res.json();
   if (!data.ok) throw new Error(`Slack channel list failed: ${data.error}`);
-  return data.channels as Array<{ id: string; name: string; is_member: boolean }>;
+  // is_ext_shared marks a Slack Connect channel shared with another organization
+  // (e.g. a client) — a real signal from Slack itself, not a guess, used to force
+  // an explicit consent step before linking anything that includes outside parties.
+  return data.channels as Array<{ id: string; name: string; is_member: boolean; is_ext_shared?: boolean }>;
 }
 
 // Joins a public channel on the caller's explicit, one-time selection — never on its own

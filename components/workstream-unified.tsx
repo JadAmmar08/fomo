@@ -38,10 +38,17 @@ function SourceDot({ color }: { color: string }) {
   return <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />;
 }
 
+interface PickOption {
+  id: string;
+  name: string;
+  isExternal?: boolean;
+}
+
 function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; status: SourceStatus; roomId: string; onLinked: () => void }) {
   const [picking, setPicking] = useState(false);
-  const [options, setOptions] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [options, setOptions] = useState<PickOption[] | null>(null);
   const [linking, setLinking] = useState(false);
+  const [confirmingExternal, setConfirmingExternal] = useState<PickOption | null>(null);
   const meta = SOURCE_META[source];
 
   async function openPicker() {
@@ -49,19 +56,34 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
     if (options) return;
     const res = await fetch(`${meta.pickPath}?roomId=${roomId}`, { credentials: "include" });
     const data = await res.json();
-    setOptions((data.folders ?? data.channels ?? []).map((o: { id: string; name: string }) => ({ id: o.id, name: o.name })));
+    setOptions((data.folders ?? data.channels ?? []).map((o: PickOption) => ({ id: o.id, name: o.name, isExternal: o.isExternal })));
   }
 
-  async function pick(option: { id: string; name: string }) {
+  async function pick(option: PickOption) {
+    // A channel shared with another organization (a client, most likely) needs its
+    // own explicit confirmation, separate from just clicking its name in the list —
+    // the people on the other side of it haven't agreed to anything yet.
+    if (option.isExternal && confirmingExternal?.id !== option.id) {
+      setConfirmingExternal(option);
+      return;
+    }
+
     setLinking(true);
     await fetch(meta.pickPath, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId, [meta.pickKey]: option.id, [meta.nameKey]: option.name })
+      body: JSON.stringify({
+        roomId,
+        [meta.pickKey]: option.id,
+        [meta.nameKey]: option.name,
+        isExternal: Boolean(option.isExternal),
+        externalConsentConfirmed: Boolean(option.isExternal)
+      })
     });
     setLinking(false);
     setPicking(false);
+    setConfirmingExternal(null);
     onLinked();
   }
 
@@ -101,14 +123,42 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
           }}>
             {options === null && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
             {options?.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
-            {options?.map((o) => (
-              <button key={o.id} onClick={() => pick(o)} disabled={linking} style={{
-                textAlign: "left", background: "none", border: "none", padding: "8px 10px",
-                borderRadius: 8, cursor: linking ? "wait" : "pointer", fontSize: "0.85rem", color: "var(--text-strong)"
-              }}>
-                {o.name}
-              </button>
-            ))}
+            {options?.map((o) =>
+              confirmingExternal?.id === o.id ? (
+                <div key={o.id} style={{ padding: "10px", background: "var(--blindspot-soft)", borderRadius: 8, display: "grid", gap: 8 }}>
+                  <p style={{ fontSize: "0.78rem", margin: 0, color: "var(--text-strong)", lineHeight: 1.5 }}>
+                    <strong>#{o.name}</strong> is shared with another organization. Only link this if that organization has explicitly agreed to FOMO reading this channel.
+                  </p>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => pick(o)} disabled={linking} style={{
+                      fontSize: "0.78rem", fontWeight: 600, padding: "6px 10px", borderRadius: 6,
+                      border: "1px solid var(--blindspot)", background: "white", cursor: linking ? "wait" : "pointer"
+                    }}>
+                      Yes, they&apos;ve agreed
+                    </button>
+                    <button onClick={() => setConfirmingExternal(null)} style={{
+                      fontSize: "0.78rem", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--line)",
+                      background: "white", cursor: "pointer"
+                    }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button key={o.id} onClick={() => pick(o)} disabled={linking} style={{
+                  textAlign: "left", background: "none", border: "none", padding: "8px 10px",
+                  borderRadius: 8, cursor: linking ? "wait" : "pointer", fontSize: "0.85rem", color: "var(--text-strong)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8
+                }}>
+                  <span>{o.name}</span>
+                  {o.isExternal && (
+                    <span style={{ fontSize: "0.65rem", color: "var(--blindspot)", border: "1px solid var(--blindspot)", borderRadius: 999, padding: "1px 6px", flexShrink: 0 }}>
+                      external
+                    </span>
+                  )}
+                </button>
+              )
+            )}
           </div>
         )}
       </div>

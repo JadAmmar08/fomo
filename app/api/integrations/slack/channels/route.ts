@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       connected: true,
       teamName: connection.slack_team_name,
       linkedChannelId: connection.linked_channel_id,
-      channels: channels.map((c) => ({ id: c.id, name: c.name }))
+      channels: channels.map((c) => ({ id: c.id, name: c.name, isExternal: Boolean(c.is_ext_shared) }))
     });
   } catch (err) {
     console.error("[slack channels] failed:", err);
@@ -25,9 +25,19 @@ export async function POST(req: NextRequest) {
   const roomId = String(body.roomId ?? "");
   const channelId = String(body.channelId ?? "");
   const channelName = String(body.channelName ?? "");
+  const isExternal = Boolean(body.isExternal);
+  const externalConsentConfirmed = Boolean(body.externalConsentConfirmed);
 
   if (!roomId || !channelId) {
     return NextResponse.json({ error: "roomId and channelId required" }, { status: 400 });
+  }
+
+  // A channel shared with another organization (e.g. a client) needs an explicit,
+  // separate confirmation beyond just picking it from the list — the people on the
+  // other side of that channel haven't agreed to anything just because someone on
+  // this team clicked a name in a picker.
+  if (isExternal && !externalConsentConfirmed) {
+    return NextResponse.json({ error: "External channel requires explicit consent confirmation" }, { status: 400 });
   }
 
   const connection = await getSlackConnection(roomId);
@@ -42,6 +52,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not join channel" }, { status: 500 });
   }
 
-  await linkSlackChannel(roomId, channelId, channelName);
+  await linkSlackChannel(roomId, channelId, channelName, isExternal);
   return NextResponse.json({ ok: true });
 }

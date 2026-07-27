@@ -240,9 +240,11 @@ create table if not exists slack_connections (
   installed_by text not null,
   linked_channel_id text,
   linked_channel_name text,
+  linked_channel_is_external boolean not null default false,
   installed_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table slack_connections add column if not exists linked_channel_is_external boolean not null default false;
 
 create table if not exists google_connections (
   anonymous_user_id text not null,
