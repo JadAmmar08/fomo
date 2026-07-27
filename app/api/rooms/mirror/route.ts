@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Mental model is only available for teams" }, { status: 400 });
   }
 
-  const mirror = await getTeamMirror(String(room.id)).catch(() => null);
+  const mirror = await getTeamMirror(String(room.id), roomSlug).catch(() => null);
 
   return NextResponse.json({
     room: { id: room.id, name: room.name },

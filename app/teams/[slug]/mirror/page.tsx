@@ -89,10 +89,10 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(2.6rem, 5.5vw, 4.2rem)", maxWidth: 700, margin: "0 auto 20px", lineHeight: 1.05 }}>
-          {room.name}&apos;s mental model.
+          {room.name}&apos;s workstream, from the inside.
         </h1>
         <p style={{ maxWidth: 480, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
-          Not what happened today. What this team has come to believe, and where that thinking might be exposed.
+          Not what happened today. What this workstream has come to assume, and where that thinking hasn&apos;t been double-checked.
         </p>
         <div style={{ marginTop: 24 }}>
           <Link href={`/teams/${slug}` as Route} className="button-secondary" style={{ display: "inline-flex" }}>
@@ -105,14 +105,14 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
         <section data-reveal style={{ ...cardStyle, padding: "56px 48px", textAlign: "center" }}>
           <h2>Still forming.</h2>
           <p style={{ maxWidth: 420, margin: "0 auto" }}>
-            The mental model builds from the team&apos;s connection history. Once the pulse has found a few things, this page starts filling in.
+            This builds from the workstream&apos;s real activity. Once there&apos;s enough connected work, this page starts filling in.
           </p>
         </section>
       ) : (
         <>
           {mirror!.onboardingSummary && (
             <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>New to this team?</SectionLabel>
+              <SectionLabel>Picking this up?</SectionLabel>
               <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 16 }}>Get caught up.</h2>
               <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, color: "var(--text)" }}>
                 {mirror!.onboardingSummary}
@@ -122,8 +122,8 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
 
           {mirror!.theses.length > 0 && (
             <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>Working theses</SectionLabel>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What this team currently believes.</h2>
+              <SectionLabel>Current hypotheses</SectionLabel>
+              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What this workstream currently assumes.</h2>
               <div className="list">
                 {mirror!.theses.map((thesis, i) => (
                   <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -136,8 +136,8 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
           )}
 
           <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-            <SectionLabel>Blind spots</SectionLabel>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>Assumptions nobody&apos;s revisited.</h2>
+            <SectionLabel>Unchecked assumptions</SectionLabel>
+            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>What you&apos;d be building on top of.</h2>
             {mirror!.hasEnoughHistoryForStaleness ? (
               mirror!.staleAssumptions && mirror!.staleAssumptions.length > 0 ? (
                 <div className="list" style={{ marginTop: 16 }}>
@@ -149,7 +149,7 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
                   ))}
                 </div>
               ) : (
-                <p style={{ marginTop: 8 }}>Nothing flagged as stale right now, the team&apos;s current beliefs are still being actively tested.</p>
+                <p style={{ marginTop: 8 }}>Nothing flagged as stale right now, current thinking is still being actively tested.</p>
               )
             ) : (
               <p style={{ marginTop: 8 }}>Not enough history yet to tell what&apos;s gone unchallenged. This fills in after a few more days of activity.</p>

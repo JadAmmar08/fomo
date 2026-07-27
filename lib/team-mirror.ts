@@ -1,6 +1,10 @@
 import { getPool } from "@/lib/postgres";
-import type { IdeaConnection } from "@/lib/room-connections";
 import { logApiCall } from "@/lib/cost-log";
+
+interface WorkstreamCycle {
+  summary: string | null;
+  captured_at: string;
+}
 
 export interface Thesis {
   statement: string;
@@ -36,7 +40,11 @@ const MIN_HISTORY_SPAN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
  * say things a snapshot can't: which theses keep getting reinforced, which assumptions haven't
  * been touched in a while, and what's changed since last time.
  */
-export async function getTeamMirror(roomId: string, forceRefresh = false): Promise<TeamMirror | null> {
+// roomId is the room's UUID (used by the older team_mirror_state/shifts tables);
+// roomSlug is the text slug (used by workstream_snapshots, same as every
+// integration table built alongside it). Two different keys for historical
+// reasons, both required here.
+export async function getTeamMirror(roomId: string, roomSlug: string, forceRefresh = false): Promise<TeamMirror | null> {
   const pool = getPool();
   if (!pool) return null;
 
@@ -62,11 +70,11 @@ export async function getTeamMirror(roomId: string, forceRefresh = false): Promi
     }
   }
 
-  const historyRes = await pool.query(
-    `select connections, captured_at from team_connection_history where room_id = $1 order by captured_at asc`,
-    [roomId]
+  const historyRes = await pool.query<WorkstreamCycle>(
+    `select summary, captured_at from workstream_snapshots where room_id = $1 and source = 'combined' order by captured_at asc`,
+    [roomSlug]
   );
-  const history = historyRes.rows as Array<{ connections: IdeaConnection[]; captured_at: string }>;
+  const history = historyRes.rows;
 
   if (history.length === 0) {
     return {
@@ -156,7 +164,7 @@ function mapPreviousState(row: Record<string, unknown>): PreviousState {
 }
 
 async function computeMentalModelWithHaiku(
-  history: Array<{ connections: IdeaConnection[]; captured_at: string }>,
+  history: WorkstreamCycle[],
   previousState: PreviousState | null,
   askForStaleness: boolean,
   roomId?: string
@@ -169,8 +177,8 @@ async function computeMentalModelWithHaiku(
     const client = new Anthropic({ apiKey });
 
     const historyBlock = history
-      .map((h, i) => `Cycle ${i + 1} (${new Date(h.captured_at).toLocaleDateString()}):\n` +
-        h.connections.map((c) => `- ${c.from} <-> ${c.to}: ${c.explanation}`).join("\n"))
+      .filter((h) => h.summary)
+      .map((h, i) => `Cycle ${i + 1} (${new Date(h.captured_at).toLocaleDateString()}):\n${h.summary}`)
       .join("\n\n");
 
     const previousBlock = previousState
@@ -189,7 +197,7 @@ async function computeMentalModelWithHaiku(
             properties: {
               onboardingSummary: {
                 type: "string",
-                description: "2-3 sentences a brand new team member could read to get caught up on what this team collectively knows and is working on. No jargon, no internal references."
+                description: "2-3 sentences for an analyst picking up this workstream partway through, who has seen none of the work so far. Plain, concrete, no internal shorthand."
               },
               theses: {
                 type: "array",
@@ -201,7 +209,7 @@ async function computeMentalModelWithHaiku(
                   },
                   required: ["statement", "isNew"]
                 },
-                description: "2-4 standing beliefs this team has converged on, based on connections that keep reinforcing the same idea across multiple cycles. Mark isNew true only if this thesis wasn't in the previous model."
+                description: "2-4 standing working hypotheses this workstream has converged on, based on what keeps showing up consistently across multiple cycles of real file and conversation content. Mark isNew true only if this hypothesis wasn't in the previous model."
               },
               staleAssumptions: {
                 type: "array",
@@ -213,7 +221,7 @@ async function computeMentalModelWithHaiku(
                   },
                   required: ["statement", "note"]
                 },
-                description: "Only fill this in if asked to. Things the team assumed early on that no connection has touched, confirmed, or challenged since."
+                description: "Only fill this in if asked to. Assumptions baked into early work that no later file, edit, or conversation has touched, confirmed, or challenged since, the kind of thing an analyst could unknowingly build on top of."
               },
               newShifts: {
                 type: "array",
@@ -227,24 +235,24 @@ async function computeMentalModelWithHaiku(
         }
       ],
       tool_choice: { type: "tool", name: "team_mental_model" },
-      system: `You maintain an evolving mental model of what a private research team collectively understands, based on a history of AI-found connections between different members' separate research.
+      system: `You maintain an evolving picture of a workstream's real work, based on a history of activity across its connected tools, real file and document content, and conversation. This exists to support the analyst doing the work, not to report on them to leadership, who already know the direction, they just lack sideways visibility into their own workstream's accumulated state.
 
-This is NOT a summary of the latest cycle. It is a standing, incrementally-updated model of the team's current thinking, so treat the previous model as your starting point and update it, don't rewrite it from scratch each time.
+This is NOT a summary of the latest cycle. It is a standing, incrementally-updated model of the workstream's current thinking, so treat the previous model as your starting point and update it, don't rewrite it from scratch each time.
 
 RULES:
-- ONBOARDING SUMMARY: written for someone who just joined the team and has seen none of this. Plain, concrete, no internal shorthand.
-- THESES: only include a thesis if it's been reinforced by connections across more than one cycle, or is a clear, strong synthesis of the current cycle if this is the first one. A single one-off connection is not a thesis.
-- NO INVENTED SPECIFICS: never state a fabricated number, percentage, or timeline not derivable from the actual connections given.
-- ONE CLAIM PER STATEMENT: each thesis or stale assumption statement is ONE tight sentence, max 25 words, not a paragraph, not two sentences. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
+- ONBOARDING SUMMARY: written for an analyst joining or returning to this workstream who has seen none of the work so far. Plain, concrete, no internal shorthand.
+- HYPOTHESES: only include one if it's been reinforced by real content across more than one cycle, or is a clear, strong synthesis of the current cycle if this is the first one. A single one-off mention is not a hypothesis.
+- NO INVENTED SPECIFICS: never state a fabricated number, percentage, or timeline not derivable from the actual activity given.
+- ONE CLAIM PER STATEMENT: each hypothesis or stale assumption statement is ONE tight sentence, max 25 words, not a paragraph, not two sentences. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
 - NO EM-DASHES anywhere in any field. Use a period or comma instead.
 ${askForStaleness
-  ? "- STALE ASSUMPTIONS: you have enough history for this. Flag anything the team assumed in early cycles that has not been touched, confirmed, or challenged by any connection since. If genuinely nothing qualifies, return an empty array, don't force one."
+  ? "- STALE ASSUMPTIONS: you have enough history for this. Flag anything assumed in early cycles that has not been touched, confirmed, or challenged by any later activity since. If genuinely nothing qualifies, return an empty array, don't force one."
   : "- STALE ASSUMPTIONS: there isn't enough history yet to say anything real here. Always return an empty array for this field regardless of what you see."}
-- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a thesis reversed, a new thesis emerged, an assumption got confirmed or broken). If the previous model already said this, it's not new, don't repeat it.`,
+- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a hypothesis reversed, a new one emerged, an assumption got confirmed or broken). If the previous model already said this, it's not new, don't repeat it.`,
       messages: [
         {
           role: "user",
-          content: `${previousBlock}\n\nFull history of connection cycles found so far:\n\n${historyBlock}\n\nUpdate the team's mental model.`
+          content: `${previousBlock}\n\nFull history of this workstream's real activity, cycle by cycle:\n\n${historyBlock}\n\nUpdate the workstream's mental model.`
         }
       ]
     });
