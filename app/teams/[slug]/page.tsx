@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { WebOfIdeas } from "@/components/web-of-ideas";
 import { WorkstreamPanel } from "@/components/workstream-panel";
 import { SlackPanel } from "@/components/slack-panel";
+import { MicrosoftPanel } from "@/components/microsoft-panel";
 import { logFeatureView } from "@/lib/cost-log";
 
 interface IdeaConnection {
@@ -240,6 +241,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
 
       <WorkstreamPanel roomId={slug} />
       <SlackPanel roomId={slug} />
+      <MicrosoftPanel roomId={slug} />
 
       <section className="panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
         <p style={{ margin: 0 }}>Want to invite more people?</p>
