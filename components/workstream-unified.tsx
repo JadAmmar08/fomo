@@ -20,20 +20,33 @@ interface WorkstreamItem {
   link: string;
 }
 
-const SOURCE_META: Record<SourceKey, { name: string; icon: string; connectPath: string; pickPath: string; pickKey: "folderId" | "channelId"; nameKey: "folderName" | "channelName" }> = {
-  google: { name: "Google Drive", icon: "📁", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName" },
-  microsoft: { name: "OneDrive", icon: "🗂️", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName" },
-  slack: { name: "Slack", icon: "#", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName" }
+const SOURCE_META: Record<SourceKey, {
+  name: string;
+  color: string;
+  connectPath: string;
+  pickPath: string;
+  pickKey: "folderId" | "channelId";
+  nameKey: "folderName" | "channelName";
+  pickVerb: string;
+}> = {
+  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder" },
+  slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel" }
 };
 
-function SourceChip({ source, status, roomId, onLinked }: { source: SourceKey; status: SourceStatus; roomId: string; onLinked: () => void }) {
+function SourceDot({ color }: { color: string }) {
+  return <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />;
+}
+
+function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; status: SourceStatus; roomId: string; onLinked: () => void }) {
   const [picking, setPicking] = useState(false);
   const [options, setOptions] = useState<Array<{ id: string; name: string }> | null>(null);
   const [linking, setLinking] = useState(false);
   const meta = SOURCE_META[source];
 
   async function openPicker() {
-    setPicking(true);
+    setPicking((v) => !v);
+    if (options) return;
     const res = await fetch(`${meta.pickPath}?roomId=${roomId}`, { credentials: "include" });
     const data = await res.json();
     setOptions((data.folders ?? data.channels ?? []).map((o: { id: string; name: string }) => ({ id: o.id, name: o.name })));
@@ -52,31 +65,46 @@ function SourceChip({ source, status, roomId, onLinked }: { source: SourceKey; s
     onLinked();
   }
 
+  const baseStyle: React.CSSProperties = {
+    display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderRadius: 14,
+    border: "1px solid var(--line)", background: "var(--surface-raised)", minWidth: 168, position: "relative"
+  };
+
   if (status.linked) {
     return (
-      <span className="chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        {meta.icon} {status.label}
-      </span>
+      <div style={baseStyle}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <SourceDot color={meta.color} /> {meta.name}
+        </span>
+        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text-strong)" }}>{status.label}</span>
+      </div>
     );
   }
 
   if (status.connected) {
     return (
-      <div style={{ position: "relative" }}>
-        <button onClick={openPicker} className="chip" style={{ border: "1px dashed var(--line-strong)", cursor: "pointer" }}>
-          {meta.icon} Pick {meta.name} folder{source === "slack" ? "'s channel" : ""} →
+      <div style={baseStyle}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <SourceDot color={meta.color} /> {meta.name}
+        </span>
+        <button
+          onClick={openPicker}
+          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
+        >
+          {meta.pickVerb} →
         </button>
-        {picking && options && (
+        {picking && (
           <div style={{
-            position: "absolute", top: "110%", left: 0, zIndex: 10, background: "white",
-            border: "1px solid var(--line)", borderRadius: 12, padding: 8, minWidth: 220,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "grid", gap: 4, maxHeight: 240, overflowY: "auto"
+            position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 10, background: "white",
+            border: "1px solid var(--line)", borderRadius: 12, padding: 6, minWidth: 220,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "grid", gap: 2, maxHeight: 240, overflowY: "auto"
           }}>
-            {options.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 6 }}>Nothing found</span>}
-            {options.map((o) => (
+            {options === null && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
+            {options?.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
+            {options?.map((o) => (
               <button key={o.id} onClick={() => pick(o)} disabled={linking} style={{
-                textAlign: "left", background: "none", border: "none", padding: "6px 8px",
-                borderRadius: 8, cursor: linking ? "wait" : "pointer", fontSize: "0.85rem"
+                textAlign: "left", background: "none", border: "none", padding: "8px 10px",
+                borderRadius: 8, cursor: linking ? "wait" : "pointer", fontSize: "0.85rem", color: "var(--text-strong)"
               }}>
                 {o.name}
               </button>
@@ -88,8 +116,11 @@ function SourceChip({ source, status, roomId, onLinked }: { source: SourceKey; s
   }
 
   return (
-    <a href={`${meta.connectPath}?roomId=${roomId}`} className="chip" style={{ color: "var(--subtle)", border: "1px dashed var(--line)" }}>
-      {meta.icon} Connect {meta.name}
+    <a href={`${meta.connectPath}?roomId=${roomId}`} style={{ ...baseStyle, textDecoration: "none" }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <SourceDot color={meta.color} /> {meta.name}
+      </span>
+      <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text-strong)" }}>Connect →</span>
     </a>
   );
 }
@@ -128,14 +159,17 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
       background: "white", borderRadius: 20, border: "1px solid var(--line)",
       boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
         <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
         Workstream
       </div>
+      <p style={{ fontSize: "0.85rem", color: "var(--subtle)", marginBottom: 20, maxWidth: 480 }}>
+        Connect the tools this team already uses — FOMO reads only what&apos;s explicitly linked below.
+      </p>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
         {(Object.keys(statuses) as SourceKey[]).map((key) => (
-          <SourceChip key={key} source={key} status={statuses[key]} roomId={roomId} onLinked={loadStatuses} />
+          <SourceCard key={key} source={key} status={statuses[key]} roomId={roomId} onLinked={loadStatuses} />
         ))}
       </div>
 
@@ -153,10 +187,11 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
               {items.slice(0, 8).map((item, i) => (
                 <a key={i} href={item.link} target="_blank" rel="noreferrer" style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem",
-                  padding: "10px 14px", borderRadius: 10, border: "1px solid var(--line)", color: "var(--text-strong)"
+                  padding: "10px 14px", borderRadius: 10, border: "1px solid var(--line)", color: "var(--text-strong)", textDecoration: "none"
                 }}>
-                  <span>
-                    <span style={{ color: "var(--subtle)", marginRight: 8 }}>{SOURCE_META[item.source].icon} {item.label}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <SourceDot color={SOURCE_META[item.source].color} />
+                    <span style={{ color: "var(--subtle)" }}>{item.label}</span>
                     {item.name}
                   </span>
                   <span style={{ color: "var(--subtle)" }}>{new Date(item.modifiedTime).toLocaleDateString()}</span>

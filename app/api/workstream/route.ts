@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
     const { items, summary } = await getCombinedWorkstream(anonymousUserId, roomId);
     return NextResponse.json({
       summary,
-      items: items.map((i) => ({ source: i.source, label: i.label, name: i.name, modifiedTime: i.modifiedTime, link: i.link }))
+      // Slack's item is a synthetic stand-in used only to feed the summary — it's
+      // not a real file, so it doesn't belong in a feed of actual linked items.
+      items: items
+        .filter((i) => i.source !== "slack")
+        .map((i) => ({ source: i.source, label: i.label, name: i.name, modifiedTime: i.modifiedTime, link: i.link }))
     });
   } catch (err) {
     console.error("[workstream] failed:", err);
