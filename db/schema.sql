@@ -289,4 +289,16 @@ create table if not exists workstream_snapshots (
 );
 create index if not exists idx_workstream_snapshots_room_source on workstream_snapshots(room_id, source, captured_at desc);
 alter table workstream_snapshots drop constraint if exists workstream_snapshots_source_check;
-alter table workstream_snapshots add constraint workstream_snapshots_source_check check (source in ('google', 'slack', 'microsoft'));
+alter table workstream_snapshots add constraint workstream_snapshots_source_check check (source in ('google', 'slack', 'microsoft', 'combined'));
+
+-- PUSH SUBSCRIPTIONS (Web Push endpoints, one per browser/device a user has
+-- enabled notifications on — not email, real OS-level push via the browser.)
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  anonymous_user_id text not null,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_push_subscriptions_user on push_subscriptions(anonymous_user_id);

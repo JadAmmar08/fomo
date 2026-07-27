@@ -3,7 +3,7 @@ import { getPool } from "@/lib/postgres";
 // Shared accumulation layer for both Drive and Slack workstream summaries — stores
 // what was seen each time a summary is generated, so the next generation can say
 // "here's what changed" instead of re-describing the same static state from scratch.
-export async function saveSnapshot(roomId: string, source: "google" | "slack" | "microsoft", rawData: unknown, summary: string | null) {
+export async function saveSnapshot(roomId: string, source: "google" | "slack" | "microsoft" | "combined", rawData: unknown, summary: string | null) {
   const pool = getPool();
   if (!pool) return;
   await pool.query(
@@ -12,7 +12,7 @@ export async function saveSnapshot(roomId: string, source: "google" | "slack" | 
   );
 }
 
-export async function getLatestSnapshot(roomId: string, source: "google" | "slack" | "microsoft") {
+export async function getLatestSnapshot(roomId: string, source: "google" | "slack" | "microsoft" | "combined") {
   const pool = getPool();
   if (!pool) return null;
   const res = await pool.query<{ raw_data: unknown; summary: string | null; captured_at: string }>(
