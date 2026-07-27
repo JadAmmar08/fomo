@@ -216,11 +216,43 @@ export async function listRecentFilesWithRevisions(accessToken: string, maxFiles
       const revisions = revRes.ok
         ? ((await revRes.json()).revisions ?? [])
         : [];
-      return { ...file, revisions };
+      const content = await exportFileContent(accessToken, file.id, file.mimeType);
+      return { ...file, revisions, content };
     })
   );
 
   return withRevisions;
+}
+
+const EXPORT_MIME_TYPES: Record<string, string> = {
+  "application/vnd.google-apps.document": "text/plain",
+  "application/vnd.google-apps.presentation": "text/plain",
+  // Sheets export only covers the first sheet/tab — a real limitation, not a bug,
+  // but enough to describe what a spreadsheet is actually tracking.
+  "application/vnd.google-apps.spreadsheet": "text/csv"
+};
+
+const MAX_CONTENT_CHARS = 3000;
+
+// Pulls the actual text content of a native Google Doc/Sheet/Slide — not just its
+// activity metadata — so a summary can describe what the file is actually about,
+// not only who touched it and when. Skips anything not natively exportable (PDFs,
+// images, videos, uploaded Office files) rather than guessing at their content.
+async function exportFileContent(accessToken: string, fileId: string, mimeType: string): Promise<string | null> {
+  const exportMime = EXPORT_MIME_TYPES[mimeType];
+  if (!exportMime) return null;
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMime)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text.slice(0, MAX_CONTENT_CHARS);
+  } catch {
+    return null;
+  }
 }
 
 interface FileActivity {
@@ -230,18 +262,20 @@ interface FileActivity {
   modifiedTime: string;
   webViewLink: string;
   revisions: Array<{ modifiedTime: string; lastModifyingUser?: { displayName?: string; emailAddress?: string } }>;
+  content?: string | null;
 }
 
 // Turns raw Drive file/revision data into a short, readable workstream summary —
-// the first slice of the handoff feature: "here's what changed and who touched it,"
-// not a behavior model of any individual.
+// the first slice of the handoff feature: "here's what changed and who touched it,
+// and what it's actually about," not a behavior model of any individual.
 export async function summarizeWorkstream(files: FileActivity[], previousSummary?: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || files.length === 0) return null;
 
   const activityLines = files.map((f) => {
     const editors = [...new Set(f.revisions.map((r) => r.lastModifyingUser?.displayName).filter(Boolean))];
-    return `- "${f.name}" (${f.mimeType.split(".").pop()}), last modified ${f.modifiedTime}, edited by: ${editors.join(", ") || "unknown"}, ${f.revisions.length} revisions`;
+    const header = `- "${f.name}" (${f.mimeType.split(".").pop()}), last modified ${f.modifiedTime}, edited by: ${editors.join(", ") || "unknown"}, ${f.revisions.length} revisions`;
+    return f.content ? `${header}\n  Content excerpt:\n  ${f.content.replace(/\n/g, "\n  ")}` : header;
   });
 
   const historyBlock = previousSummary
@@ -258,7 +292,7 @@ export async function summarizeWorkstream(files: FileActivity[], previousSummary
       messages: [
         {
           role: "user",
-          content: `Here is a list of recently modified Google Drive files and their edit history:\n\n${activityLines.join("\n")}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what's been worked on, who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the activity on the files themselves. No preamble, just the summary.`
+          content: `Here is a list of recently modified Google Drive files, their edit history, and — where available — an excerpt of their actual content:\n\n${activityLines.join("\n\n")}${historyBlock}\n\nWrite a short (3-5 sentence) plain-English summary of this workstream: what it's actually about (using the content excerpts, not just filenames), who's been involved, and anything that looks unresolved or actively in flux. Never describe this as tracking or monitoring a person — describe the work itself. No preamble, just the summary.`
         }
       ]
     });
