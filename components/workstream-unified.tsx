@@ -8,6 +8,8 @@ interface SourceStatus {
   connected: boolean;
   linked: boolean;
   label: string;
+  isAutoAll?: boolean;
+  includeSharedEnabled?: boolean;
 }
 
 type Statuses = Record<SourceKey, SourceStatus>;
@@ -30,9 +32,10 @@ const SOURCE_META: Record<SourceKey, {
   pickVerb: string;
   autoAllPath: string;
   autoAllLabel: string;
+  includeSharedPath?: string;
 }> = {
-  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own" },
-  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own" },
+  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared" },
   slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels" }
 };
 
@@ -101,6 +104,25 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
           <SourceDot color={meta.color} /> {meta.name}
         </span>
         <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text-strong)" }}>{status.label}</span>
+        {status.isAutoAll && !status.includeSharedEnabled && meta.includeSharedPath && (
+          <button
+            onClick={async () => {
+              setLinking(true);
+              await fetch(meta.includeSharedPath!, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId })
+              });
+              setLinking(false);
+              onLinked();
+            }}
+            disabled={linking}
+            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.76rem", fontWeight: 500, color: "var(--accent)" }}
+          >
+            {linking ? "Adding…" : "+ also include shared files"}
+          </button>
+        )}
       </div>
     );
   }

@@ -265,6 +265,7 @@ create table if not exists google_connections (
 alter table google_connections add column if not exists linked_folder_id text;
 alter table google_connections add column if not exists linked_folder_name text;
 alter table google_connections add column if not exists auto_all_files boolean not null default false;
+alter table google_connections add column if not exists include_shared_files boolean not null default false;
 
 create table if not exists microsoft_connections (
   anonymous_user_id text not null,
@@ -282,6 +283,7 @@ create table if not exists microsoft_connections (
   primary key (anonymous_user_id, room_id)
 );
 alter table microsoft_connections add column if not exists auto_all_files boolean not null default false;
+alter table microsoft_connections add column if not exists include_shared_files boolean not null default false;
 
 -- WORKSTREAM SNAPSHOTS (one row per summary generation, across all connected
 -- sources — lets a new summary say "what changed since last time" instead of

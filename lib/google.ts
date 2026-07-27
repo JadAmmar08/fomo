@@ -152,8 +152,14 @@ export async function hasGoogleConnection(anonymousUserId: string, roomId: strin
 export async function getGoogleConnection(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) return null;
-  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null; auto_all_files: boolean }>(
-    `select linked_folder_id, linked_folder_name, auto_all_files from google_connections
+  const res = await pool.query<{
+    linked_folder_id: string | null;
+    linked_folder_name: string | null;
+    auto_all_files: boolean;
+    include_shared_files: boolean;
+    google_email: string | null;
+  }>(
+    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, google_email from google_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -185,6 +191,20 @@ export async function enableAutoAllFiles(anonymousUserId: string, roomId: string
   );
 }
 
+// A separate, explicit decision on top of "everything I own": also include files
+// shared with them by someone else, but only ones they've genuinely edited
+// themselves (enforced in listRecentFilesWithRevisions's filter), never a file
+// sitting untouched in their "Shared with me" view.
+export async function enableIncludeSharedFiles(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update google_connections set include_shared_files = true, updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+}
+
 // Lists the user's Drive folders (not files) — the picker only shows folders so a
 // specific team's shared workspace can be scoped to, instead of reading their whole
 // personal Drive.
@@ -207,18 +227,30 @@ export async function listFolders(accessToken: string) {
 // Lists files a user has recently modified, with their revision history — the raw
 // material for a workstream handoff summary (who touched what, in what order).
 // Scoped to a single linked folder, or to every file the user actually owns when
-// ownedOnly is set — never to files merely shared with them by someone else, which
-// belong to whoever shared them, not to this person's consent to give.
-export async function listRecentFilesWithRevisions(accessToken: string, maxFiles = 10, folderId?: string | null, ownedOnly = false) {
+// ownedOnly is set. When includeShared is also set, files shared with them by
+// someone else are included too, but ONLY if this person has actually edited it
+// themselves (checked against real revision history below) — a shared file they
+// never touched belongs to whoever shared it, not to their consent to give, but one
+// they've genuinely worked in is legitimately part of their own activity.
+export async function listRecentFilesWithRevisions(
+  accessToken: string,
+  maxFiles = 10,
+  folderId?: string | null,
+  ownedOnly = false,
+  options?: { includeShared?: boolean; userEmail?: string | null }
+) {
+  const includeOwnedField = ownedOnly && options?.includeShared;
   const params: Record<string, string> = {
     pageSize: String(maxFiles),
     orderBy: "modifiedTime desc",
-    fields: "files(id,name,mimeType,modifiedTime,webViewLink)"
+    fields: `files(id,name,mimeType,modifiedTime,webViewLink${includeOwnedField ? ",ownedByMe" : ""})`
   };
   if (folderId) {
     params.q = `'${folderId}' in parents and trashed = false`;
-  } else if (ownedOnly) {
+  } else if (ownedOnly && !options?.includeShared) {
     params.q = "'me' in owners and trashed = false";
+  } else if (includeOwnedField) {
+    params.q = "trashed = false";
   }
 
   const filesRes = await fetch(
@@ -226,7 +258,7 @@ export async function listRecentFilesWithRevisions(accessToken: string, maxFiles
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!filesRes.ok) throw new Error(`Drive files list failed: ${await filesRes.text()}`);
-  const { files } = (await filesRes.json()) as { files: Array<{ id: string; name: string; mimeType: string; modifiedTime: string; webViewLink: string }> };
+  const { files } = (await filesRes.json()) as { files: Array<{ id: string; name: string; mimeType: string; modifiedTime: string; webViewLink: string; ownedByMe?: boolean }> };
 
   const withRevisions = await Promise.all(
     files.map(async (file) => {
@@ -242,7 +274,16 @@ export async function listRecentFilesWithRevisions(accessToken: string, maxFiles
     })
   );
 
-  return withRevisions;
+  if (!includeOwnedField || !options?.userEmail) return withRevisions;
+
+  // Keep anything they own outright, regardless of revision data (which isn't
+  // always populated reliably). A shared file only counts if they show up as an
+  // actual editor in its revision history, not just a passive recipient of it.
+  return withRevisions.filter((file) => {
+    if (file.ownedByMe) return true;
+    const revisions = file.revisions as Array<{ lastModifyingUser?: { emailAddress?: string } }>;
+    return revisions.some((r) => r.lastModifyingUser?.emailAddress === options.userEmail);
+  });
 }
 
 const EXPORT_MIME_TYPES: Record<string, string> = {

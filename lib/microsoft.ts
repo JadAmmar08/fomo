@@ -137,8 +137,13 @@ export async function getValidAccessToken(anonymousUserId: string, roomId: strin
 export async function getMicrosoftConnection(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) return null;
-  const res = await pool.query<{ linked_folder_id: string | null; linked_folder_name: string | null; auto_all_files: boolean }>(
-    `select linked_folder_id, linked_folder_name, auto_all_files from microsoft_connections
+  const res = await pool.query<{
+    linked_folder_id: string | null;
+    linked_folder_name: string | null;
+    auto_all_files: boolean;
+    include_shared_files: boolean;
+  }>(
+    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files from microsoft_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -162,6 +167,18 @@ export async function enableAutoAllFiles(anonymousUserId: string, roomId: string
   if (!pool) throw new Error("Database not configured");
   await pool.query(
     `update microsoft_connections set auto_all_files = true, linked_folder_id = null, linked_folder_name = null, updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+}
+
+// A separate, explicit decision on top of "everything I own": also include files
+// shared with them that Graph's /recent shows real activity on.
+export async function enableIncludeSharedFiles(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update microsoft_connections set include_shared_files = true, updated_at = now()
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -322,18 +339,20 @@ export async function listRecentFiles(accessToken: string, folderId: string, max
 }
 
 // Lists recently touched files across the user's entire OneDrive, not one folder.
-// Graph's /recent endpoint also includes items shared with the user by others, so
-// anything carrying a remoteItem (meaning it lives in someone else's drive, just
-// shared into this view) is filtered out — that file belongs to whoever owns it,
-// not to this person's consent to hand over.
-export async function listRecentFilesAcrossDrive(accessToken: string, maxFiles = 20) {
+// Graph's /recent endpoint also includes items shared with the user by others, so by
+// default anything carrying a remoteItem (meaning it lives in someone else's drive,
+// just shared into this view) is filtered out. When includeShared is set, those are
+// kept too — but since /recent only ever returns items this person has actually
+// opened or edited, a shared item showing up here already proves real activity by
+// them, not passive access to something they never touched.
+export async function listRecentFilesAcrossDrive(accessToken: string, maxFiles = 20, includeShared = false) {
   const res = await fetch(
     `${GRAPH_BASE}/me/drive/recent?$top=${maxFiles}&$select=id,name,file,lastModifiedDateTime,webUrl,lastModifiedBy,remoteItem`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) throw new Error(`OneDrive recent files list failed: ${await res.text()}`);
   const data = await res.json();
-  const files = (data.value as Array<OneDriveFile & { remoteItem?: unknown }>).filter((f) => f.file && !f.remoteItem);
+  const files = (data.value as Array<OneDriveFile & { remoteItem?: unknown }>).filter((f) => f.file && (includeShared || !f.remoteItem));
   return enrichFiles(accessToken, files);
 }
 
