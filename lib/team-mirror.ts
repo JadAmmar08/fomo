@@ -122,11 +122,24 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
     ]
   );
 
+  // Mechanical backstop, same reasoning as the sentence-length rules below: the "only
+  // report genuinely new shifts" instruction relies entirely on the model comparing
+  // against the previous model, which drifts under repeated/rapid recomputation,
+  // reinserting the same shift reworded slightly each time. Skip anything too similar
+  // to something already logged recently, rather than trust the model's judgment alone.
+  const recentShiftsRes = await pool.query<{ description: string }>(
+    `select description from team_mirror_shifts where room_id = $1 order by detected_at desc limit 15`,
+    [roomId]
+  );
+  const recentDescriptions = recentShiftsRes.rows.map((r) => r.description);
+
   for (const shift of computed.newShifts) {
+    if (recentDescriptions.some((existing) => isNearDuplicate(shift, existing))) continue;
     await pool.query(
       `insert into team_mirror_shifts (room_id, description) values ($1, $2)`,
       [roomId, shift]
     );
+    recentDescriptions.push(shift);
   }
 
   const shifts = await getShiftHistory(pool, roomId);
@@ -291,6 +304,26 @@ ${askForStaleness
   } catch {
     return null;
   }
+}
+
+const STOPWORDS = new Set(["the", "a", "an", "is", "are", "was", "were", "as", "of", "to", "and", "or", "in", "on", "for", "with", "has", "have", "been", "being", "this", "that", "it", "not"]);
+
+function wordSet(text: string): Set<string> {
+  return new Set(
+    text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w && !STOPWORDS.has(w))
+  );
+}
+
+// Jaccard similarity over meaningful words — two shift descriptions reworded
+// differently but describing the same underlying change share most of their
+// substantive words (names, numbers, verbs), even if sentence structure differs.
+function isNearDuplicate(a: string, b: string, threshold = 0.3): boolean {
+  const setA = wordSet(a);
+  const setB = wordSet(b);
+  if (setA.size === 0 || setB.size === 0) return false;
+  const intersection = [...setA].filter((w) => setB.has(w)).length;
+  const union = new Set([...setA, ...setB]).size;
+  return intersection / union >= threshold;
 }
 
 // Mechanical safety net matching the site-wide no-em-dash rule — prompting alone isn't
