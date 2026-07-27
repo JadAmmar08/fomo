@@ -239,7 +239,7 @@ async function computeMentalModelWithHaiku(
               newShifts: {
                 type: "array",
                 items: { type: "string" },
-                description: "Only genuinely new changes in the team's thinking since the previous model, not things that were already true last time. Empty array if nothing has actually changed."
+                description: "Only genuinely new changes in the team's thinking since the previous model, not things that were already true last time. Empty array if nothing has actually changed. Each one is ONE tight sentence, max 20 words, no colons or semicolons chaining two claims together."
               }
             },
             required: ["onboardingSummary", "theses", "staleAssumptions", "newShifts"],
@@ -256,12 +256,12 @@ RULES:
 - ONBOARDING SUMMARY: written for an analyst joining or returning to this workstream who has seen none of the work so far. Plain, concrete, no internal shorthand.
 - HYPOTHESES: only include one if it's been reinforced by real content across more than one cycle, or is a clear, strong synthesis of the current cycle if this is the first one. A single one-off mention is not a hypothesis.
 - NO INVENTED SPECIFICS: never state a fabricated number, percentage, or timeline not derivable from the actual activity given.
-- ONE CLAIM PER STATEMENT: each hypothesis or stale assumption statement is ONE tight sentence, max 25 words, not a paragraph, not two sentences. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
+- ONE CLAIM PER STATEMENT: every hypothesis, stale assumption, and shift is ONE tight sentence, no colons or semicolons stitching a second clause onto the first, not a paragraph. Hypotheses and stale assumptions max 25 words, shifts max 20. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
 - NO EM-DASHES anywhere in any field. Use a period or comma instead.
 ${askForStaleness
   ? "- STALE ASSUMPTIONS: you have enough history for this. Flag anything assumed in early cycles that has not been touched, confirmed, or challenged by any later activity since. If genuinely nothing qualifies, return an empty array, don't force one."
   : "- STALE ASSUMPTIONS: there isn't enough history yet to say anything real here. Always return an empty array for this field regardless of what you see."}
-- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a hypothesis reversed, a new one emerged, an assumption got confirmed or broken). If the previous model already said this, it's not new, don't repeat it.`,
+- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a hypothesis reversed, a new one emerged, an assumption got confirmed or broken). If the previous model already said this, it's not new, don't repeat it. State only the change itself, skip preamble like "a new thesis has emerged" or "it was found that."`,
       messages: [
         {
           role: "user",
@@ -299,7 +299,7 @@ ${askForStaleness
             note: tightenToOneSentence(stripEmDash(a.note), 30)
           }))
         : [],
-      newShifts: Array.isArray(raw.newShifts) ? raw.newShifts.slice(0, 4).map((s) => tightenToOneSentence(stripEmDash(s), 25)) : []
+      newShifts: Array.isArray(raw.newShifts) ? raw.newShifts.slice(0, 4).map((s) => tightenToOneSentence(stripEmDash(s), 20)) : []
     };
   } catch {
     return null;

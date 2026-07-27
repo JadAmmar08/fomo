@@ -36,6 +36,18 @@ async function getTeamMirrorData(slug: string) {
   return res.json() as Promise<{ room: { id: string; name: string }; mirror: TeamMirrorData | null }>;
 }
 
+// Groups shifts under a single date header per day instead of repeating the same
+// date next to every entry when several land on the same day.
+function groupShiftsByDay(shifts: BeliefShift[]): Array<[string, BeliefShift[]]> {
+  const groups = new Map<string, BeliefShift[]>();
+  for (const shift of shifts) {
+    const day = new Date(shift.detectedAt).toLocaleDateString([], { month: "short", day: "numeric" });
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day)!.push(shift);
+  }
+  return [...groups.entries()];
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
@@ -160,13 +172,19 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
             <SectionLabel>Timeline</SectionLabel>
             <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>How thinking has shifted.</h2>
             {mirror!.shifts.length > 0 ? (
-              <div className="list">
-                {mirror!.shifts.map((shift, i) => (
-                  <div key={i} style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
-                    <span className="kicker" style={{ marginBottom: 0, flexShrink: 0, width: 90 }}>
-                      {new Date(shift.detectedAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+              <div style={{ display: "grid", gap: 20 }}>
+                {groupShiftsByDay(mirror!.shifts).map(([day, dayShifts]) => (
+                  <div key={day} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <span className="kicker" style={{ marginBottom: 0, flexShrink: 0, width: 90, paddingTop: 2 }}>
+                      {day}
                     </span>
-                    <p style={{ fontSize: "0.92rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{shift.description}</p>
+                    <div style={{ display: "grid", gap: 8, flex: 1 }}>
+                      {dayShifts.map((shift, i) => (
+                        <p key={i} style={{ fontSize: "0.92rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>
+                          {shift.description}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
