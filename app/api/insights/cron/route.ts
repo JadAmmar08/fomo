@@ -3,11 +3,14 @@ import { getPool } from "@/lib/postgres";
 import { getRoomWebOfIdeas } from "@/lib/room-connections";
 import { getIndividualGuidance } from "@/lib/individual-guidance";
 
-// Forces a fresh Pulse + per-member Discovery pass for every active room on a fixed
-// schedule, instead of only recomputing whenever someone happens to load a page. This is
-// what makes the push notifications in room-connections.ts/individual-guidance.ts actually
-// ambient — a real contradiction or overlap gets caught and pushed out within one cron
-// interval, not whenever the next viewer shows up (which could be hours or days later).
+// Triggers Pulse + per-member Discovery on a fixed schedule instead of only whenever
+// someone happens to load a page — that's what makes the push notifications in
+// room-connections.ts/individual-guidance.ts actually ambient, a real contradiction or
+// overlap gets caught within one cron interval instead of whenever the next viewer shows
+// up (which could be hours or days later). Deliberately does NOT force-refresh: it still
+// respects each function's own cache (Pulse every 4h, Discovery every 24h), so most ticks
+// are a cheap cache hit and a real (paid) recompute only happens once the cache actually
+// expires, on schedule rather than on someone's next visit.
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!process.env.INSIGHTS_CRON_SECRET || authHeader !== `Bearer ${process.env.INSIGHTS_CRON_SECRET}`) {
@@ -27,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   for (const room of roomsRes.rows) {
     try {
-      await getRoomWebOfIdeas(room.id, true);
+      await getRoomWebOfIdeas(room.id);
       roomsProcessed++;
     } catch (err) {
       errors.push(`pulse ${room.id}: ${err instanceof Error ? err.message : String(err)}`);
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
     );
     for (const member of membersRes.rows) {
       try {
-        await getIndividualGuidance(member.anonymous_user_id, room.id, true);
+        await getIndividualGuidance(member.anonymous_user_id, room.id);
         membersProcessed++;
       } catch (err) {
         errors.push(`guidance ${room.id}/${member.anonymous_user_id}: ${err instanceof Error ? err.message : String(err)}`);
