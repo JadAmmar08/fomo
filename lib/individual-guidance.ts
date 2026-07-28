@@ -1,6 +1,6 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
-import { getTeamWorkstreamSnippets, getMemberWorkstreamLines } from "@/lib/workstream";
+import { getTeamWorkstreamSnippets, getMemberWorkstreamDigest } from "@/lib/workstream";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
 
@@ -64,13 +64,13 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   // signal for what someone's actually concluded, mixing in their own connected file/Slack
   // content lets the pattern and team_signal reasoning below draw on real work, not just
   // passive research interest.
-  let ownWorkstreamLines: string[] = [];
+  let ownDigest: string | null = null;
   if (roomId) {
     const roomSlugRes = await pool.query<{ slug: string }>(`select slug from rooms where id = $1`, [roomId]);
     const roomSlug = roomSlugRes.rows[0]?.slug;
-    if (roomSlug) ownWorkstreamLines = await getMemberWorkstreamLines(anonymousUserId, roomSlug).catch(() => []);
+    if (roomSlug) ownDigest = await getMemberWorkstreamDigest(anonymousUserId, roomSlug).catch(() => null);
   }
-  const topics = [...browsingTopics, ...ownWorkstreamLines];
+  const topics = ownDigest ? [...browsingTopics, `[Workstream digest] ${ownDigest}`] : browsingTopics;
   if (topics.length < 3) return null;
 
   const teamContext = roomId ? await getTeamContext(pool, roomId, anonymousUserId) : null;
@@ -209,7 +209,7 @@ async function computeGuidanceWithHaiku(
       tool_choice: { type: "tool", name: "research_guidance" },
       system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
 
-The input list mixes short browsing topic labels with lines tagged [Drive]/[OneDrive]/[Slack], which are real excerpts from this person's own connected files or conversations. Treat tagged lines as stronger evidence of what they're actually producing, not just researching.
+The input list mixes short browsing topic labels with, when present, one line tagged "[Workstream digest]" — a synthesized summary of this person's own connected files and conversations, real findings and decisions, not passive interest. Treat it as stronger evidence of what they're actually producing than any topic label.
 
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 

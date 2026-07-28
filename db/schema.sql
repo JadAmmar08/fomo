@@ -313,3 +313,16 @@ create table if not exists push_subscriptions (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_push_subscriptions_user on push_subscriptions(anonymous_user_id);
+
+-- MEMBER WORKSTREAM DIGESTS (one cached, synthesized "what this person's actual
+-- work currently shows" per person per room — replaces raw file/message excerpts
+-- as the input to Pulse and Discovery's cross-referencing, since raw excerpts are
+-- too thin and too token-expensive to reason over as connected work grows. This is
+-- the deeper evidence layer: real conclusions, not just topic labels or snippets.)
+create table if not exists member_workstream_digests (
+  anonymous_user_id text not null,
+  room_id text not null,
+  digest text not null,
+  generated_at timestamptz not null default now(),
+  primary key (anonymous_user_id, room_id)
+);

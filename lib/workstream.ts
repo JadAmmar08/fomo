@@ -147,12 +147,72 @@ function formatItemsAsLines(items: WorkstreamItem[], excerptChars = 120): string
     });
 }
 
-// One member's own connected activity, formatted as content lines rather than browsing
-// topics — used to give the Pulse cross-reference something closer to actual conclusions
-// (file/conversation excerpts) instead of only topic labels from passive browsing.
-export async function getMemberWorkstreamLines(anonymousUserId: string, roomSlug: string): Promise<string[]> {
+const DIGEST_TTL_MS = 12 * 60 * 60 * 1000; // shorter than the guidance/pulse caches that consume it, so it never serves as the stale bottleneck
+
+// A raw excerpt from one file tells you almost nothing about what someone actually
+// concluded, and reasoning over 15 of them at once is both thin and expensive as
+// connected activity grows. This synthesizes one person's real connected work into a
+// short, concrete "what their work currently shows" digest — actual findings, decisions,
+// and open items, not a topic list — which is what makes catching a real contradiction
+// between two people's work possible instead of just noticing they're in the same area.
+export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlug: string): Promise<string | null> {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const cached = await pool.query<{ digest: string; generated_at: string }>(
+    `select digest, generated_at from member_workstream_digests where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomSlug]
+  );
+  if (cached.rows.length > 0 && Date.now() - new Date(cached.rows[0].generated_at).getTime() < DIGEST_TTL_MS) {
+    return cached.rows[0].digest;
+  }
+
   const items = await gatherItems(anonymousUserId, roomSlug).catch(() => []);
-  return formatItemsAsLines(items, 200);
+  if (items.length === 0) return null;
+
+  const digest = await synthesizeMemberDigest(items);
+  if (!digest) return cached.rows[0]?.digest ?? null;
+
+  await pool.query(
+    `insert into member_workstream_digests (anonymous_user_id, room_id, digest, generated_at)
+     values ($1, $2, $3, now())
+     on conflict (anonymous_user_id, room_id) do update set digest = excluded.digest, generated_at = now()`,
+    [anonymousUserId, roomSlug, digest]
+  );
+
+  return digest;
+}
+
+async function synthesizeMemberDigest(items: WorkstreamItem[]): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  const lines = items.slice(0, 20).map((item) => {
+    const header = `- [${item.label}] "${item.name}", ${item.modifiedTime}`;
+    return item.content ? `${header}\n  Content: ${item.content.slice(0, 1000).replace(/\n/g, "\n  ")}` : header;
+  });
+
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey });
+
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 300,
+      messages: [
+        {
+          role: "user",
+          content: `Here is one person's recent connected file and conversation activity:\n\n${lines.join("\n\n")}\n\nWrite a short (2-4 sentence) digest of what this person's actual work currently shows: concrete findings, decisions, or conclusions they've reached, and any open item they seem stuck on or still deciding. State specifics from the content, not a generic topic summary. No preamble, just the digest.`
+        }
+      ]
+    });
+
+    const block = message.content[0];
+    return block.type === "text" ? block.text.trim() : null;
+  } catch (err) {
+    console.error("[synthesizeMemberDigest] failed:", err);
+    return null;
+  }
 }
 
 // Anonymous, content-only view into what the rest of the team has connected — used by

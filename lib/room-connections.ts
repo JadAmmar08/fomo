@@ -1,6 +1,6 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
-import { getMemberWorkstreamLines } from "@/lib/workstream";
+import { getMemberWorkstreamDigest } from "@/lib/workstream";
 
 export type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
@@ -104,8 +104,8 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
       [memberId]
     );
     const topics = res.rows.map((r) => String(r.topic_label));
-    const workstreamLines = roomSlug ? await getMemberWorkstreamLines(memberId, roomSlug).catch(() => []) : [];
-    perMemberTopics.push([...topics, ...workstreamLines]);
+    const digest = roomSlug ? await getMemberWorkstreamDigest(memberId, roomSlug).catch(() => null) : null;
+    perMemberTopics.push(digest ? [...topics, `[Workstream digest] ${digest}`] : topics);
   }
 
   const totalTopics = perMemberTopics.reduce((sum, t) => sum + t.length, 0);
@@ -403,7 +403,7 @@ async function computeConnectionsWithHaiku(
       tool_choice: { type: "tool", name: "web_of_ideas" },
       system: `You are a research analyst finding non-obvious, high-value connections between what different members of a private group are independently looking into. This is the core value of the product: turning quiet, separate research into a shared discovery the group wouldn't have found on its own.
 
-Each member's list mixes two kinds of signal: short browsing topic labels, and lines tagged with a source like [Drive]/[OneDrive]/[Slack] which are real excerpts from that person's actual files or conversations. Treat the tagged lines as higher-value evidence, they reflect actual conclusions or work product, not just passive interest, so a genuine contradiction between two members' tagged lines (one workstream's stated conclusion undercutting another's stated assumption) is the single most valuable thing this can surface. Weight tagged lines accordingly when ranking connections by insight value.
+Each member's list mixes two kinds of signal: short browsing topic labels, and (when present) one line tagged "[Workstream digest]" which is a synthesized summary of that person's actual connected files and conversations — real findings, decisions, and open items, not passive interest. Treat the digest as much higher-value evidence than topic labels: a genuine contradiction between two members' digests (one workstream's stated conclusion undercutting another's stated assumption) is the single most valuable thing this can surface. Weight the digest accordingly when ranking connections by insight value, and prefer grounding connections in it over topic labels when both are available.
 
 RELEVANCE CHECK, BEFORE ANYTHING ELSE:
 You will be told this team's name and, if given, its stated focus. A member's browsing history can include topics that have nothing to do with why this team exists (a personal errand, an unrelated hobby, an app-store or store listing, etc.) — these are noise, not signal. Before treating any topic as material for a connection or a solo highlight, ask: "does this plausibly belong to what this team is actually researching?" If a topic is clearly off-focus for this team, exclude it entirely, even if it would otherwise connect neatly to another off-focus topic from a different member. Do not force a connection between two irrelevant topics just because they're thematically similar to each other, they still have to be relevant to the team's actual purpose.
