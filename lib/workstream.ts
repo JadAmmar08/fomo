@@ -170,7 +170,7 @@ export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlu
   const items = await gatherItems(anonymousUserId, roomSlug).catch(() => []);
   if (items.length === 0) return null;
 
-  const digest = await synthesizeMemberDigest(items);
+  const digest = await synthesizeMemberDigest(items, cached.rows[0]?.digest ?? null);
   if (!digest) return cached.rows[0]?.digest ?? null;
 
   await pool.query(
@@ -183,7 +183,7 @@ export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlu
   return digest;
 }
 
-async function synthesizeMemberDigest(items: WorkstreamItem[]): Promise<string | null> {
+async function synthesizeMemberDigest(items: WorkstreamItem[], previousDigest: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -191,6 +191,10 @@ async function synthesizeMemberDigest(items: WorkstreamItem[]): Promise<string |
     const header = `- [${item.label}] "${item.name}", ${item.modifiedTime}`;
     return item.content ? `${header}\n  Content: ${item.content.slice(0, 1000).replace(/\n/g, "\n  ")}` : header;
   });
+
+  const historyBlock = previousDigest
+    ? `\n\nHere is the digest from the last time this was generated:\n"${previousDigest}"\n\nIf their actual conclusion or position looks materially the same, say so briefly and lead with anything new. If their conclusion or stance has genuinely shifted since then, lead with what changed, that shift is the most important thing to surface.`
+    : "";
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -202,7 +206,7 @@ async function synthesizeMemberDigest(items: WorkstreamItem[]): Promise<string |
       messages: [
         {
           role: "user",
-          content: `Here is one person's recent connected file and conversation activity:\n\n${lines.join("\n\n")}\n\nWrite a short (2-4 sentence) digest of what this person's actual work currently shows: concrete findings, decisions, or conclusions they've reached, and any open item they seem stuck on or still deciding. State specifics from the content, not a generic topic summary. No preamble, just the digest.`
+          content: `Here is one person's recent connected file and conversation activity:\n\n${lines.join("\n\n")}${historyBlock}\n\nWrite a short (2-4 sentence) digest of what this person's actual work currently shows: concrete findings, decisions, or conclusions they've reached, and any open item they seem stuck on or still deciding. State specifics from the content, not a generic topic summary. No preamble, just the digest.`
         }
       ]
     });

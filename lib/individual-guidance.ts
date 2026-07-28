@@ -1,6 +1,7 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
 import { getTeamWorkstreamSnippets, getMemberWorkstreamDigest } from "@/lib/workstream";
+import { sendPushToUser } from "@/lib/push";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
 
@@ -32,22 +33,25 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   const pool = getPool();
   if (!pool) return null;
 
-  if (!forceRefresh) {
-    const cached = await pool.query(
-      `select pattern, recommendations, generated_at from individual_guidance where anonymous_user_id = $1 and room_id = $2`,
-      [anonymousUserId, roomId]
-    );
-    if (cached.rows.length > 0) {
-      const generatedAt = new Date(cached.rows[0].generated_at as string).getTime();
-      if (Date.now() - generatedAt < CACHE_TTL_MS) {
-        return {
-          pattern: String(cached.rows[0].pattern),
-          recommendations: normalizeRecommendations(cached.rows[0].recommendations),
-          generatedAt: new Date(cached.rows[0].generated_at as string).toISOString()
-        };
-      }
+  const previousRow = await pool.query(
+    `select pattern, recommendations, generated_at from individual_guidance where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+
+  if (!forceRefresh && previousRow.rows.length > 0) {
+    const generatedAt = new Date(previousRow.rows[0].generated_at as string).getTime();
+    if (Date.now() - generatedAt < CACHE_TTL_MS) {
+      return {
+        pattern: String(previousRow.rows[0].pattern),
+        recommendations: normalizeRecommendations(previousRow.rows[0].recommendations),
+        generatedAt: new Date(previousRow.rows[0].generated_at as string).toISOString()
+      };
     }
   }
+
+  const previousTeamSignalTexts = new Set(
+    normalizeRecommendations(previousRow.rows[0]?.recommendations).filter((r) => r.type === "team_signal").map((r) => r.text)
+  );
 
   // Widened from 20 to 40 for the same reason as Pulse (lib/room-connections.ts): frequent
   // personal browsing was filling the cutoff before the model's own relevance filtering against
@@ -65,9 +69,10 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   // content lets the pattern and team_signal reasoning below draw on real work, not just
   // passive research interest.
   let ownDigest: string | null = null;
+  let roomSlug: string | null = null;
   if (roomId) {
     const roomSlugRes = await pool.query<{ slug: string }>(`select slug from rooms where id = $1`, [roomId]);
-    const roomSlug = roomSlugRes.rows[0]?.slug;
+    roomSlug = roomSlugRes.rows[0]?.slug ?? null;
     if (roomSlug) ownDigest = await getMemberWorkstreamDigest(anonymousUserId, roomSlug).catch(() => null);
   }
   const topics = ownDigest ? [...browsingTopics, `[Workstream digest] ${ownDigest}`] : browsingTopics;
@@ -85,6 +90,18 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
        set pattern = excluded.pattern, recommendations = excluded.recommendations, generated_at = now()`,
     [anonymousUserId, roomId, result.pattern, JSON.stringify(result.recommendations)]
   );
+
+  // Fires a real push the moment a genuinely new team_signal appears — the whole point of
+  // Discovery's team_signal is timely ("go ask before you redo this"), so waiting for the
+  // person to happen to reopen the page defeats it.
+  const newTeamSignal = result.recommendations.find((r) => r.type === "team_signal" && !previousTeamSignalTexts.has(r.text));
+  if (newTeamSignal) {
+    sendPushToUser(anonymousUserId, {
+      title: "Something relevant just showed up",
+      body: newTeamSignal.text,
+      url: roomSlug ? `/teams/${roomSlug}` : undefined
+    }).catch((err) => console.error("[guidance notify] failed:", err));
+  }
 
   return { ...result, generatedAt: new Date().toISOString() };
 }

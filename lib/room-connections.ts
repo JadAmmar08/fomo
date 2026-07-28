@@ -1,6 +1,7 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
 import { getMemberWorkstreamDigest } from "@/lib/workstream";
+import { sendPushToUser } from "@/lib/push";
 
 export type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
@@ -30,6 +31,15 @@ export interface RoomWebOfIdeas {
   // which case nothing is marked new (there's no "last time" to compare against).
   newSinceLastView: number;
   previouslyViewedAt: string | null;
+}
+
+async function notifyRoomOfNewConnection(memberIds: string[], roomSlug: string | null, connection: IdeaConnection) {
+  if (!roomSlug) return;
+  await Promise.all(
+    memberIds.map((id) =>
+      sendPushToUser(id, { title: "New team insight", body: connection.headline, url: `/teams/${roomSlug}` }).catch(() => {})
+    )
+  );
 }
 
 function connectionKey(c: { from: string; to: string; insightType: InsightType }): string {
@@ -159,6 +169,16 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
       .filter((c) => !hasFabricatedSpecifics(c.explanation))
       .filter((c) => !hasMemberLeak(c.explanation) && !hasMemberLeak(c.from) && !hasMemberLeak(c.to))
   };
+
+  // Fires a real push the moment a genuinely new, never-seen-before connection is computed —
+  // this is what makes the product ambient instead of something you have to remember to check.
+  // Deliberately keyed to this fresh-compute path only (not every page view, which is what
+  // isNew/attachViewState tracks below for the UI badge) so it fires once per real discovery.
+  const previousKeysForNotif = new Set(previousConnections.map(connectionKey));
+  const brandNewConnections = connections.connections.filter((c) => !previousKeysForNotif.has(connectionKey(c)));
+  if (brandNewConnections.length > 0) {
+    notifyRoomOfNewConnection(memberIds, roomSlug, brandNewConnections[0]).catch((err) => console.error("[pulse notify] failed:", err));
+  }
 
   // A fresh run finding fewer genuine insights than last time shouldn't make good, still-true
   // connections disappear — that reads as the product regressing when nothing false happened,
