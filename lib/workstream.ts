@@ -222,7 +222,15 @@ async function synthesizeMemberDigest(items: WorkstreamItem[], previousDigest: s
 // Anonymous, content-only view into what the rest of the team has connected — used by
 // Discovery to point one person toward a teammate's existing work without ever naming
 // who owns it or linking to it (that's the whole difference from the Workstream feed).
-export async function getTeamWorkstreamSnippets(roomSlug: string, excludeUserId: string): Promise<string[]> {
+export interface OwnedWorkstreamItem {
+  ownerId: string;
+  item: WorkstreamItem;
+}
+
+// Item-level version, retains who owns each item (never shown to the model or the
+// requester up front, only used later if a handoff request needs to resolve back to a
+// real artifact and its owner).
+export async function getTeamWorkstreamItems(roomSlug: string, excludeUserId: string): Promise<OwnedWorkstreamItem[]> {
   const pool = getPool();
   if (!pool) return [];
 
@@ -236,13 +244,20 @@ export async function getTeamWorkstreamSnippets(roomSlug: string, excludeUserId:
   const memberIds = membersRes.rows.map((r) => r.anonymous_user_id).filter((id) => id !== excludeUserId);
   if (memberIds.length === 0) return [];
 
-  const allItems: WorkstreamItem[] = [];
+  const owned: OwnedWorkstreamItem[] = [];
   for (const memberId of memberIds) {
     const items = await gatherItems(memberId, roomSlug).catch(() => []);
-    allItems.push(...items);
+    for (const item of items) owned.push({ ownerId: memberId, item });
   }
 
-  return formatItemsAsLines(allItems);
+  return owned
+    .sort((a, b) => new Date(b.item.modifiedTime).getTime() - new Date(a.item.modifiedTime).getTime())
+    .slice(0, 15);
+}
+
+export async function getTeamWorkstreamSnippets(roomSlug: string, excludeUserId: string): Promise<string[]> {
+  const owned = await getTeamWorkstreamItems(roomSlug, excludeUserId);
+  return formatItemsAsLines(owned.map((o) => o.item));
 }
 
 async function resolveRoomUuid(slug: string): Promise<string | null> {

@@ -362,14 +362,22 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
   // overlap can exist entirely on its own, from browsing signals alone, same as before
   // this component absorbed it.
   useEffect(() => {
-    fetch(`/api/workstream?roomId=${roomId}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        setSummary(data.summary ?? null);
-        setItems(data.items ?? []);
-        setPulseConnections(data.pulseConnections ?? []);
-        setSoloHighlights(data.soloHighlights ?? []);
-      });
+    Promise.all([
+      fetch(`/api/workstream?roomId=${roomId}`, { credentials: "include" }).then((r) => r.json()),
+      fetch(`/api/pins?roomSlug=${roomId}&cardType=pulse`, { credentials: "include" }).then((r) => r.json()).catch(() => ({ pins: [] }))
+    ]).then(([data, pinData]) => {
+      setSummary(data.summary ?? null);
+      setItems(data.items ?? []);
+
+      const live: IdeaConnection[] = data.pulseConnections ?? [];
+      const liveKeys = new Set(live.map((c) => `${c.insightType}:${c.from.trim().toLowerCase()}:${c.to.trim().toLowerCase()}`));
+      const pinnedOnly: IdeaConnection[] = (pinData.pins ?? [])
+        .map((p: { cardData: IdeaConnection }) => p.cardData)
+        .filter((c: IdeaConnection) => !liveKeys.has(`${c.insightType}:${c.from.trim().toLowerCase()}:${c.to.trim().toLowerCase()}`));
+
+      setPulseConnections([...live, ...pinnedOnly]);
+      setSoloHighlights(data.soloHighlights ?? []);
+    });
   }, [roomId]);
 
   if (loading || !statuses) return null;
@@ -427,7 +435,7 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
               ))}
             </div>
           )}
-          <WebOfIdeas connections={pulseConnections} soloHighlights={soloHighlights} />
+          <WebOfIdeas connections={pulseConnections} soloHighlights={soloHighlights} roomSlug={roomId} />
         </>
       )}
     </section>

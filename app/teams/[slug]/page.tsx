@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { WorkstreamUnified } from "@/components/workstream-unified";
 import { EnableNotifications } from "@/components/enable-notifications";
+import { DiscoveryRecommendationCard } from "@/components/discovery-recommendation-card";
 import { logFeatureView } from "@/lib/cost-log";
 
 interface IdeaConnection {
@@ -48,18 +49,13 @@ interface GuidanceRecommendation {
   type: "direction" | "question" | "team_signal";
   text: string;
   sourceTopics: string[];
+  hasResource?: boolean;
 }
 
 interface GuidanceData {
   pattern: string;
   recommendations: GuidanceRecommendation[];
 }
-
-const GUIDANCE_LABELS: Record<GuidanceRecommendation["type"], string> = {
-  direction: "Direction",
-  question: "Open question",
-  team_signal: "Team signal"
-};
 
 async function getGuidance(slug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -73,7 +69,19 @@ async function getGuidance(slug: string) {
   });
   if (!res.ok) return null;
   const data = await res.json() as { guidance: GuidanceData | null };
-  return data.guidance;
+  if (!data.guidance) return null;
+
+  // Pinned recommendations stay visible even if a later recompute doesn't reproduce them.
+  const pinsRes = await fetch(`${appUrl}/api/pins?roomSlug=${slug}&cardType=discovery`, {
+    headers: { "x-fomo-anonymous-id": uid },
+    cache: "no-store",
+  }).catch(() => null);
+  const pinsData = pinsRes && pinsRes.ok ? await pinsRes.json() as { pins: { cardKey: string; cardData: GuidanceRecommendation }[] } : { pins: [] };
+
+  const liveKeys = new Set(data.guidance.recommendations.map((r) => `${r.type}:${r.text}`));
+  const pinnedOnly = pinsData.pins.map((p) => p.cardData).filter((r) => !liveKeys.has(`${r.type}:${r.text}`));
+
+  return { ...data.guidance, recommendations: [...data.guidance.recommendations, ...pinnedOnly] };
 }
 
 export default async function TeamPulsePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -167,34 +175,9 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
             <>
               <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where to look next</span>
               <div style={{ display: "grid", gap: 10 }}>
-                {guidance.recommendations.map((rec, i) => {
-                  const isTeamSignal = rec.type === "team_signal";
-                  const typeColor = rec.type === "question" ? "var(--question)" : rec.type === "direction" ? "var(--direction)" : "var(--accent)";
-                  const typeBg = rec.type === "question" ? "var(--question-soft)" : rec.type === "direction" ? "var(--direction-soft)" : "var(--accent-soft)";
-                  return (
-                    <div key={i} style={{
-                      background: isTeamSignal ? "var(--accent-soft)" : "var(--surface-raised)",
-                      border: isTeamSignal ? "1px solid var(--accent)" : "1px solid var(--line)",
-                      borderLeft: `3px solid ${typeColor}`,
-                      borderRadius: 12, padding: "12px 16px"
-                    }}>
-                      <span className="pill" style={{
-                        fontSize: "0.68rem", marginBottom: 6, display: "inline-flex", fontWeight: 600,
-                        background: isTeamSignal ? "var(--accent)" : typeBg,
-                        color: isTeamSignal ? "white" : typeColor,
-                        border: isTeamSignal ? "none" : `1px solid ${typeColor}`
-                      }}>
-                        {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
-                      </span>
-                      <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec.text}</p>
-                      {rec.sourceTopics?.length > 0 && (
-                        <p style={{ fontSize: "0.76rem", margin: "6px 0 0", lineHeight: 1.5, color: "var(--subtle)" }}>
-                          Based on: {rec.sourceTopics.map((t) => `"${t}"`).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                {guidance.recommendations.map((rec, i) => (
+                  <DiscoveryRecommendationCard key={i} rec={rec} roomSlug={slug} />
+                ))}
               </div>
             </>
           )}

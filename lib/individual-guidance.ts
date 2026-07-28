@@ -1,14 +1,23 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
-import { getTeamWorkstreamSnippets, getMemberWorkstreamDigest } from "@/lib/workstream";
+import { getTeamWorkstreamItems, getMemberWorkstreamDigest, type OwnedWorkstreamItem } from "@/lib/workstream";
 import { sendPushToUser } from "@/lib/push";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
+
+export interface HandoffResourceRef {
+  source: string;
+  name: string;
+  link: string;
+  ownerId: string;
+  content: string | null;
+}
 
 export interface GuidanceRecommendation {
   type: GuidanceType;
   text: string;
   sourceTopics: string[];
+  resourceRef?: HandoffResourceRef | null;
 }
 
 export interface IndividualGuidance {
@@ -110,11 +119,11 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
 function normalizeRecommendations(raw: unknown): GuidanceRecommendation[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r) => {
-    if (typeof r === "string") return { type: "direction" as const, text: r, sourceTopics: [] };
-    const obj = r as { type?: string; text?: string; sourceTopics?: unknown };
+    if (typeof r === "string") return { type: "direction" as const, text: r, sourceTopics: [], resourceRef: null };
+    const obj = r as { type?: string; text?: string; sourceTopics?: unknown; resourceRef?: HandoffResourceRef | null };
     const type: GuidanceType = obj.type === "question" || obj.type === "team_signal" ? obj.type : "direction";
     const sourceTopics = Array.isArray(obj.sourceTopics) ? obj.sourceTopics.map((t) => String(t)) : [];
-    return { type, text: String(obj.text ?? ""), sourceTopics };
+    return { type, text: String(obj.text ?? ""), sourceTopics, resourceRef: obj.resourceRef ?? null };
   }).filter((r) => r.text);
 }
 
@@ -123,7 +132,7 @@ interface TeamContext {
   connectionSummaries: string[];
   theses: string[];
   staleAssumptions: string[];
-  teamResources: string[];
+  teamResourceItems: OwnedWorkstreamItem[];
 }
 
 /**
@@ -141,7 +150,7 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
   ]);
   const description = roomRes.rows[0]?.description ? String(roomRes.rows[0].description) : null;
   const roomSlug = roomRes.rows[0]?.slug ? String(roomRes.rows[0].slug) : null;
-  const teamResources = roomSlug ? await getTeamWorkstreamSnippets(roomSlug, anonymousUserId).catch(() => []) : [];
+  const teamResourceItems = roomSlug ? await getTeamWorkstreamItems(roomSlug, anonymousUserId).catch(() => []) : [];
 
   const connectionSummaries: string[] = [];
   if (connectionsRes.rows.length > 0) {
@@ -160,8 +169,8 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
     for (const s of rawStale ?? []) staleAssumptions.push(s.statement);
   }
 
-  if (!description && connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0 && teamResources.length === 0) return null;
-  return { description, connectionSummaries, theses, staleAssumptions, teamResources };
+  if (!description && connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0 && teamResourceItems.length === 0) return null;
+  return { description, connectionSummaries, theses, staleAssumptions, teamResourceItems };
 }
 
 async function computeGuidanceWithSonnet(
@@ -177,13 +186,18 @@ async function computeGuidanceWithSonnet(
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey });
 
+    const resourceLines = (teamContext?.teamResourceItems ?? []).map((r) => {
+      const excerpt = r.item.content ? r.item.content.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+      return excerpt ? `[${r.item.label}] "${r.item.name}" — ${excerpt}` : `[${r.item.label}] "${r.item.name}"`;
+    });
+
     const teamContextBlock = teamContext
       ? `\n\n${teamContext.description ? `This team's actual focus: ${teamContext.description}\n\n` : ""}The team this person is on has already found the following (never reveal who found what, this is team-wide, not personal):\n${[
           ...teamContext.connectionSummaries.map((c) => `- Connection: ${c}`),
           ...teamContext.theses.map((t) => `- Team thesis: ${t}`),
           ...teamContext.staleAssumptions.map((s) => `- Unrevisited team assumption: ${s}`)
-        ].join("\n")}${teamContext.teamResources.length > 0
-          ? `\n\nTeammates (never say who specifically) currently have the following files/conversations connected, shown here ONLY so you can judge relevance, never to be named, described in detail, or linked in your output:\n${teamContext.teamResources.map((r) => `- ${r}`).join("\n")}`
+        ].join("\n")}${resourceLines.length > 0
+          ? `\n\nNumbered list of material teammates (never say who specifically) currently have connected, shown here ONLY so you can judge relevance, never to be named, described in detail, or linked in your output:\n${resourceLines.map((r, i) => `${i + 1}. ${r}`).join("\n")}`
           : ""}`
       : "";
 
@@ -212,9 +226,13 @@ async function computeGuidanceWithSonnet(
                       type: "array",
                       items: { type: "string" },
                       description: "The literal topic name(s) from the input list that this recommendation is grounded in, copied verbatim."
+                    },
+                    resourceIndex: {
+                      type: ["integer", "null"],
+                      description: "Only for a team_signal grounded in case (b), a teammate's connected material (not a team pulse connection/thesis). The 1-based index into the numbered teammate-material list this recommendation is based on. Null otherwise."
                     }
                   },
-                  required: ["type", "text", "sourceTopics"]
+                  required: ["type", "text", "sourceTopics", "resourceIndex"]
                 }
               }
             },
@@ -270,8 +288,10 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string; sourceTopics?: unknown }[] };
+    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string; sourceTopics?: unknown; resourceIndex?: number | null }[] };
     if (!raw.pattern) return null;
+
+    const resourceItems = teamContext?.teamResourceItems ?? [];
 
     const recommendations: GuidanceRecommendation[] = (Array.isArray(raw.recommendations) ? raw.recommendations : [])
       .slice(0, 3)
@@ -284,7 +304,24 @@ RULES:
         const sourceTopics = (Array.isArray(r.sourceTopics) ? r.sourceTopics : [])
           .map((t) => String(t))
           .filter((t) => topics.includes(t));
-        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords), sourceTopics };
+
+        // Resolved server-side only, never something the model wrote out itself, so the
+        // resourceRef always traces back to a real connected item, never a hallucination.
+        let resourceRef: HandoffResourceRef | null = null;
+        if (type === "team_signal" && typeof r.resourceIndex === "number") {
+          const owned = resourceItems[r.resourceIndex - 1];
+          if (owned) {
+            resourceRef = {
+              source: owned.item.source,
+              name: owned.item.name,
+              link: owned.item.link,
+              ownerId: owned.ownerId,
+              content: owned.item.content ?? null
+            };
+          }
+        }
+
+        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords), sourceTopics, resourceRef };
       })
       .filter((r) => r.text && !hasMemberLeak(r.text));
 

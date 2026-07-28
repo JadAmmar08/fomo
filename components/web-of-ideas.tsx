@@ -1,3 +1,5 @@
+import { PinButton } from "@/components/pin-button";
+
 type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
 interface IdeaConnection {
@@ -14,6 +16,11 @@ interface IdeaConnection {
 interface WebOfIdeasProps {
   connections: IdeaConnection[];
   soloHighlights: string[];
+  roomSlug: string;
+}
+
+function connectionKey(c: { from: string; to: string; insightType: InsightType }): string {
+  return `${c.insightType}:${c.from.trim().toLowerCase()}:${c.to.trim().toLowerCase()}`;
 }
 
 const INSIGHT_LABELS: Record<InsightType, string> = {
@@ -32,7 +39,7 @@ const INSIGHT_COLORS: Record<InsightType, { color: string; background: string }>
   blind_spot: { color: "var(--blindspot)", background: "var(--blindspot-soft)" }
 };
 
-export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
+export function WebOfIdeas({ connections, soloHighlights, roomSlug }: WebOfIdeasProps) {
   if (connections.length === 0 && soloHighlights.length === 0) return null;
 
   return (
@@ -50,9 +57,12 @@ export function WebOfIdeas({ connections, soloHighlights }: WebOfIdeasProps) {
                   <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text)" }}>
                     {conn.headline}
                   </div>
-                  <span className="chip" style={{ flexShrink: 0, fontSize: "0.7rem" }}>
-                    {conn.peopleCount} people, independently
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <span className="chip" style={{ fontSize: "0.7rem" }}>
+                      {conn.peopleCount} people, independently
+                    </span>
+                    <PinButton roomSlug={roomSlug} cardType="pulse" cardKey={connectionKey(conn)} cardData={conn} />
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                   <span className="pill" style={{

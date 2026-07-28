@@ -317,6 +317,49 @@ create table if not exists push_subscriptions (
 );
 create index if not exists idx_push_subscriptions_user on push_subscriptions(anonymous_user_id);
 
+-- HANDOFF REQUESTS (Discovery's team_signal can point at a specific teammate's connected
+-- item. Clicking "Request it" auto-shares it immediately, no owner approval gate, this
+-- table exists for tracking/analytics and so the owner can get an FYI notification.)
+create table if not exists handoff_requests (
+  id uuid primary key default gen_random_uuid(),
+  room_id text not null,
+  requester_id text not null,
+  owner_id text not null,
+  source text not null,
+  item_name text not null,
+  item_link text,
+  item_content text,
+  topic text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_handoff_requests_owner on handoff_requests(owner_id);
+create index if not exists idx_handoff_requests_requester on handoff_requests(requester_id);
+
+-- GUIDANCE FEEDBACK (lightweight correction signal collected in the same interaction as
+-- a handoff request, not a separate feature. "useful" / "not_relevant" per recommendation.)
+create table if not exists guidance_feedback (
+  id uuid primary key default gen_random_uuid(),
+  anonymous_user_id text not null,
+  room_id text not null,
+  recommendation_text text not null,
+  feedback text not null check (feedback in ('useful', 'not_relevant')),
+  created_at timestamptz not null default now()
+);
+
+-- PINNED CARDS (any Pulse connection, Discovery recommendation, or Mirror card can be
+-- pinned so it stays visible across recomputes even if a future pass doesn't reproduce
+-- it. card_data holds the full card content so a pinned card can still render after it
+-- drops out of the live computed set.)
+create table if not exists pinned_cards (
+  anonymous_user_id text not null,
+  room_id text not null,
+  card_type text not null check (card_type in ('pulse', 'discovery', 'mirror')),
+  card_key text not null,
+  card_data jsonb not null,
+  pinned_at timestamptz not null default now(),
+  primary key (anonymous_user_id, room_id, card_type, card_key)
+);
+
 -- MEMBER WORKSTREAM DIGESTS (one cached, synthesized "what this person's actual
 -- work currently shows" per person per room — replaces raw file/message excerpts
 -- as the input to Pulse and Discovery's cross-referencing, since raw excerpts are

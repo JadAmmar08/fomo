@@ -19,5 +19,21 @@ export async function GET(req: NextRequest) {
   }
 
   const guidance = await getIndividualGuidance(anonymousUserId, roomId).catch(() => null);
-  return NextResponse.json({ guidance });
+
+  // Strip resourceRef down to a boolean before it ever reaches the client — the artifact
+  // itself (name, link, content, owner) only gets sent back at actual handoff time via
+  // /api/discovery/handoff, never revealed up front just by loading the page.
+  const sanitized = guidance
+    ? {
+        ...guidance,
+        recommendations: guidance.recommendations.map((r) => ({
+          type: r.type,
+          text: r.text,
+          sourceTopics: r.sourceTopics,
+          hasResource: Boolean(r.resourceRef)
+        }))
+      }
+    : null;
+
+  return NextResponse.json({ guidance: sanitized });
 }
