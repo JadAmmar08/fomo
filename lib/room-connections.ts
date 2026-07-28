@@ -374,7 +374,7 @@ async function computeConnectionsWithHaiku(
       : `This team is called "${teamFocus.name}". No further description was given, so judge relevance by what the team's own research topics have in common, not against an outside definition of the field.`;
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 2048,
       tools: [
         {
@@ -469,7 +469,7 @@ RULES:
 
     logApiCall({
       callType: "pulse_synthesis",
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       inputTokens: message.usage?.input_tokens ?? 0,
       outputTokens: message.usage?.output_tokens ?? 0,
       roomId

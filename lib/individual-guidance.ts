@@ -80,7 +80,7 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
 
   const teamContext = roomId ? await getTeamContext(pool, roomId, anonymousUserId) : null;
 
-  const result = await computeGuidanceWithHaiku(topics, teamContext, anonymousUserId, roomId);
+  const result = await computeGuidanceWithSonnet(topics, teamContext, anonymousUserId, roomId);
   if (!result) return null;
 
   await pool.query(
@@ -164,7 +164,7 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
   return { description, connectionSummaries, theses, staleAssumptions, teamResources };
 }
 
-async function computeGuidanceWithHaiku(
+async function computeGuidanceWithSonnet(
   topics: string[],
   teamContext: TeamContext | null,
   anonymousUserId?: string,
@@ -188,7 +188,7 @@ async function computeGuidanceWithHaiku(
       : "";
 
     const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 700,
       tools: [
         {
@@ -260,7 +260,7 @@ RULES:
 
     logApiCall({
       callType: "guidance_synthesis",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       inputTokens: message.usage?.input_tokens ?? 0,
       outputTokens: message.usage?.output_tokens ?? 0,
       roomId: roomId || undefined,
