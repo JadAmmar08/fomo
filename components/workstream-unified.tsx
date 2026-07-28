@@ -34,10 +34,11 @@ const SOURCE_META: Record<SourceKey, {
   autoAllLabel: string;
   includeSharedPath?: string;
   filesPath?: string;
+  unlinkPath: string;
 }> = {
-  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared", filesPath: "/api/integrations/google/files" },
-  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared", filesPath: "/api/integrations/microsoft/files" },
-  slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels" }
+  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared", filesPath: "/api/integrations/google/files", unlinkPath: "/api/integrations/google/unlink" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared", filesPath: "/api/integrations/microsoft/files", unlinkPath: "/api/integrations/microsoft/unlink" },
+  slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels", unlinkPath: "/api/integrations/slack/unlink" }
 };
 
 function SourceDot({ color }: { color: string }) {
@@ -159,6 +160,42 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
             {linking ? "Adding…" : "+ also include shared files"}
           </button>
         )}
+        <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+          <button
+            onClick={async () => {
+              setLinking(true);
+              await fetch(meta.unlinkPath, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId, disconnect: false })
+              });
+              setLinking(false);
+              onLinked();
+            }}
+            disabled={linking}
+            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.72rem", fontWeight: 500, color: "var(--subtle)", textDecoration: "underline" }}
+          >
+            Change
+          </button>
+          <button
+            onClick={async () => {
+              setLinking(true);
+              await fetch(meta.unlinkPath, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId, disconnect: true })
+              });
+              setLinking(false);
+              onLinked();
+            }}
+            disabled={linking}
+            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.72rem", fontWeight: 500, color: "var(--subtle)", textDecoration: "underline" }}
+          >
+            Disconnect
+          </button>
+        </div>
       </div>
     );
   }

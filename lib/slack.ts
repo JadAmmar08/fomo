@@ -103,6 +103,24 @@ export async function linkSlackChannel(roomId: string, channelId: string, channe
   );
 }
 
+// Clears whatever's currently linked without removing the workspace install.
+export async function unlinkSlackChannel(roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update slack_connections set linked_channel_id = null, linked_channel_name = null, linked_channel_is_external = false, auto_join_all = false, updated_at = now()
+     where room_id = $1`,
+    [roomId]
+  );
+}
+
+// Removes the workspace install/connection entirely.
+export async function disconnectSlack(roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(`delete from slack_connections where room_id = $1`, [roomId]);
+}
+
 // One organizational decision, made once by whoever installed the app: read every
 // internal channel it can join. Channels shared with another organization
 // (is_ext_shared) are always excluded here, no matter what — a workspace admin does

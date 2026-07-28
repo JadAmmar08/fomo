@@ -172,6 +172,24 @@ export async function linkMicrosoftFiles(anonymousUserId: string, roomId: string
   );
 }
 
+// Clears whatever's currently linked without removing the underlying connection.
+export async function unlinkMicrosoft(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update microsoft_connections set linked_folder_id = null, linked_folder_name = null, auto_all_files = false, include_shared_files = false, linked_file_ids = '[]', updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+}
+
+// Removes the connection entirely.
+export async function disconnectMicrosoft(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(`delete from microsoft_connections where anonymous_user_id = $1 and room_id = $2`, [anonymousUserId, roomId]);
+}
+
 // Lists individual files (not folders) for the specific-file picker.
 export async function listPickableFiles(accessToken: string, maxFiles = 30) {
   const res = await fetch(

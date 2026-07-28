@@ -231,6 +231,26 @@ export async function listSpecificFiles(accessToken: string, fileIds: string[]) 
   );
 }
 
+// Clears whatever's currently linked (folder, everything-I-own, or specific files)
+// without removing the underlying connection — lets someone pick something
+// different without going through OAuth again.
+export async function unlinkGoogle(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update google_connections set linked_folder_id = null, linked_folder_name = null, auto_all_files = false, include_shared_files = false, linked_file_ids = '[]', updated_at = now()
+     where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomId]
+  );
+}
+
+// Removes the connection entirely — the next visit shows "Connect" from scratch.
+export async function disconnectGoogle(anonymousUserId: string, roomId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(`delete from google_connections where anonymous_user_id = $1 and room_id = $2`, [anonymousUserId, roomId]);
+}
+
 // One person's own explicit decision about their own account: read every file they
 // actually own, not just one folder. Deliberately excludes anything merely shared
 // with them by someone else ('me' in owners, not just visible to them) — a file a
