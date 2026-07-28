@@ -1,5 +1,6 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
+import { getMemberWorkstreamDigest } from "@/lib/workstream";
 
 interface WorkstreamCycle {
   summary: string | null;
@@ -16,6 +17,19 @@ export interface StaleAssumption {
   note: string;
 }
 
+export interface Disagreement {
+  statement: string;
+}
+
+export interface Decision {
+  decision: string;
+  rationale: string;
+}
+
+export interface OpenQuestion {
+  question: string;
+}
+
 export interface BeliefShift {
   description: string;
   detectedAt: string;
@@ -25,6 +39,9 @@ export interface TeamMirror {
   onboardingSummary: string | null;
   theses: Thesis[];
   staleAssumptions: StaleAssumption[] | null; // null = not enough history yet, not "none found"
+  activeDisagreements: Disagreement[];
+  decisions: Decision[];
+  openQuestions: OpenQuestion[];
   shifts: BeliefShift[];
   hasEnoughHistoryForStaleness: boolean;
   generatedAt: string;
@@ -38,7 +55,8 @@ const MIN_HISTORY_SPAN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
  * The Team mirror: an evolving mental model of the team, distinct from the pulse's point-in-time
  * connections. Persisted and updated incrementally rather than recomputed from scratch, so it can
  * say things a snapshot can't: which theses keep getting reinforced, which assumptions haven't
- * been touched in a while, and what's changed since last time.
+ * been touched in a while, where two people's current work actually disagrees, and what's changed
+ * since last time.
  */
 // roomId is the room's UUID (used by the older team_mirror_state/shifts tables);
 // roomSlug is the text slug (used by workstream_snapshots, same as every
@@ -49,7 +67,7 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
   if (!pool) return null;
 
   const stateRes = await pool.query(
-    `select onboarding_summary, theses, stale_assumptions, updated_at from team_mirror_state where room_id = $1`,
+    `select onboarding_summary, theses, stale_assumptions, active_disagreements, decisions, open_questions, updated_at from team_mirror_state where room_id = $1`,
     [roomId]
   );
   const previousState = stateRes.rows[0] ? mapPreviousState(stateRes.rows[0]) : null;
@@ -63,6 +81,9 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
         onboardingSummary: previousState.onboarding_summary,
         theses: previousState.theses,
         staleAssumptions: previousState.stale_assumptions.length ? previousState.stale_assumptions : null,
+        activeDisagreements: previousState.active_disagreements,
+        decisions: previousState.decisions,
+        openQuestions: previousState.open_questions,
         shifts,
         hasEnoughHistoryForStaleness: previousState.stale_assumptions.length > 0,
         generatedAt: previousUpdatedAt
@@ -81,6 +102,9 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
       onboardingSummary: null,
       theses: [],
       staleAssumptions: null,
+      activeDisagreements: [],
+      decisions: [],
+      openQuestions: [],
       shifts: [],
       hasEnoughHistoryForStaleness: false,
       generatedAt: new Date().toISOString()
@@ -92,13 +116,21 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
     history.length >= MIN_HISTORY_ENTRIES_FOR_STALENESS &&
     Date.now() - oldestCapturedAt >= MIN_HISTORY_SPAN_MS;
 
-  const computed = await computeMentalModelWithHaiku(history, previousState, hasEnoughHistoryForStaleness, roomId);
+  // Disagreement detection needs each member's CURRENT position, not the room-wide combined
+  // history used for theses/shifts — a disagreement only exists between two people's live
+  // digests right now, a blended room summary would already have flattened it away.
+  const memberDigests = await getMemberDigestsForRoom(pool, roomId, roomSlug);
+
+  const computed = await computeMentalModelWithHaiku(history, memberDigests, previousState, hasEnoughHistoryForStaleness, roomId);
   if (!computed) {
     return previousState && previousUpdatedAt
       ? {
           onboardingSummary: previousState.onboarding_summary,
           theses: previousState.theses,
           staleAssumptions: previousState.stale_assumptions.length ? previousState.stale_assumptions : null,
+          activeDisagreements: previousState.active_disagreements,
+          decisions: previousState.decisions,
+          openQuestions: previousState.open_questions,
           shifts: await getShiftHistory(pool, roomId),
           hasEnoughHistoryForStaleness,
           generatedAt: previousUpdatedAt
@@ -107,18 +139,24 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
   }
 
   await pool.query(
-    `insert into team_mirror_state (room_id, onboarding_summary, theses, stale_assumptions, updated_at)
-     values ($1, $2, $3, $4, now())
+    `insert into team_mirror_state (room_id, onboarding_summary, theses, stale_assumptions, active_disagreements, decisions, open_questions, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7, now())
      on conflict (room_id) do update set
        onboarding_summary = excluded.onboarding_summary,
        theses = excluded.theses,
        stale_assumptions = excluded.stale_assumptions,
+       active_disagreements = excluded.active_disagreements,
+       decisions = excluded.decisions,
+       open_questions = excluded.open_questions,
        updated_at = now()`,
     [
       roomId,
       computed.onboardingSummary,
       JSON.stringify(computed.theses),
-      JSON.stringify(hasEnoughHistoryForStaleness ? computed.staleAssumptions : [])
+      JSON.stringify(hasEnoughHistoryForStaleness ? computed.staleAssumptions : []),
+      JSON.stringify(computed.activeDisagreements),
+      JSON.stringify(computed.decisions),
+      JSON.stringify(computed.openQuestions)
     ]
   );
 
@@ -148,10 +186,26 @@ export async function getTeamMirror(roomId: string, roomSlug: string, forceRefre
     onboardingSummary: computed.onboardingSummary,
     theses: computed.theses,
     staleAssumptions: hasEnoughHistoryForStaleness ? computed.staleAssumptions : null,
+    activeDisagreements: computed.activeDisagreements,
+    decisions: computed.decisions,
+    openQuestions: computed.openQuestions,
     shifts,
     hasEnoughHistoryForStaleness,
     generatedAt: new Date().toISOString()
   };
+}
+
+async function getMemberDigestsForRoom(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string, roomSlug: string): Promise<string[]> {
+  const membersRes = await pool.query<{ anonymous_user_id: string }>(
+    `select anonymous_user_id from room_members where room_id = $1`,
+    [roomId]
+  );
+  const digests: string[] = [];
+  for (const member of membersRes.rows) {
+    const digest = await getMemberWorkstreamDigest(member.anonymous_user_id, roomSlug).catch(() => null);
+    if (digest) digests.push(digest);
+  }
+  return digests;
 }
 
 async function getShiftHistory(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string): Promise<BeliefShift[]> {
@@ -166,22 +220,37 @@ interface PreviousState {
   onboarding_summary: string | null;
   theses: Thesis[];
   stale_assumptions: StaleAssumption[];
+  active_disagreements: Disagreement[];
+  decisions: Decision[];
+  open_questions: OpenQuestion[];
 }
 
 function mapPreviousState(row: Record<string, unknown>): PreviousState {
   return {
     onboarding_summary: (row.onboarding_summary as string | null) ?? null,
     theses: Array.isArray(row.theses) ? (row.theses as Thesis[]) : [],
-    stale_assumptions: Array.isArray(row.stale_assumptions) ? (row.stale_assumptions as StaleAssumption[]) : []
+    stale_assumptions: Array.isArray(row.stale_assumptions) ? (row.stale_assumptions as StaleAssumption[]) : [],
+    active_disagreements: Array.isArray(row.active_disagreements) ? (row.active_disagreements as Disagreement[]) : [],
+    decisions: Array.isArray(row.decisions) ? (row.decisions as Decision[]) : [],
+    open_questions: Array.isArray(row.open_questions) ? (row.open_questions as OpenQuestion[]) : []
   };
 }
 
 async function computeMentalModelWithHaiku(
   history: WorkstreamCycle[],
+  memberDigests: string[],
   previousState: PreviousState | null,
   askForStaleness: boolean,
   roomId?: string
-): Promise<{ onboardingSummary: string; theses: Thesis[]; staleAssumptions: StaleAssumption[]; newShifts: string[] } | null> {
+): Promise<{
+  onboardingSummary: string;
+  theses: Thesis[];
+  staleAssumptions: StaleAssumption[];
+  activeDisagreements: Disagreement[];
+  decisions: Decision[];
+  openQuestions: OpenQuestion[];
+  newShifts: string[];
+} | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -194,13 +263,17 @@ async function computeMentalModelWithHaiku(
       .map((h, i) => `Cycle ${i + 1} (${new Date(h.captured_at).toLocaleDateString()}):\n${h.summary}`)
       .join("\n\n");
 
+    const digestsBlock = memberDigests.length > 0
+      ? `\n\nHere is each member's CURRENT individual position, anonymized as Member 1, Member 2, etc (never reference these labels in your output, they're for your reasoning only):\n${memberDigests.map((d, i) => `Member ${i + 1}: ${d}`).join("\n\n")}`
+      : "";
+
     const previousBlock = previousState
-      ? `Previous mental model:\nOnboarding summary: ${previousState.onboarding_summary ?? "(none)"}\nTheses: ${JSON.stringify(previousState.theses)}\nStale assumptions: ${JSON.stringify(previousState.stale_assumptions)}`
+      ? `Previous mental model:\nOnboarding summary: ${previousState.onboarding_summary ?? "(none)"}\nTheses: ${JSON.stringify(previousState.theses)}\nStale assumptions: ${JSON.stringify(previousState.stale_assumptions)}\nActive disagreements: ${JSON.stringify(previousState.active_disagreements)}\nDecisions: ${JSON.stringify(previousState.decisions)}\nOpen questions: ${JSON.stringify(previousState.open_questions)}`
       : "No previous mental model exists yet, this is the first time.";
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2500,
+      max_tokens: 3000,
       tools: [
         {
           name: "team_mental_model",
@@ -236,13 +309,43 @@ async function computeMentalModelWithHaiku(
                 },
                 description: "Only fill this in if asked to. Assumptions baked into early work that no later file, edit, or conversation has touched, confirmed, or challenged since, the kind of thing an analyst could unknowingly build on top of."
               },
+              activeDisagreements: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { statement: { type: "string" } },
+                  required: ["statement"]
+                },
+                description: "Only from the per-member CURRENT positions given below, never from the historical cycles. A real, current case where two members' work assumes genuinely incompatible things right now, e.g. 'the commercial workstream assumes an enterprise sales motion, while product research points to department-level purchasing.' Must name both sides in one sentence. Empty array if nothing genuinely conflicts, don't force one."
+              },
+              decisions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    decision: { type: "string" },
+                    rationale: { type: "string" }
+                  },
+                  required: ["decision", "rationale"]
+                },
+                description: "Explicit choices the team appears to have made (something ruled in or out), with the reason, so it doesn't get silently re-litigated later. Only include ones clearly grounded in the actual content, don't infer a decision that was never really made."
+              },
+              openQuestions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { question: { type: "string" } },
+                  required: ["question"]
+                },
+                description: "Genuinely unresolved questions the work itself raises, specific enough someone could go find the answer. Phrase each as an actual question ending in '?'."
+              },
               newShifts: {
                 type: "array",
                 items: { type: "string" },
                 description: "Only genuinely new changes in the team's thinking since the previous model, not things that were already true last time. Empty array if nothing has actually changed. Each one is ONE tight sentence, max 20 words, no colons or semicolons chaining two claims together."
               }
             },
-            required: ["onboardingSummary", "theses", "staleAssumptions", "newShifts"],
+            required: ["onboardingSummary", "theses", "staleAssumptions", "activeDisagreements", "decisions", "openQuestions", "newShifts"],
             additionalProperties: false
           }
         }
@@ -255,17 +358,20 @@ This is NOT a summary of the latest cycle. It is a standing, incrementally-updat
 RULES:
 - ONBOARDING SUMMARY: written for an analyst joining or returning to this workstream who has seen none of the work so far. Plain, concrete, no internal shorthand.
 - HYPOTHESES: only include one if it's been reinforced by real content across more than one cycle, or is a clear, strong synthesis of the current cycle if this is the first one. A single one-off mention is not a hypothesis.
+- ACTIVE DISAGREEMENTS: ground these ONLY in the per-member current-position list given separately below (if given), never in the historical cycle summaries, since those are already a blended room-wide view where a real disagreement would have been flattened out. Never reference "Member 1," "Member 2," or any label implying who holds which position, describe the two positions themselves.
+- DECISIONS: state the actual choice and the actual reason, both grounded in real content, never invent a plausible-sounding rationale that isn't there.
+- OPEN QUESTIONS: must be genuinely unresolved and specific, not a vague prompt for more research.
 - NO INVENTED SPECIFICS: never state a fabricated number, percentage, or timeline not derivable from the actual activity given.
-- ONE CLAIM PER STATEMENT: every hypothesis, stale assumption, and shift is ONE tight sentence, no colons or semicolons stitching a second clause onto the first, not a paragraph. Hypotheses and stale assumptions max 25 words, shifts max 20. The stale assumption's "note" can be a second sentence explaining why, max 30 words.
+- ONE CLAIM PER STATEMENT: every hypothesis, stale assumption, disagreement, decision, question, and shift is ONE tight sentence (the stale assumption's and decision's second field can be a second sentence), not a paragraph. Hypotheses, stale assumptions, disagreements, decisions, and questions max 25 words, shifts max 20.
 - NO EM-DASHES anywhere in any field. Use a period or comma instead.
 ${askForStaleness
   ? "- STALE ASSUMPTIONS: you have enough history for this. Flag anything assumed in early cycles that has not been touched, confirmed, or challenged by any later activity since. If genuinely nothing qualifies, return an empty array, don't force one."
   : "- STALE ASSUMPTIONS: there isn't enough history yet to say anything real here. Always return an empty array for this field regardless of what you see."}
-- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a hypothesis reversed, a new one emerged, an assumption got confirmed or broken). If the previous model already said this, it's not new, don't repeat it. State only the change itself, skip preamble like "a new thesis has emerged" or "it was found that."`,
+- NEW SHIFTS: compare against the previous model explicitly. Only report something as a shift if it's a genuine change from what the model said last time (a hypothesis reversed, a new one emerged, an assumption got confirmed or broken, a disagreement resolved or emerged). If the previous model already said this, it's not new, don't repeat it. State only the change itself, skip preamble like "a new thesis has emerged" or "it was found that."`,
       messages: [
         {
           role: "user",
-          content: `${previousBlock}\n\nFull history of this workstream's real activity, cycle by cycle:\n\n${historyBlock}\n\nUpdate the workstream's mental model.`
+          content: `${previousBlock}\n\nFull history of this workstream's real activity, cycle by cycle:\n\n${historyBlock}${digestsBlock}\n\nUpdate the workstream's mental model.`
         }
       ]
     });
@@ -285,6 +391,9 @@ ${askForStaleness
       onboardingSummary: string;
       theses: Thesis[];
       staleAssumptions: StaleAssumption[];
+      activeDisagreements: Disagreement[];
+      decisions: Decision[];
+      openQuestions: OpenQuestion[];
       newShifts: string[];
     };
 
@@ -299,11 +408,33 @@ ${askForStaleness
             note: tightenToOneSentence(stripEmDash(a.note), 30)
           }))
         : [],
+      activeDisagreements: Array.isArray(raw.activeDisagreements)
+        ? raw.activeDisagreements
+            .slice(0, 5)
+            .map((d) => ({ statement: tightenToOneSentence(stripEmDash(d.statement), 25) }))
+            .filter((d) => !hasMemberLeak(d.statement))
+        : [],
+      decisions: Array.isArray(raw.decisions)
+        ? raw.decisions.slice(0, 6).map((d) => ({
+            decision: tightenToOneSentence(stripEmDash(d.decision), 25),
+            rationale: tightenToOneSentence(stripEmDash(d.rationale), 30)
+          }))
+        : [],
+      openQuestions: Array.isArray(raw.openQuestions)
+        ? raw.openQuestions.slice(0, 6).map((q) => ({ question: tightenToOneSentence(stripEmDash(q.question), 25) }))
+        : [],
       newShifts: Array.isArray(raw.newShifts) ? raw.newShifts.slice(0, 4).map((s) => tightenToOneSentence(stripEmDash(s), 20)) : []
     };
   } catch {
     return null;
   }
+}
+
+// Anonymity backstop matching the same rule used across Pulse and Discovery — a member
+// label leaking into an active-disagreement statement would deanonymize whose position is
+// whose, drop it rather than show it.
+function hasMemberLeak(text: string): boolean {
+  return /\bmembers?\s*\d/i.test(text);
 }
 
 const STOPWORDS = new Set(["the", "a", "an", "is", "are", "was", "were", "as", "of", "to", "and", "or", "in", "on", "for", "with", "has", "have", "been", "being", "this", "that", "it", "not"]);

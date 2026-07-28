@@ -15,6 +15,19 @@ interface StaleAssumption {
   note: string;
 }
 
+interface Disagreement {
+  statement: string;
+}
+
+interface Decision {
+  decision: string;
+  rationale: string;
+}
+
+interface OpenQuestion {
+  question: string;
+}
+
 interface BeliefShift {
   description: string;
   detectedAt: string;
@@ -24,6 +37,9 @@ interface TeamMirrorData {
   onboardingSummary: string | null;
   theses: Thesis[];
   staleAssumptions: StaleAssumption[] | null;
+  activeDisagreements: Disagreement[];
+  decisions: Decision[];
+  openQuestions: OpenQuestion[];
   shifts: BeliefShift[];
   hasEnoughHistoryForStaleness: boolean;
   generatedAt: string;
@@ -167,6 +183,49 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
               <p style={{ marginTop: 8 }}>Not enough history yet to tell what&apos;s gone unchallenged. This fills in after a few more days of activity.</p>
             )}
           </section>
+
+          {mirror!.activeDisagreements.length > 0 && (
+            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
+              <SectionLabel>Active disagreements</SectionLabel>
+              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>Where current work doesn&apos;t agree.</h2>
+              <div className="list">
+                {mirror!.activeDisagreements.map((d, i) => (
+                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--tension)", borderRadius: 14, padding: "16px 20px" }}>
+                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{d.statement}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {mirror!.decisions.length > 0 && (
+            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
+              <SectionLabel>Decisions and rationale</SectionLabel>
+              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What&apos;s been settled, and why.</h2>
+              <div className="list">
+                {mirror!.decisions.map((d, i) => (
+                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 20px" }}>
+                    <p style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 6px", color: "var(--text)" }}>{d.decision}</p>
+                    <p style={{ fontSize: "0.85rem", margin: 0, color: "var(--text-strong)" }}>{d.rationale}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {mirror!.openQuestions.length > 0 && (
+            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
+              <SectionLabel>Open questions</SectionLabel>
+              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What&apos;s still unresolved.</h2>
+              <div className="list">
+                {mirror!.openQuestions.map((q, i) => (
+                  <div key={i} style={{ background: "var(--question-soft)", border: "1px solid var(--line)", borderLeft: "3px solid var(--question)", borderRadius: 14, padding: "16px 20px" }}>
+                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{q.question}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
             <SectionLabel>Timeline</SectionLabel>

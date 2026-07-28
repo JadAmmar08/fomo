@@ -146,6 +146,9 @@ create table if not exists team_mirror_state (
   stale_assumptions jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
+alter table team_mirror_state add column if not exists active_disagreements jsonb not null default '[]'::jsonb;
+alter table team_mirror_state add column if not exists decisions jsonb not null default '[]'::jsonb;
+alter table team_mirror_state add column if not exists open_questions jsonb not null default '[]'::jsonb;
 
 create table if not exists team_mirror_shifts (
   id uuid primary key default gen_random_uuid(),
