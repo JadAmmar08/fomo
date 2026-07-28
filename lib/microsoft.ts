@@ -142,8 +142,9 @@ export async function getMicrosoftConnection(anonymousUserId: string, roomId: st
     linked_folder_name: string | null;
     auto_all_files: boolean;
     include_shared_files: boolean;
+    linked_file_ids: Array<{ id: string; name: string }>;
   }>(
-    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files from microsoft_connections
+    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, linked_file_ids from microsoft_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -154,10 +155,46 @@ export async function linkMicrosoftFolder(anonymousUserId: string, roomId: strin
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update microsoft_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, updated_at = now()
+    `update microsoft_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, linked_file_ids = '[]', updated_at = now()
      where anonymous_user_id = $3 and room_id = $4`,
     [folderId, folderName, anonymousUserId, roomId]
   );
+}
+
+// The smallest possible unit of access: exactly the files someone hand-picked.
+export async function linkMicrosoftFiles(anonymousUserId: string, roomId: string, files: Array<{ id: string; name: string }>) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update microsoft_connections set linked_file_ids = $1, linked_folder_id = null, linked_folder_name = null, auto_all_files = false, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(files), anonymousUserId, roomId]
+  );
+}
+
+// Lists individual files (not folders) for the specific-file picker.
+export async function listPickableFiles(accessToken: string, maxFiles = 30) {
+  const res = await fetch(
+    `${GRAPH_BASE}/me/drive/recent?$top=${maxFiles}&$select=id,name,file`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`OneDrive file list failed: ${await res.text()}`);
+  const data = await res.json();
+  return (data.value as OneDriveFile[]).filter((f) => f.file).map((f) => ({ id: f.id, name: f.name }));
+}
+
+// Fetches full activity (content + versions) for an exact, explicit set of file IDs.
+export async function listSpecificFiles(accessToken: string, fileIds: string[]) {
+  const files = await Promise.all(
+    fileIds.map(async (fileId) => {
+      const res = await fetch(
+        `${GRAPH_BASE}/me/drive/items/${fileId}?$select=id,name,file,lastModifiedDateTime,webUrl,lastModifiedBy`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      return (await res.json()) as OneDriveFile;
+    })
+  );
+  return enrichFiles(accessToken, files);
 }
 
 // One person's own explicit decision about their own account: read every file they

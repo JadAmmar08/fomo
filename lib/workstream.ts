@@ -33,10 +33,12 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
   return {
     google: {
       connected: Boolean(googleToken),
-      linked: Boolean(googleConn?.linked_folder_id) || Boolean(googleConn?.auto_all_files),
-      label: googleConn?.auto_all_files
-        ? googleConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
-        : googleConn?.linked_folder_name ?? "Google Drive",
+      linked: Boolean(googleConn?.linked_folder_id) || Boolean(googleConn?.auto_all_files) || Boolean(googleConn?.linked_file_ids?.length),
+      label: googleConn?.linked_file_ids?.length
+        ? `${googleConn.linked_file_ids.length} file${googleConn.linked_file_ids.length > 1 ? "s" : ""}`
+        : googleConn?.auto_all_files
+          ? googleConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
+          : googleConn?.linked_folder_name ?? "Google Drive",
       isAutoAll: Boolean(googleConn?.auto_all_files),
       includeSharedEnabled: Boolean(googleConn?.include_shared_files)
     },
@@ -51,10 +53,12 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
     },
     microsoft: {
       connected: Boolean(msToken),
-      linked: Boolean(msConn?.linked_folder_id) || Boolean(msConn?.auto_all_files),
-      label: msConn?.auto_all_files
-        ? msConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
-        : msConn?.linked_folder_name ?? "OneDrive",
+      linked: Boolean(msConn?.linked_folder_id) || Boolean(msConn?.auto_all_files) || Boolean(msConn?.linked_file_ids?.length),
+      label: msConn?.linked_file_ids?.length
+        ? `${msConn.linked_file_ids.length} file${msConn.linked_file_ids.length > 1 ? "s" : ""}`
+        : msConn?.auto_all_files
+          ? msConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
+          : msConn?.linked_folder_name ?? "OneDrive",
       isAutoAll: Boolean(msConn?.auto_all_files),
       includeSharedEnabled: Boolean(msConn?.include_shared_files)
     }
@@ -71,14 +75,16 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   const googleToken = await google.getValidAccessToken(anonymousUserId, roomId).catch(() => null);
   if (googleToken) {
     const conn = await google.getGoogleConnection(anonymousUserId, roomId);
-    const files = conn?.auto_all_files
-      ? await google.listRecentFilesWithRevisions(googleToken, 20, null, true, {
-          includeShared: conn.include_shared_files,
-          userEmail: conn.google_email
-        })
-      : conn?.linked_folder_id
-        ? await google.listRecentFilesWithRevisions(googleToken, 10, conn.linked_folder_id)
-        : [];
+    const files = conn?.linked_file_ids?.length
+      ? await google.listSpecificFiles(googleToken, conn.linked_file_ids.map((f) => f.id))
+      : conn?.auto_all_files
+        ? await google.listRecentFilesWithRevisions(googleToken, 20, null, true, {
+            includeShared: conn.include_shared_files,
+            userEmail: conn.google_email
+          })
+        : conn?.linked_folder_id
+          ? await google.listRecentFilesWithRevisions(googleToken, 10, conn.linked_folder_id)
+          : [];
     for (const f of files) {
       items.push({ source: "google", label: "Drive", name: f.name, modifiedTime: f.modifiedTime, link: f.webViewLink, content: f.content });
     }
@@ -87,11 +93,13 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   const msToken = await microsoft.getValidAccessToken(anonymousUserId, roomId).catch(() => null);
   if (msToken) {
     const conn = await microsoft.getMicrosoftConnection(anonymousUserId, roomId);
-    const files = conn?.auto_all_files
-      ? await microsoft.listRecentFilesAcrossDrive(msToken, 20, conn.include_shared_files)
-      : conn?.linked_folder_id
-        ? await microsoft.listRecentFiles(msToken, conn.linked_folder_id, 10)
-        : [];
+    const files = conn?.linked_file_ids?.length
+      ? await microsoft.listSpecificFiles(msToken, conn.linked_file_ids.map((f) => f.id))
+      : conn?.auto_all_files
+        ? await microsoft.listRecentFilesAcrossDrive(msToken, 20, conn.include_shared_files)
+        : conn?.linked_folder_id
+          ? await microsoft.listRecentFiles(msToken, conn.linked_folder_id, 10)
+          : [];
     for (const f of files) {
       items.push({ source: "microsoft", label: "OneDrive", name: f.name, modifiedTime: f.lastModifiedDateTime, link: f.webUrl, content: f.content });
     }

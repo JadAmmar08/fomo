@@ -33,9 +33,10 @@ const SOURCE_META: Record<SourceKey, {
   autoAllPath: string;
   autoAllLabel: string;
   includeSharedPath?: string;
+  filesPath?: string;
 }> = {
-  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared" },
-  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared" },
+  google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared", filesPath: "/api/integrations/google/files" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared", filesPath: "/api/integrations/microsoft/files" },
   slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels" }
 };
 
@@ -54,6 +55,9 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
   const [options, setOptions] = useState<PickOption[] | null>(null);
   const [linking, setLinking] = useState(false);
   const [confirmingExternal, setConfirmingExternal] = useState<PickOption | null>(null);
+  const [pickingFiles, setPickingFiles] = useState(false);
+  const [fileOptions, setFileOptions] = useState<PickOption[] | null>(null);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const meta = SOURCE_META[source];
 
   async function openPicker() {
@@ -62,6 +66,38 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
     const res = await fetch(`${meta.pickPath}?roomId=${roomId}`, { credentials: "include" });
     const data = await res.json();
     setOptions((data.folders ?? data.channels ?? []).map((o: PickOption) => ({ id: o.id, name: o.name, isExternal: o.isExternal })));
+  }
+
+  async function openFilePicker() {
+    setPickingFiles((v) => !v);
+    if (fileOptions || !meta.filesPath) return;
+    const res = await fetch(`${meta.filesPath}?roomId=${roomId}`, { credentials: "include" });
+    const data = await res.json();
+    setFileOptions((data.files ?? []).map((f: PickOption) => ({ id: f.id, name: f.name })));
+  }
+
+  function toggleFile(id: string) {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function linkSelectedFiles() {
+    if (!meta.filesPath || selectedFileIds.size === 0) return;
+    setLinking(true);
+    const files = (fileOptions ?? []).filter((f) => selectedFileIds.has(f.id)).map((f) => ({ id: f.id, name: f.name }));
+    await fetch(meta.filesPath, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, files })
+    });
+    setLinking(false);
+    setPickingFiles(false);
+    onLinked();
   }
 
   async function pick(option: PickOption) {
@@ -156,6 +192,43 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
         >
           or {meta.pickVerb.toLowerCase()} →
         </button>
+        {meta.filesPath && (
+          <button
+            onClick={openFilePicker}
+            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500, color: "var(--subtle)" }}
+          >
+            or pick specific files →
+          </button>
+        )}
+        {pickingFiles && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 10, background: "white",
+            border: "1px solid var(--line)", borderRadius: 12, padding: 10, minWidth: 240,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "grid", gap: 8
+          }}>
+            <p style={{ fontSize: "0.72rem", color: "var(--subtle)", margin: 0 }}>
+              The smallest option — only the exact files you check are ever read.
+            </p>
+            <div style={{ display: "grid", gap: 2, maxHeight: 200, overflowY: "auto" }}>
+              {fileOptions === null && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
+              {fileOptions?.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
+              {fileOptions?.map((f) => (
+                <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", padding: "6px 8px", cursor: "pointer" }}>
+                  <input type="checkbox" checked={selectedFileIds.has(f.id)} onChange={() => toggleFile(f.id)} />
+                  {f.name}
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={linkSelectedFiles}
+              disabled={linking || selectedFileIds.size === 0}
+              className="button-secondary"
+              style={{ fontSize: "0.8rem", cursor: linking || selectedFileIds.size === 0 ? "not-allowed" : "pointer" }}
+            >
+              {linking ? "Linking…" : `Link ${selectedFileIds.size || ""} file${selectedFileIds.size === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        )}
         {picking && (
           <div style={{
             position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 10, background: "white",

@@ -158,8 +158,9 @@ export async function getGoogleConnection(anonymousUserId: string, roomId: strin
     auto_all_files: boolean;
     include_shared_files: boolean;
     google_email: string | null;
+    linked_file_ids: Array<{ id: string; name: string }>;
   }>(
-    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, google_email from google_connections
+    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, google_email, linked_file_ids from google_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
@@ -170,9 +171,63 @@ export async function linkGoogleFolder(anonymousUserId: string, roomId: string, 
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
   await pool.query(
-    `update google_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, updated_at = now()
+    `update google_connections set linked_folder_id = $1, linked_folder_name = $2, auto_all_files = false, linked_file_ids = '[]', updated_at = now()
      where anonymous_user_id = $3 and room_id = $4`,
     [folderId, folderName, anonymousUserId, roomId]
+  );
+}
+
+// The smallest possible unit of access: exactly the files someone hand-picked, not
+// a whole folder or their whole account. Meant for a first, low-stakes pilot where
+// someone wants to share 2-3 specific documents rather than an entire folder's
+// worth of contents.
+export async function linkGoogleFiles(anonymousUserId: string, roomId: string, files: Array<{ id: string; name: string }>) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  await pool.query(
+    `update google_connections set linked_file_ids = $1, linked_folder_id = null, linked_folder_name = null, auto_all_files = false, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(files), anonymousUserId, roomId]
+  );
+}
+
+// Lists individual files (not folders) for the specific-file picker — recent files
+// across the account, same "recently modified" ordering as everything else, just
+// surfaced as pickable items instead of auto-included.
+export async function listPickableFiles(accessToken: string, maxFiles = 30) {
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?" +
+      new URLSearchParams({
+        q: "mimeType != 'application/vnd.google-apps.folder' and trashed = false",
+        pageSize: String(maxFiles),
+        orderBy: "modifiedTime desc",
+        fields: "files(id,name)"
+      }),
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`Drive file list failed: ${await res.text()}`);
+  const { files } = (await res.json()) as { files: Array<{ id: string; name: string }> };
+  return files;
+}
+
+// Fetches full activity (content + revisions) for an exact, explicit set of file
+// IDs — no folder scan, no ownership query, just precisely what was picked.
+export async function listSpecificFiles(accessToken: string, fileIds: string[]) {
+  return Promise.all(
+    fileIds.map(async (fileId) => {
+      const metaRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,modifiedTime,webViewLink`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const meta = await metaRes.json();
+      const revRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/revisions?fields=revisions(modifiedTime,lastModifyingUser)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const revisions = revRes.ok ? ((await revRes.json()).revisions ?? []) : [];
+      const content = await exportFileContent(accessToken, fileId, meta.mimeType);
+      return { ...meta, revisions, content };
+    })
   );
 }
 
