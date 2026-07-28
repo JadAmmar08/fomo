@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
 import { logFeatureView } from "@/lib/cost-log";
-import { PinButton } from "@/components/pin-button";
+import { MirrorBoard } from "@/components/mirror-board";
 
 interface Thesis {
   statement: string;
@@ -149,93 +149,15 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
-          {mirror!.theses.length > 0 && (
-            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>Current hypotheses</SectionLabel>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What this workstream currently assumes.</h2>
-              <div className="list">
-                {mirror!.theses.map((thesis, i) => (
-                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
-                    {thesis.isNew && <span className="pill" style={{ fontSize: "0.68rem", flexShrink: 0, marginTop: 2, background: "var(--accent)", color: "white" }}>New</span>}
-                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)", flex: 1 }}>{thesis.statement}</p>
-                    <PinButton roomSlug={slug} cardType="mirror" cardKey={`thesis:${thesis.statement}`} cardData={thesis} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-            <SectionLabel>Unchecked assumptions</SectionLabel>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 8 }}>What you&apos;d be building on top of.</h2>
-            {mirror!.hasEnoughHistoryForStaleness ? (
-              mirror!.staleAssumptions && mirror!.staleAssumptions.length > 0 ? (
-                <div className="list" style={{ marginTop: 16 }}>
-                  {mirror!.staleAssumptions.map((a, i) => (
-                    <div key={i} style={{ background: "var(--blindspot-soft)", border: "1px solid var(--line)", borderLeft: "3px solid var(--blindspot)", borderRadius: 14, padding: "16px 20px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                        <p style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 6px", color: "var(--text)" }}>{a.statement}</p>
-                        <PinButton roomSlug={slug} cardType="mirror" cardKey={`stale:${a.statement}`} cardData={a} />
-                      </div>
-                      <p style={{ fontSize: "0.85rem", margin: 0, color: "var(--text-strong)" }}>{a.note}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ marginTop: 8 }}>Nothing flagged as stale right now, current thinking is still being actively tested.</p>
-              )
-            ) : (
-              <p style={{ marginTop: 8 }}>Not enough history yet to tell what&apos;s gone unchallenged. This fills in after a few more days of activity.</p>
-            )}
-          </section>
-
-          {mirror!.activeDisagreements.length > 0 && (
-            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>Active disagreements</SectionLabel>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>Where current work doesn&apos;t agree.</h2>
-              <div className="list">
-                {mirror!.activeDisagreements.map((d, i) => (
-                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--tension)", borderRadius: 14, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{d.statement}</p>
-                    <PinButton roomSlug={slug} cardType="mirror" cardKey={`disagreement:${d.statement}`} cardData={d} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {mirror!.decisions.length > 0 && (
-            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>Decisions and rationale</SectionLabel>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What&apos;s been settled, and why.</h2>
-              <div className="list">
-                {mirror!.decisions.map((d, i) => (
-                  <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                      <p style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0 0 6px", color: "var(--text)" }}>{d.decision}</p>
-                      <PinButton roomSlug={slug} cardType="mirror" cardKey={`decision:${d.decision}`} cardData={d} />
-                    </div>
-                    <p style={{ fontSize: "0.85rem", margin: 0, color: "var(--text-strong)" }}>{d.rationale}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {mirror!.openQuestions.length > 0 && (
-            <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
-              <SectionLabel>Open questions</SectionLabel>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", marginBottom: 20 }}>What&apos;s still unresolved.</h2>
-              <div className="list">
-                {mirror!.openQuestions.map((q, i) => (
-                  <div key={i} style={{ background: "var(--question-soft)", border: "1px solid var(--line)", borderLeft: "3px solid var(--question)", borderRadius: 14, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <p style={{ fontSize: "0.95rem", lineHeight: 1.7, margin: 0, color: "var(--text-strong)" }}>{q.question}</p>
-                    <PinButton roomSlug={slug} cardType="mirror" cardKey={`question:${q.question}`} cardData={q} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          <MirrorBoard
+            slug={slug}
+            theses={mirror!.theses}
+            activeDisagreements={mirror!.activeDisagreements}
+            openQuestions={mirror!.openQuestions}
+            staleAssumptions={mirror!.staleAssumptions}
+            hasEnoughHistoryForStaleness={mirror!.hasEnoughHistoryForStaleness}
+            decisions={mirror!.decisions}
+          />
 
           <section data-reveal style={{ ...cardStyle, padding: "40px 44px" }}>
             <SectionLabel>Timeline</SectionLabel>
