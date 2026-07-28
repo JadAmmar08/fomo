@@ -146,7 +146,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
-          Your research
+          Discovery
         </div>
         {guidance ? (
           <>

@@ -1,5 +1,6 @@
 import { getPool } from "@/lib/postgres";
 import { logApiCall } from "@/lib/cost-log";
+import { getTeamWorkstreamSnippets, getMemberWorkstreamLines } from "@/lib/workstream";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
 
@@ -57,10 +58,22 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
      group by topic_label order by count(*) desc limit 40`,
     [anonymousUserId]
   );
-  const topics = topicsRes.rows.map((r) => String(r.topic_label));
+  const browsingTopics = topicsRes.rows.map((r) => String(r.topic_label));
+
+  // Same enrichment as Pulse (lib/room-connections.ts): browsing topics alone are a weak
+  // signal for what someone's actually concluded, mixing in their own connected file/Slack
+  // content lets the pattern and team_signal reasoning below draw on real work, not just
+  // passive research interest.
+  let ownWorkstreamLines: string[] = [];
+  if (roomId) {
+    const roomSlugRes = await pool.query<{ slug: string }>(`select slug from rooms where id = $1`, [roomId]);
+    const roomSlug = roomSlugRes.rows[0]?.slug;
+    if (roomSlug) ownWorkstreamLines = await getMemberWorkstreamLines(anonymousUserId, roomSlug).catch(() => []);
+  }
+  const topics = [...browsingTopics, ...ownWorkstreamLines];
   if (topics.length < 3) return null;
 
-  const teamContext = roomId ? await getTeamContext(pool, roomId) : null;
+  const teamContext = roomId ? await getTeamContext(pool, roomId, anonymousUserId) : null;
 
   const result = await computeGuidanceWithHaiku(topics, teamContext, anonymousUserId, roomId);
   if (!result) return null;
@@ -93,20 +106,25 @@ interface TeamContext {
   connectionSummaries: string[];
   theses: string[];
   staleAssumptions: string[];
+  teamResources: string[];
 }
 
 /**
- * Reads whatever the team's pulse and mirror already have cached. Never triggers a fresh
- * AI recompute here, this is meant to be cheap and read-only, riding on work the pulse/mirror
- * pages already do.
+ * Reads whatever the team's pulse and mirror already have cached, plus an anonymous,
+ * content-only snapshot of what teammates' connected tools currently hold (never who owns
+ * what, never a link — just enough to judge whether it's relevant to this person's own
+ * research). Never triggers a fresh AI recompute here, this is meant to be cheap and
+ * read-only, riding on work the pulse/mirror pages already do.
  */
-async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string): Promise<TeamContext | null> {
+async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roomId: string, anonymousUserId: string): Promise<TeamContext | null> {
   const [roomRes, connectionsRes, mirrorRes] = await Promise.all([
-    pool.query(`select description from rooms where id = $1`, [roomId]),
+    pool.query(`select slug, description from rooms where id = $1`, [roomId]),
     pool.query(`select connections from room_connections where room_id = $1`, [roomId]),
     pool.query(`select theses, stale_assumptions from team_mirror_state where room_id = $1`, [roomId])
   ]);
   const description = roomRes.rows[0]?.description ? String(roomRes.rows[0].description) : null;
+  const roomSlug = roomRes.rows[0]?.slug ? String(roomRes.rows[0].slug) : null;
+  const teamResources = roomSlug ? await getTeamWorkstreamSnippets(roomSlug, anonymousUserId).catch(() => []) : [];
 
   const connectionSummaries: string[] = [];
   if (connectionsRes.rows.length > 0) {
@@ -125,8 +143,8 @@ async function getTeamContext(pool: NonNullable<ReturnType<typeof getPool>>, roo
     for (const s of rawStale ?? []) staleAssumptions.push(s.statement);
   }
 
-  if (!description && connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0) return null;
-  return { description, connectionSummaries, theses, staleAssumptions };
+  if (!description && connectionSummaries.length === 0 && theses.length === 0 && staleAssumptions.length === 0 && teamResources.length === 0) return null;
+  return { description, connectionSummaries, theses, staleAssumptions, teamResources };
 }
 
 async function computeGuidanceWithHaiku(
@@ -147,7 +165,9 @@ async function computeGuidanceWithHaiku(
           ...teamContext.connectionSummaries.map((c) => `- Connection: ${c}`),
           ...teamContext.theses.map((t) => `- Team thesis: ${t}`),
           ...teamContext.staleAssumptions.map((s) => `- Unrevisited team assumption: ${s}`)
-        ].join("\n")}`
+        ].join("\n")}${teamContext.teamResources.length > 0
+          ? `\n\nTeammates (never say who specifically) currently have the following files/conversations connected, shown here ONLY so you can judge relevance, never to be named, described in detail, or linked in your output:\n${teamContext.teamResources.map((r) => `- ${r}`).join("\n")}`
+          : ""}`
       : "";
 
     const message = await client.messages.create({
@@ -189,11 +209,16 @@ async function computeGuidanceWithHaiku(
       tool_choice: { type: "tool", name: "research_guidance" },
       system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
 
+The input list mixes short browsing topic labels with lines tagged [Drive]/[OneDrive]/[Slack], which are real excerpts from this person's own connected files or conversations. Treat tagged lines as stronger evidence of what they're actually producing, not just researching.
+
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 
 STEP 2, point in different directions: recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
 
-STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, or unrevisited assumption. If it does, ONE recommendation should point that out directly and must use type "team_signal", e.g. "your research on X could speak to the team's open question about Y." Only make this connection if it's real and specific, don't force one. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not just share a surface theme (e.g. "loan repricing" language) with something the team found while actually being personal and off-scope (student loans, coursework, job hunting). If a topic is off-scope for this team, it can still inform the pattern and a plain "direction"/"question", just never a "team_signal". If there's no genuine in-scope link, ignore the team context and give purely personal directions instead.
+STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, unrevisited assumption, OR something a teammate already has connected (a file, a conversation). If it does, ONE recommendation should point that out directly and must use type "team_signal". Two distinct cases both use this type:
+  (a) it speaks to something the team has already found (a connection/thesis/assumption) — e.g. "your research on X could speak to the team's open question about Y."
+  (b) a teammate already has relevant material connected — e.g. "someone on the team already has a document covering this, worth asking around before redoing the research." NEVER describe what the material actually says, what kind of file it is, or who has it, that would leak a specific person's content — the whole point is "this probably already exists, go ask," not a preview of its contents.
+Only make this connection if it's real and specific, don't force one. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not just share a surface theme (e.g. "loan repricing" language) with something the team found while actually being personal and off-scope (student loans, coursework, job hunting). If a topic is off-scope for this team, it can still inform the pattern and a plain "direction"/"question", just never a "team_signal". If there's no genuine in-scope link, ignore the team context and give purely personal directions instead.
 
 Each recommendation gets a type:
 - "direction": a concrete next thing to look into, phrased as a statement, not a question.

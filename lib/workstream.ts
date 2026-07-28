@@ -137,6 +137,50 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   return items.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
 }
 
+function formatItemsAsLines(items: WorkstreamItem[], excerptChars = 120): string[] {
+  return items
+    .sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+    .slice(0, 15)
+    .map((item) => {
+      const excerpt = item.content ? item.content.replace(/\s+/g, " ").trim().slice(0, excerptChars) : "";
+      return excerpt ? `[${item.label}] "${item.name}" — ${excerpt}` : `[${item.label}] "${item.name}"`;
+    });
+}
+
+// One member's own connected activity, formatted as content lines rather than browsing
+// topics — used to give the Pulse cross-reference something closer to actual conclusions
+// (file/conversation excerpts) instead of only topic labels from passive browsing.
+export async function getMemberWorkstreamLines(anonymousUserId: string, roomSlug: string): Promise<string[]> {
+  const items = await gatherItems(anonymousUserId, roomSlug).catch(() => []);
+  return formatItemsAsLines(items, 200);
+}
+
+// Anonymous, content-only view into what the rest of the team has connected — used by
+// Discovery to point one person toward a teammate's existing work without ever naming
+// who owns it or linking to it (that's the whole difference from the Workstream feed).
+export async function getTeamWorkstreamSnippets(roomSlug: string, excludeUserId: string): Promise<string[]> {
+  const pool = getPool();
+  if (!pool) return [];
+
+  const roomUuid = await resolveRoomUuid(roomSlug);
+  if (!roomUuid) return [];
+
+  const membersRes = await pool.query<{ anonymous_user_id: string }>(
+    `select anonymous_user_id from room_members where room_id = $1`,
+    [roomUuid]
+  );
+  const memberIds = membersRes.rows.map((r) => r.anonymous_user_id).filter((id) => id !== excludeUserId);
+  if (memberIds.length === 0) return [];
+
+  const allItems: WorkstreamItem[] = [];
+  for (const memberId of memberIds) {
+    const items = await gatherItems(memberId, roomSlug).catch(() => []);
+    allItems.push(...items);
+  }
+
+  return formatItemsAsLines(allItems);
+}
+
 async function resolveRoomUuid(slug: string): Promise<string | null> {
   const pool = getPool();
   if (!pool) return null;
