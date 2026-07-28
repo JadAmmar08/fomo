@@ -2,6 +2,8 @@ import * as google from "@/lib/google";
 import * as slack from "@/lib/slack";
 import * as microsoft from "@/lib/microsoft";
 import { getLatestSnapshot, saveSnapshot } from "@/lib/snapshots";
+import { getRoomWebOfIdeas, type IdeaConnection } from "@/lib/room-connections";
+import { getPool } from "@/lib/postgres";
 
 export interface WorkstreamItem {
   source: "google" | "slack" | "microsoft";
@@ -135,21 +137,36 @@ async function gatherItems(anonymousUserId: string, roomId: string): Promise<Wor
   return items.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
 }
 
-// One combined narrative across every connected source, instead of three separate
-// summaries — the same signal, read as a single workstream rather than three
-// disconnected tool-by-tool reports.
-export async function getCombinedWorkstream(anonymousUserId: string, roomId: string) {
-  const items = await gatherItems(anonymousUserId, roomId);
-  if (items.length === 0) return { items, summary: null };
-
-  const previous = await getLatestSnapshot(roomId, "combined");
-  const summary = await summarizeCombined(items, previous?.summary);
-  await saveSnapshot(roomId, "combined", items, summary);
-
-  return { items, summary };
+async function resolveRoomUuid(slug: string): Promise<string | null> {
+  const pool = getPool();
+  if (!pool) return null;
+  const res = await pool.query<{ id: string }>(`select id from rooms where slug = $1`, [slug]);
+  return res.rows[0]?.id ?? null;
 }
 
-async function summarizeCombined(items: WorkstreamItem[], previousSummary?: string | null): Promise<string | null> {
+// One combined narrative across every connected source AND the existing Pulse
+// connections layer (cross-person topic overlap from browsing/research) — one
+// synthesis instead of two separate features that never spoke to each other.
+export async function getCombinedWorkstream(anonymousUserId: string, roomId: string) {
+  const items = await gatherItems(anonymousUserId, roomId);
+
+  const roomUuid = await resolveRoomUuid(roomId);
+  const pulse = roomUuid ? await getRoomWebOfIdeas(roomUuid).catch(() => null) : null;
+  const pulseConnections = pulse?.connections ?? [];
+  const soloHighlights = pulse?.soloHighlights ?? [];
+
+  if (items.length === 0 && pulseConnections.length === 0) {
+    return { items, summary: null, pulseConnections, soloHighlights };
+  }
+
+  const previous = await getLatestSnapshot(roomId, "combined");
+  const summary = await summarizeCombined(items, pulseConnections, previous?.summary);
+  await saveSnapshot(roomId, "combined", items, summary);
+
+  return { items, summary, pulseConnections, soloHighlights };
+}
+
+async function summarizeCombined(items: WorkstreamItem[], pulseConnections: IdeaConnection[], previousSummary?: string | null): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -157,6 +174,10 @@ async function summarizeCombined(items: WorkstreamItem[], previousSummary?: stri
     const header = `- [${item.label}] "${item.name}", ${item.modifiedTime}`;
     return item.content ? `${header}\n  Content: ${item.content.slice(0, 1500).replace(/\n/g, "\n  ")}` : header;
   });
+
+  const pulseLines = pulseConnections.map(
+    (c) => `- [Research overlap] ${c.headline}: ${c.explanation}`
+  );
 
   const historyBlock = previousSummary
     ? `\n\nHere is the summary from the last time this was checked:\n"${previousSummary}"\n\nIf things look materially the same, say so briefly and lead with what's new. If meaningfully different, lead with what changed.`
@@ -166,13 +187,16 @@ async function summarizeCombined(items: WorkstreamItem[], previousSummary?: stri
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey });
 
+    const allLines = [...lines, ...pulseLines];
+    if (allLines.length === 0) return null;
+
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
       messages: [
         {
           role: "user",
-          content: `Here is recent activity across this team's connected tools (Drive, OneDrive, Slack) — files, edits, and conversation:\n\n${lines.join("\n\n")}${historyBlock}\n\nWrite a short (4-6 sentence) plain-English summary of this team's workstream as ONE coherent picture, not three separate reports per tool. Cover: what's actually being worked on, anything that looks duplicated or disconnected across sources, and anything unresolved or stalled. Never describe this as tracking or monitoring a person — describe the work itself. No preamble, just the summary.`
+          content: `Here is recent activity across this team's connected tools (Drive, OneDrive, Slack — files, edits, conversation) and, separately, AI-found overlaps between what different members have independently been researching:\n\n${allLines.join("\n\n")}${historyBlock}\n\nWrite a short (4-6 sentence) plain-English summary of this team as ONE coherent picture, not separate reports per source. Cover: what's actually being worked on, anything that looks duplicated or disconnected (across tools, or between someone's own research and the team's actual work), and anything unresolved or stalled. Never describe this as tracking or monitoring a specific person — describe the work and the overlaps themselves. No preamble, just the summary.`
         }
       ]
     });

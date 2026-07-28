@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WebOfIdeas } from "@/components/web-of-ideas";
+
+type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
+
+interface IdeaConnection {
+  headline: string;
+  from: string;
+  to: string;
+  explanation: string;
+  insightType: InsightType;
+  peopleCount: number;
+  sourceTopics: string[];
+}
 
 type SourceKey = "google" | "slack" | "microsoft";
 
@@ -330,6 +343,8 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
   const [statuses, setStatuses] = useState<Statuses | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [items, setItems] = useState<WorkstreamItem[]>([]);
+  const [pulseConnections, setPulseConnections] = useState<IdeaConnection[]>([]);
+  const [soloHighlights, setSoloHighlights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   function loadStatuses() {
@@ -343,17 +358,23 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
 
   const anyLinked = statuses && Object.values(statuses).some((s) => s.linked);
 
+  // Fetched regardless of whether a tool is connected — Pulse's cross-person research
+  // overlap can exist entirely on its own, from browsing signals alone, same as before
+  // this component absorbed it.
   useEffect(() => {
-    if (!anyLinked) return;
     fetch(`/api/workstream?roomId=${roomId}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         setSummary(data.summary ?? null);
         setItems(data.items ?? []);
+        setPulseConnections(data.pulseConnections ?? []);
+        setSoloHighlights(data.soloHighlights ?? []);
       });
-  }, [anyLinked, roomId]);
+  }, [roomId]);
 
   if (loading || !statuses) return null;
+
+  const hasAnything = Boolean(summary) || pulseConnections.length > 0 || soloHighlights.length > 0;
 
   return (
     <section data-reveal style={{
@@ -365,7 +386,7 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
         Workstream
       </div>
       <p style={{ fontSize: "0.85rem", color: "var(--subtle)", marginBottom: 20, maxWidth: 480 }}>
-        Connect the tools this team already uses — FOMO reads only what&apos;s explicitly linked below.
+        What this team is working on and researching, stitched into one picture. Connect the tools below to go deeper — FOMO reads only what&apos;s explicitly linked.
       </p>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
@@ -374,17 +395,23 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
         ))}
       </div>
 
-      {!anyLinked ? (
-        <p style={{ maxWidth: 480, color: "var(--subtle)" }}>
-          Connect at least one tool above to see a live picture of this team&apos;s work — what&apos;s active, what overlaps, what&apos;s stalled.
-        </p>
-      ) : summary ? (
-        <>
-          <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.1rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: 24, color: "var(--text)" }}>
-            {summary}
+      {!hasAnything ? (
+        !anyLinked ? (
+          <p style={{ maxWidth: 480, color: "var(--subtle)" }}>
+            Connect at least one tool above to see a live picture of this team&apos;s work — what&apos;s active, what overlaps, what&apos;s stalled.
           </p>
+        ) : (
+          <p style={{ color: "var(--subtle)" }}>No recent activity found yet in the connected sources.</p>
+        )
+      ) : (
+        <>
+          {summary && (
+            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.1rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: 24, color: "var(--text)" }}>
+              {summary}
+            </p>
+          )}
           {items.length > 0 && (
-            <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 8, marginBottom: pulseConnections.length > 0 || soloHighlights.length > 0 ? 28 : 0 }}>
               {items.slice(0, 8).map((item, i) => (
                 <a key={i} href={item.link} target="_blank" rel="noreferrer" style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem",
@@ -400,9 +427,8 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
               ))}
             </div>
           )}
+          <WebOfIdeas connections={pulseConnections} soloHighlights={soloHighlights} />
         </>
-      ) : (
-        <p style={{ color: "var(--subtle)" }}>No recent activity found yet in the connected sources.</p>
       )}
     </section>
   );

@@ -3,7 +3,6 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
-import { WebOfIdeas } from "@/components/web-of-ideas";
 import { WorkstreamUnified } from "@/components/workstream-unified";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { logFeatureView } from "@/lib/cost-log";
@@ -96,8 +95,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
     );
   }
 
-  const { room, webOfIdeas, generatedAt } = data;
-  const hasWeb = webOfIdeas && (webOfIdeas.connections.length > 0 || webOfIdeas.soloHighlights.length > 0);
+  const { room, generatedAt } = data;
 
   const cookieStore = await cookies();
   const viewerUid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
@@ -200,43 +198,6 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
               </div>
             </>
           )}
-      </section>
-
-      {/* Team Pulse — the team's connections layer. Named to match the "pulse" terminology
-          used everywhere else on the site (hero eyebrow, homepage mockup), which previously
-          didn't match this page's "Web of ideas" label. */}
-      <section data-reveal style={{
-        background: "white", borderRadius: 20, border: "1px solid var(--line)",
-        boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-          <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
-          Team Pulse
-        </div>
-
-        {hasWeb && webOfIdeas!.previouslyViewedAt && (
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 20,
-            background: webOfIdeas!.newSinceLastView > 0 ? "var(--accent-soft)" : "var(--surface-raised)",
-            color: webOfIdeas!.newSinceLastView > 0 ? "var(--accent)" : "var(--subtle)",
-            border: "1px solid var(--line)", borderRadius: 999, padding: "8px 16px", fontSize: "0.85rem", fontWeight: 500
-          }}>
-            {webOfIdeas!.newSinceLastView > 0
-              ? `${webOfIdeas!.newSinceLastView} new since your last visit`
-              : "Nothing new since your last visit"}
-          </div>
-        )}
-
-        {hasWeb ? (
-          <WebOfIdeas connections={webOfIdeas!.connections} soloHighlights={webOfIdeas!.soloHighlights} />
-        ) : (
-          <>
-            <h2 style={{ marginBottom: 8 }}>Still connecting the dots.</h2>
-            <p style={{ maxWidth: 480 }}>
-              Once members have a few days of research in, FOMO starts finding the overlaps between what everyone's separately looking into. Check back soon.
-            </p>
-          </>
-        )}
       </section>
 
       <WorkstreamUnified roomId={slug} />
