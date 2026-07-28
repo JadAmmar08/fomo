@@ -10,7 +10,7 @@ import { getIndividualGuidance } from "@/lib/individual-guidance";
 // interval, not whenever the next viewer shows up (which could be hours or days later).
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.INSIGHTS_CRON_SECRET || authHeader !== `Bearer ${process.env.INSIGHTS_CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

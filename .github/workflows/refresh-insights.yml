@@ -1,0 +1,15 @@
+name: Refresh insights
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger insights recompute
+        run: |
+          curl -sf -H "Authorization: Bearer ${{ secrets.INSIGHTS_CRON_SECRET }}" \
+            https://usefomo.net/api/insights/cron
