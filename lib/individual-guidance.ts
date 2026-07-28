@@ -244,7 +244,7 @@ async function computeGuidanceWithSonnet(
       tool_choice: { type: "tool", name: "research_guidance" },
       system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
 
-The input list mixes short browsing topic labels with, when present, one line tagged "[Workstream digest]" — a synthesized summary of this person's own connected files and conversations, real findings and decisions, not passive interest. Treat it as stronger evidence of what they're actually producing than any topic label.
+The input list mixes short browsing topic labels with, when present, one line tagged "[Workstream digest]" — a synthesized summary of this person's own connected files and conversations, already resolved for recency (states their CURRENT position, not a superseded draft) and already distinguishes a settled conclusion from an open hypothesis or rejected idea. Treat it as stronger evidence of what they're actually producing than any topic label, and trust its framing of what's current versus tentative rather than re-deriving that yourself.
 
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 

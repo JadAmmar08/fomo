@@ -187,7 +187,11 @@ async function synthesizeMemberDigest(items: WorkstreamItem[], previousDigest: s
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
-  const lines = items.slice(0, 20).map((item) => {
+  // Oldest first, not most-recent-first, so the model can actually see progression over
+  // time (a draft, then a revision, then a final version) instead of a shuffled pile it
+  // has to guess the order of.
+  const chronological = [...items].sort((a, b) => new Date(a.modifiedTime).getTime() - new Date(b.modifiedTime).getTime());
+  const lines = chronological.slice(0, 20).map((item) => {
     const header = `- [${item.label}] "${item.name}", ${item.modifiedTime}`;
     return item.content ? `${header}\n  Content: ${item.content.slice(0, 1000).replace(/\n/g, "\n  ")}` : header;
   });
@@ -202,11 +206,11 @@ async function synthesizeMemberDigest(items: WorkstreamItem[], previousDigest: s
 
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
+      max_tokens: 350,
       messages: [
         {
           role: "user",
-          content: `Here is one person's recent connected file and conversation activity:\n\n${lines.join("\n\n")}${historyBlock}\n\nWrite a short (2-4 sentence) digest of what this person's actual work currently shows: concrete findings, decisions, or conclusions they've reached, and any open item they seem stuck on or still deciding. State specifics from the content, not a generic topic summary. No preamble, just the digest.`
+          content: `Here is one person's connected file and conversation activity, ordered oldest to newest by when each item was last modified:\n\n${lines.join("\n\n")}${historyBlock}\n\nWrite a short (2-5 sentence) digest of what this person's work CURRENTLY shows. Rules:\n- Items are given in date order on purpose. If a later item supersedes, revises, or contradicts an earlier one, state only the current (later) position, don't report the superseded one as if it's still live.\n- Distinguish status: something phrased as a draft, open hypothesis, or rejected idea is NOT the same as a settled conclusion or decision. Say so if it matters (e.g. "still exploring X" vs "concluded X").\n- State concrete findings, decisions, or conclusions, and any open item they seem stuck on or still deciding.\n- State specifics from the content, not a generic topic summary. No preamble, just the digest.`
         }
       ]
     });
