@@ -484,6 +484,28 @@ function splitIntoSentences(text: string): string[] {
   return sentences.filter(Boolean);
 }
 
+// A throat-clearing preamble before the colon ("A new thesis has emerged: ...", "Cycle 41
+// introduced...:") is the model's actual failure mode here, not a real independent clause —
+// unlike Pulse's connections, where the part before a colon/semicolon usually IS the claim.
+// Keeping "part before the colon" would discard the real finding and keep the filler. Strip
+// known preambles instead, don't attempt generic clause-splitting.
+const PREAMBLE_PATTERNS = [
+  /^a new thesis has emerged(?: (?:from|around|from cycles?) [\w\s()]+)?:\s*/i,
+  /^a new stale assumption was flagged:\s*/i,
+  /^a new (?:connection|shift|assumption) (?:has emerged|was flagged|surfaced):\s*/i,
+  /^it (?:was|has been) (?:found|noted|observed) that\s+/i
+];
+
+function stripPreamble(text: string): string {
+  for (const pattern of PREAMBLE_PATTERNS) {
+    if (pattern.test(text)) {
+      const stripped = text.replace(pattern, "").trim();
+      return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+    }
+  }
+  return text;
+}
+
 /**
  * Mechanical backstop for the "one tight sentence" rule, same reasoning as the connections
  * engine and individual guidance: prompting alone doesn't reliably hold. If the model writes
@@ -491,7 +513,7 @@ function splitIntoSentences(text: string): string[] {
  * mid-sentence, an honest longer sentence beats a mangled fragment.
  */
 function tightenToOneSentence(text: string, maxWords: number): string {
-  const sentences = splitIntoSentences(text.trim());
+  const sentences = splitIntoSentences(stripPreamble(text.trim()));
   const result = sentences[0] ?? text.trim();
   const wordCount = result.split(/\s+/).filter(Boolean).length;
   if (wordCount > maxWords + 10 && sentences.length === 1) return result;
