@@ -44,7 +44,7 @@ export function HeroCta() {
   return (
     <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 18 }}>
       <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 40px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
-        Get the extension →
+        Get started →
       </Link>
       <Link href={"/teams" as Route} className="button-secondary" style={{ fontSize: "1.05rem", padding: "18px 32px", background: "white" }}>
         See FOMO in action
@@ -75,7 +75,7 @@ export function BottomCta() {
       <h2 style={{ fontSize: "clamp(2.6rem, 6vw, 4.6rem)", marginBottom: 22, lineHeight: 1.02 }}>
         Ready to see what<br />your team is missing?
       </h2>
-      <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Install the extension. Invite your team. Browse normally.</p>
+      <p style={{ marginBottom: 48, fontSize: "1.1rem", color: "var(--muted)" }}>Connect what you already use. Invite your team. Work normally.</p>
       <Link href="/download" className="button" style={{ fontSize: "1.05rem", padding: "18px 44px", boxShadow: "0 12px 32px rgba(26,26,24,0.25)" }}>
         Get started, it&apos;s free
       </Link>

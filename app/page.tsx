@@ -8,26 +8,26 @@ export default function LandingPage() {
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-          Give every project team a shared research brain.
+          A living record of where your project stands.
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          Create a private FOMO for any project. As everyone researches normally, FOMO connects their findings, flags contradictions, and shows the team what to resolve next.
+          FOMO connects to the tools your team already uses, Drive, OneDrive, Slack, and keeps a live model of what's been done, what's changed, and where separate workstreams quietly duplicate or contradict each other.
         </p>
         <HeroCta />
-        <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. Zero extra work.</p>
+        <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. You choose exactly what it can see.</p>
       </section>
 
       {/* Concrete value props */}
       <section data-reveal style={{ padding: "40px 0 90px", borderTop: "1px solid var(--line)" }}>
         <div className="grid three" style={{ gap: 24 }}>
           {[
-            { title: "Shorter meetings.", body: "Open it at the start of the call. Nobody spends the first ten minutes catching everyone up, the team already knows what everyone found." },
-            { title: "Fewer blind spots.", body: "See when two people are independently converging on the same problem, or missing something the other already knows." },
-            { title: "No setup for a project team.", body: "Spin one up for a case, a diligence sprint, or a research assignment. Archive it when the project ends." },
+            { title: "Faster handoffs.", body: "Someone joining or picking work back up gets caught up in minutes, current thinking, what changed, what's still unresolved, not a meeting to reconstruct it." },
+            { title: "Fewer blind spots.", body: "See when two people are independently converging on the same problem, or working from assumptions that don't actually agree." },
+            { title: "You choose the scope.", body: "One file, one folder, or everything, per person, per tool. Client-facing channels always need their own explicit yes, never bundled in." },
           ].map((v) => (
             <div key={v.title} style={{ padding: "32px 8px" }}>
               <h3 style={{ fontSize: "1.2rem", marginBottom: 10 }}>{v.title}</h3>
@@ -48,11 +48,11 @@ export default function LandingPage() {
             Not a feed. A finding.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-            FOMO doesn&apos;t just show you what&apos;s trending. It tells you why it matters, framed as a real tension, a blind spot, an opportunity, or a question worth answering.
+            FOMO reads your team&apos;s actual connected files and conversations, then tells you why something matters, framed as a real tension, a blind spot, an opportunity, or a question worth answering.
           </p>
           <div style={{ display: "grid", gap: 16 }}>
             {[
-              { title: "Zero extra work.", body: "People just browse normally. No posting, no summarizing, no meetings to compare notes." },
+              { title: "Zero extra work.", body: "People keep working in Drive, OneDrive, and Slack normally. No posting, no summarizing, no meetings to compare notes." },
               { title: "Never who found what.", body: "Only how it connects. Anonymous by design, so people participate honestly." },
               { title: "Ranked by insight, not popularity.", body: "One sharp connection beats ten obvious ones. FOMO would rather say nothing than pad the list." },
             ].map((f) => (
@@ -101,14 +101,60 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Individual guidance — kept as a small supporting note, not a full section,
-          so it doesn't compete with the core team-connections pitch */}
-      <section data-reveal style={{ padding: "44px 0", borderTop: "1px solid var(--line)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 20, maxWidth: 780, margin: "0 auto" }}>
-          <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>◐</span>
-          <p style={{ fontSize: "0.98rem", lineHeight: 1.7, color: "var(--muted)", margin: 0 }}>
-            <strong style={{ color: "var(--text)" }}>Start before the whole team joins.</strong> FOMO begins organizing your project research immediately, then starts finding cross-team connections as collaborators arrive.
+      {/* Discovery — text left, product card right */}
+      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+            Discovery
+          </div>
+          <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
+            Not a search bar. A nudge.
+          </h2>
+          <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
+            When your own work touches something a teammate already has, FOMO says so, without describing what it is or who has it. One click gets it to you immediately.
           </p>
+          <div style={{ display: "grid", gap: 16 }}>
+            {[
+              { title: "Nothing shown until you ask.", body: "The nudge is deliberately vague. Requesting it is a real action you take, not something dumped on the page." },
+              { title: "No approval to wait on.", body: "You get it the moment you click. The owner gets a heads-up after the fact, not a request to approve." },
+              { title: "Grounded, never invented.", body: "Every nudge traces back to a real connected file or conversation. If it can't, FOMO doesn't say it." },
+            ].map((f) => (
+              <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
+                <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Product mockup card — the actual Discovery output */}
+        <div style={{
+          background: "white",
+          borderRadius: 20,
+          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
+          border: "1px solid var(--line)",
+          overflow: "hidden"
+        }}>
+          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Discovery</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Your research pattern</div>
+            </div>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>◆ Team signal</span>
+          </div>
+          <div style={{ padding: "22px 26px" }}>
+            <div style={{ background: "var(--accent-soft)", border: "1px solid var(--accent)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+              <p style={{ fontSize: "0.88rem", lineHeight: 1.6, margin: "0 0 12px", color: "var(--text-strong)" }}>
+                A teammate already has connected material relevant to European reimbursement timing, worth asking before redoing this research.
+              </p>
+              <span className="button-secondary" style={{ fontSize: "0.8rem", padding: "7px 16px", display: "inline-flex" }}>Request it</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span className="chip">anonymous nudge</span>
+              <span className="chip">no wait</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -123,11 +169,11 @@ export default function LandingPage() {
             Not a snapshot. A memory.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, maxWidth: 420 }}>
-            Every team gets an evolving model of what it currently believes, what&apos;s been reinforced, and what nobody&apos;s challenged in a while. It gets sharper the longer the team uses it, and a new member can read it and be caught up in minutes.
+            Five states, read at a glance: what&apos;s live, where work is in tension, what&apos;s unresolved, what&apos;s gone stale, what&apos;s settled and why. A new member reads it and is caught up in minutes, no meeting required.
           </p>
         </div>
 
-        {/* Product mockup card — the actual team mirror output */}
+        {/* Product mockup card — a small preview of the actual five-column board */}
         <div style={{
           background: "white",
           borderRadius: 20,
@@ -140,24 +186,19 @@ export default function LandingPage() {
               <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Team Mirror</div>
               <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Biotech Research Team</div>
             </div>
-            <span className="pill" style={{ fontSize: "0.75rem" }}>Evolving</span>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>Live</span>
           </div>
-          <div style={{ padding: "22px 26px" }}>
-            <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Working theses</span>
-            <div style={{ display: "grid", gap: 10, marginBottom: 22 }}>
-              {[
-                "The in-vivo delivery approach is the team's default, pending regulatory resolution.",
-                "The acquisition price ceiling assumes seven years of exclusivity.",
-              ].map((t, i) => (
-                <div key={i} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--implication)", borderRadius: 14, padding: "14px 18px" }}>
-                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{t}</p>
-                </div>
-              ))}
-            </div>
-            <span className="kicker" style={{ marginBottom: 12, display: "block" }}>Blind spots</span>
-            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--blindspot)", borderRadius: 14, padding: "14px 18px" }}>
-              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>Nobody has revisited the exclusivity assumption since the patent research surfaced the four-year expiry.</p>
-            </div>
+          <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
+            {[
+              { label: "Live", color: "var(--implication)", body: "The in-vivo delivery approach is the team's default, pending regulatory resolution." },
+              { label: "In tension", color: "var(--tension)", body: "The valuation model assumes seven years of exclusivity, but the strongest claims expire in four." },
+              { label: "Stale", color: "var(--blindspot)", body: "Nobody has revisited the exclusivity assumption since patent research surfaced the shorter expiry." },
+            ].map((c) => (
+              <div key={c.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: "14px 18px" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: c.color, display: "block", marginBottom: 6 }}>{c.label}</span>
+                <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{c.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -176,9 +217,9 @@ export default function LandingPage() {
         </div>
         <div className="grid three" style={{ gap: 24 }}>
           {[
-            { n: "01", title: "Install. Work normally.", body: "A lightweight Chrome extension runs silently in the background. No workspace setup, no integrations, no manual updates." },
+            { n: "01", title: "Connect what you already use.", body: "Drive, OneDrive, Slack, or just the Chrome extension. Per person, per tool, you choose the scope, down to a single file." },
             { n: "02", title: "Invite your team.", body: "A private, invite-only team. Nobody sees who found what, only how it connects." },
-            { n: "03", title: "Open it at your next meeting.", body: "Real connections between separate research, plus an evolving model of what the team believes, ready before anyone says a word." },
+            { n: "03", title: "Open it at your next meeting.", body: "Real connections between separate work, plus a living record of what the team believes, ready before anyone says a word." },
           ].map((step) => (
             <div key={step.n} style={{
               background: "white",
@@ -206,17 +247,17 @@ export default function LandingPage() {
             Respects the person.<br />Benefits the team.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.85, maxWidth: 400 }}>
-            Nobody&apos;s individual browsing is ever shown to anyone, including whoever&apos;s paying for it. FOMO surfaces what the group found, never who found it.
+            Nobody&apos;s individual activity is ever shown to anyone, including whoever&apos;s paying for it. FOMO surfaces what the group found, never who found it, and never shows a teammate&apos;s content without a real action from you.
           </p>
         </div>
         <div style={{ display: "grid", gap: 18 }}>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
-            <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>What FOMO sees</h3>
-            <p style={{ lineHeight: 1.75 }}>Page titles, URLs, and visible page content, used only to understand project topics, evidence, and connections.</p>
+            <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>You choose the scope</h3>
+            <p style={{ lineHeight: 1.75 }}>One file, one folder, or everything you own, per tool, per person. Client-facing or external Slack channels always need their own separate, explicit yes, never bundled into a bulk approval.</p>
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ color: "var(--subtle)", marginBottom: 10, fontSize: "1.1rem" }}>What FOMO never touches</h3>
-            <p style={{ lineHeight: 1.75 }}>Passwords, messages, form inputs, banking pages, health records. Ever.</p>
+            <p style={{ lineHeight: 1.75 }}>Passwords, banking pages, health records, anything you haven&apos;t explicitly connected. Ever.</p>
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>Evaluating FOMO for your team?</h3>
