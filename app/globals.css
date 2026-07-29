@@ -533,3 +533,25 @@ p {
     gap: 8px !important;
   }
 }
+
+.mirror-board-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(200px, 1fr));
+}
+
+/* On narrow screens the grid becomes a horizontally swipeable row of columns.
+   Each column is sized to 82% of the viewport, not 100%, so the next
+   column's edge always peeks in as a visible cue to swipe, instead of the
+   first column silently filling the whole screen with no sign more exist. */
+@media (max-width: 900px) {
+  .mirror-board-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: 82%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mirror-board-grid > div {
+    scroll-snap-align: start;
+  }
+}

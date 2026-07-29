@@ -92,7 +92,7 @@ export function MirrorBoard({ slug, theses, activeDisagreements, openQuestions, 
       background: "white", borderRadius: 20, border: "1px solid var(--line)",
       boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "36px 40px 12px", marginBottom: 24, overflowX: "auto"
     }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(200px, 1fr))", minWidth: 960 }}>
+      <div className="mirror-board-grid">
         {columns.map((col, colIdx) => (
           <div key={col.key} style={{
             padding: colIdx === 0 ? "0 20px 0 0" : "0 20px",
