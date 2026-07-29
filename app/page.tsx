@@ -261,7 +261,7 @@ export default function LandingPage() {
           </div>
           <div style={{ background: "white", borderRadius: 18, border: "1px solid var(--line)", boxShadow: "0 16px 48px rgba(0,0,0,0.08)", padding: "30px 34px" }}>
             <h3 style={{ marginBottom: 10, fontSize: "1.1rem" }}>Evaluating FOMO for your team?</h3>
-            <p style={{ lineHeight: 1.75 }}>We&apos;ve written up exactly what the browser extension permission does, what data goes where, and who we share it with, in plain language for IT and security reviewers. <a href="/privacy" style={{ color: "var(--accent)" }}>Read the full breakdown</a>.</p>
+            <p style={{ lineHeight: 1.75 }}>We&apos;ve written up exactly what the browser extension permission does, what data goes where, and who we share it with, in plain language for IT and security reviewers. <a href="/privacy" style={{ color: "var(--accent)" }}>Read the full breakdown</a>, or <a href="/fomo-data-privacy-overview.pdf" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>download the two-page IT/security overview (PDF)</a>.</p>
           </div>
         </div>
       </section>

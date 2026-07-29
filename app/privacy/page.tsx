@@ -73,7 +73,7 @@ export default function PrivacyPage() {
           <li><strong>What we never do with this access:</strong> read what you type, capture screenshots, read cookies from sites other than our own, or store raw page content after classification.</li>
           <li><strong>Cookie access:</strong> the extension&apos;s cookie permission is used only to read and set FOMO&apos;s own session cookie (on usefomo.net), so you stay signed in across devices. It is never used to read cookies from other sites you visit.</li>
         </ul>
-        <p>If your organization&apos;s IT or security team needs more detail before approving FOMO for a team, email <a href="mailto:hi@usefomo.co" style={{ color: "var(--accent)" }}>hi@usefomo.co</a> and we&apos;ll walk through it directly.</p>
+        <p>If your organization&apos;s IT or security team needs more detail before approving FOMO for a team, download our <a href="/fomo-data-privacy-overview.pdf" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>two-page data &amp; privacy overview (PDF)</a>, or email <a href="mailto:hi@usefomo.co" style={{ color: "var(--accent)" }}>hi@usefomo.co</a> and we&apos;ll walk through it directly.</p>
       </section>
 
       <section className="panel">
