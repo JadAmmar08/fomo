@@ -40,10 +40,28 @@ export async function POST(req: NextRequest) {
   const roomId = roomRes.rows[0]?.id;
   if (!roomId) return NextResponse.json({ error: "Team not found" }, { status: 404 });
 
-  await pool.query(
-    `update room_members set workstream_note = $1 where room_id = $2 and anonymous_user_id = $3`,
-    [trimmed || null, roomId, anonymousUserId]
+  // Keep the outgoing note as "previous," not overwrite it silently, so Discovery can
+  // notice a real shift in focus instead of just describing the new state as if it were
+  // always true. Only counts as a real change if there was an actual prior note to lose.
+  const currentRes = await pool.query<{ workstream_note: string | null }>(
+    `select workstream_note from room_members where room_id = $1 and anonymous_user_id = $2`,
+    [roomId, anonymousUserId]
   );
+  const current = currentRes.rows[0]?.workstream_note?.trim() || null;
+
+  if (current && current !== trimmed) {
+    await pool.query(
+      `update room_members set previous_workstream_note = $1, workstream_note = $2, workstream_note_updated_at = now()
+       where room_id = $3 and anonymous_user_id = $4`,
+      [current, trimmed || null, roomId, anonymousUserId]
+    );
+  } else {
+    await pool.query(
+      `update room_members set workstream_note = $1, workstream_note_updated_at = now()
+       where room_id = $2 and anonymous_user_id = $3`,
+      [trimmed || null, roomId, anonymousUserId]
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

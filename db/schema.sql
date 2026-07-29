@@ -128,6 +128,10 @@ create table if not exists room_members (
 create index if not exists idx_room_members_user on room_members(anonymous_user_id);
 create index if not exists idx_room_members_room on room_members(room_id);
 alter table room_members add column if not exists workstream_note text;
+-- Kept so Discovery can notice a real shift in what someone's working on, not just
+-- describe the current note as if it were always true.
+alter table room_members add column if not exists previous_workstream_note text;
+alter table room_members add column if not exists workstream_note_updated_at timestamptz;
 
 -- TEAM MIRROR (an evolving mental model of the team, distinct from the connections-engine
 -- pulse. Persisted and updated incrementally, rather than recomputed fresh each time, so it
