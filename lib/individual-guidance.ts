@@ -123,11 +123,14 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
 
   // Fires a real push the moment a genuinely new team_signal appears — the whole point of
   // Discovery's team_signal is timely ("go ask before you redo this"), so waiting for the
-  // person to happen to reopen the page defeats it.
-  const newTeamSignal = result.recommendations.find((r) => r.type === "team_signal" && !previousTeamSignalTexts.has(r.text));
+  // person to happen to reopen the page defeats it. Every recommendation here is already
+  // guaranteed to be team_signal (see computeGuidanceWithSonnet's hard filter), so this is
+  // never a generic "here's an idea" push, only ever "here's how someone else's work
+  // affects yours."
+  const newTeamSignal = result.recommendations.find((r) => !previousTeamSignalTexts.has(r.text));
   if (newTeamSignal) {
     sendPushToUser(anonymousUserId, {
-      title: "Something relevant just showed up",
+      title: "Someone else's work affects yours",
       body: newTeamSignal.text,
       url: roomSlug ? `/teams/${roomSlug}` : undefined
     }).catch((err) => console.error("[guidance notify] failed:", err));
