@@ -35,12 +35,20 @@ export async function isInAnyRoom(anonymousUserId: string) {
   return result === true;
 }
 
+// A domain+path pair reused this classification indefinitely, however old, since this
+// only ever grabbed the latest cached row rather than checking its age. A page whose
+// actual content changed since it was last classified would keep serving the stale
+// label forever. 30 days is generous enough to still avoid most repeat paid calls for
+// genuinely static pages, while forcing a real reclassification eventually.
+const CLASSIFICATION_CACHE_TTL_DAYS = 30;
+
 export async function getCachedClassification(domain: string, urlPath: string) {
   return withClient(async (client) => {
     const res = await client.query(
       `select broad_category, topic_label, topic_tags, confidence, reasoning
        from browsing_signals
        where normalized_domain = $1 and url_path = $2
+         and timestamp_bucket >= now() - interval '${CLASSIFICATION_CACHE_TTL_DAYS} days'
        order by timestamp_bucket desc limit 1`,
       [domain, urlPath]
     );
