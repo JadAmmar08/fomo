@@ -158,20 +158,10 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           Discovery
         </div>
         <WorkstreamNoteEditor roomSlug={slug} />
-        {guidance ? (
-          <>
-            <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: "1.15rem", fontStyle: "italic", lineHeight: 1.7, marginBottom: guidance.recommendations.length > 0 ? 24 : 0, color: "var(--text)" }}>
-              {guidance.pattern}
-            </p>
-          </>
-        ) : (
-          <>
-            <h2 style={{ marginBottom: 8 }}>Still learning your pattern.</h2>
-            <p style={{ maxWidth: 480 }}>
-              Once you&apos;ve browsed a bit, FOMO starts reading the pattern in your own research and pointing you toward directions worth exploring. Check back soon.
-            </p>
-          </>
+        {!guidance && (
+          <p style={{ maxWidth: 480 }}>
+            Once you&apos;ve browsed a bit, or told FOMO what you&apos;re working on above, this starts pointing you toward directions worth exploring. Check back soon.
+          </p>
         )}
         {guidance && guidance.recommendations.length > 0 && (
             <>

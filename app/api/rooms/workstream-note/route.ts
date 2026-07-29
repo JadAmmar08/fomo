@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { getRequestAnonymousUserId } from "@/lib/session";
+import { getIndividualGuidance } from "@/lib/individual-guidance";
 
 const MAX_NOTE_LENGTH = 600;
 
@@ -62,6 +63,11 @@ export async function POST(req: NextRequest) {
       [trimmed || null, roomId, anonymousUserId]
     );
   }
+
+  // Discovery caches for 24h, so without this a fresh note would sit next to stale
+  // recommendations generated before it existed (or worse, from garbage browsing topics)
+  // for up to a day. Awaited so the very next guidance fetch already reflects the change.
+  await getIndividualGuidance(anonymousUserId, roomId, true).catch((err) => console.error("[workstream-note refresh] failed:", err));
 
   return NextResponse.json({ ok: true });
 }

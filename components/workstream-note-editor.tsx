@@ -32,6 +32,10 @@ export function WorkstreamNoteEditor({ roomSlug }: { roomSlug: string }) {
       });
       setSaved(note);
       setEditing(false);
+      // Discovery's recommendations are fetched server-side on page load, and the save
+      // above just forced a fresh recompute behind it, reload so this page actually shows
+      // it instead of the pre-note guidance sitting there until the next visit.
+      window.location.reload();
     } finally {
       setSaving(false);
     }
