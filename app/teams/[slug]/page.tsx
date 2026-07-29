@@ -165,7 +165,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
         )}
         {guidance && guidance.recommendations.length > 0 && (
             <>
-              <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where to look next</span>
+              <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where this connects to the rest of the team</span>
               <div style={{ display: "grid", gap: 10 }}>
                 {guidance.recommendations.map((rec, i) => (
                   <DiscoveryRecommendationCard key={i} rec={rec} roomSlug={slug} />

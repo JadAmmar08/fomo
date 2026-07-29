@@ -228,7 +228,7 @@ async function computeGuidanceWithSonnet(
       tools: [
         {
           name: "research_guidance",
-          description: "Return the goal behind someone's own research and 1-3 divergent, non-obvious directions that serve that same goal.",
+          description: "Return only genuine team-connected signals for this person, or none at all.",
           input_schema: {
             type: "object" as const,
             properties: {
@@ -238,10 +238,7 @@ async function computeGuidanceWithSonnet(
                 items: {
                   type: "object",
                   properties: {
-                    type: {
-                      type: "string",
-                      enum: ["direction", "question", "team_signal"]
-                    },
+                    type: { type: "string", enum: ["team_signal"] },
                     text: { type: "string" },
                     sourceTopics: {
                       type: "array",
@@ -250,7 +247,7 @@ async function computeGuidanceWithSonnet(
                     },
                     resourceIndex: {
                       type: ["integer", "null"],
-                      description: "Only for a team_signal grounded in case (b), a teammate's connected material (not a team pulse connection/thesis). The 1-based index into the numbered teammate-material list this recommendation is based on. Null otherwise."
+                      description: "Only when grounded in a teammate's connected material (not a team pulse connection/thesis). The 1-based index into the numbered teammate-material list this recommendation is based on. Null otherwise."
                     }
                   },
                   required: ["type", "text", "sourceTopics", "resourceIndex"]
@@ -263,38 +260,27 @@ async function computeGuidanceWithSonnet(
         }
       ],
       tool_choice: { type: "tool", name: "research_guidance" },
-      system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
+      system: `Discovery has one job: tell this person when what they're doing genuinely overlaps, conflicts with, or could be helped by what someone else on the team is doing. Nothing else belongs here. This is not a research-ideas tool, it never suggests a generic next direction or open question that doesn't involve the rest of the team, that job belongs elsewhere in the product.
 
-The input list mixes short browsing topic labels with, when present, one line tagged "[Workstream digest]" — a synthesized summary of this person's own connected files and conversations, already resolved for recency (states their CURRENT position, not a superseded draft) and already distinguishes a settled conclusion from an open hypothesis or rejected idea. Treat it as stronger evidence of what they're actually producing than any topic label, and trust its framing of what's current versus tentative rather than re-deriving that yourself.
+SCOPE: what this person is actually doing is defined ONLY by what's in the input list below, most importantly a line tagged "[What they say they're working on]" if present, that's their own plain-English statement, written by them, not inferred, and it outranks everything else. A line tagged "[Workstream digest]" is a synthesized summary of their real connected files and conversations, already resolved for recency and already distinguishing a settled conclusion from an open hypothesis. Plain topic labels are the weakest signal, browsing history, not stated intent. Use whichever of these exist to understand their scope, never invent scope beyond what's actually given.
 
-If present, a line tagged "[What they say they're working on]" is this person's own plain-English statement of their goal, written by them, not inferred. This outranks everything else, it's ground truth, not a guess. Ground the pattern and recommendations in it whenever it's given, and treat a vague or thin statement here as reason to say so honestly (the pattern field can note that more detail would sharpen this) rather than papering over it with inferred topics. If that line instead reads "[What they say they're working on, just changed from: "..."]", their focus has genuinely shifted since last time, say so directly in the pattern (e.g. "moved from X to Y") rather than describing only the new state as if it were always true, that shift is itself the most useful thing to surface.
+THE ONLY THING TO PRODUCE: for each of the two cases below, at most one recommendation, both of type "team_signal":
+  (a) their scope genuinely bears on a team connection, thesis, or unrevisited assumption given in team context, e.g. it would confirm, contradict, or extend something the team already found.
+  (b) a teammate already has connected material relevant to their scope. NEVER describe what the material actually says, what kind of file it is, or who has it, the whole point is "this probably already exists, go ask," not a preview of its contents.
 
-STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
-
-STEP 2, point in different directions: recommendations must NOT be "go deeper on the same thing" (that's convergent, and boring, it's what they'd think of on their own). Instead, find adjacent, non-obvious angles that still serve the SAME underlying goal but come at it from a direction they haven't been looking, a different field, a different kind of evidence, a related but unexplored question. The test for a good recommendation: if it just says "look closer at X" where X is a topic they already have, it's not divergent enough, reject it and find a real adjacent angle instead.
-
-STEP 3, if team context is provided below: check whether this person's own research pattern genuinely bears on any team connection, thesis, unrevisited assumption, OR something a teammate already has connected (a file, a conversation). If it does, ONE recommendation should point that out directly and must use type "team_signal". Two distinct cases both use this type:
-  (a) it speaks to something the team has already found (a connection/thesis/assumption) — e.g. "your research on X could speak to the team's open question about Y."
-  (b) a teammate already has relevant material connected — e.g. "someone on the team already has a document covering this, worth asking around before redoing the research." NEVER describe what the material actually says, what kind of file it is, or who has it, that would leak a specific person's content — the whole point is "this probably already exists, go ask," not a preview of its contents.
-Only make this connection if it's real and specific, don't force one. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not just share a surface theme (e.g. "loan repricing" language) with something the team found while actually being personal and off-scope (student loans, coursework, job hunting). If a topic is off-scope for this team, it can still inform the pattern and a plain "direction"/"question", just never a "team_signal". If there's no genuine in-scope link, ignore the team context and give purely personal directions instead.
-
-Each recommendation gets a type:
-- "direction": a concrete next thing to look into, phrased as a statement, not a question.
-- "question": phrased as an actual open question ending in "?", specific enough someone could go find the answer.
-- "team_signal": ONLY for the one recommendation (if any) that ties this person's own research to something the team has already found. Never invent one of these if there's no real link.
+If NEITHER case is real and specific, return an empty recommendations array. An empty array is the correct, common answer, not a failure state, do not force a connection that only shares a surface theme (e.g. matching vocabulary) rather than an actual substantive link. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not something personal and off-scope for this team (coursework, job hunting, an unrelated hobby) that happens to share language with something the team found.
 
 RULES:
-- pattern: ONE sentence naming the actual underlying goal their research is serving, not a restatement of their topics ("You're researching X and Y" is not a goal, it's a list). Max 25 words. Count your words, if over, cut until under.
-- recommendations: 1-3 items. ONE CLAIM PER ITEM, ONE sentence, not two. "direction" and "question" are max 20 words. "team_signal" is max 28 words, still one sentence, state the connection only, do not also add a follow-up question in the same item. Do not repeat or lightly rephrase a topic they already have.
+- pattern: ONE sentence describing this person's scope as given (their stated focus if present, otherwise a synthesis of their digest/topics). Max 25 words. This is never shown to the user, it exists only to help you reason, so don't optimize its phrasing, just be accurate.
+- recommendations: 0-2 items, one per case above, never more. ONE CLAIM PER ITEM, ONE sentence, max 28 words, state the connection only, no follow-up question in the same item.
 - NO EM-DASHES. NO SEMICOLONS. No consultant-speak ("optimize," "leverage," "holistic").
 - Ground everything in the literal topic names and team context given, don't invent facts, statistics, or timelines not derivable from them.
-- sourceTopics: for each recommendation, copy verbatim the topic name(s) from the input list (character for character) that it's actually grounded in. This is shown to the user as evidence, so it must trace back to something real in the input, not be invented or paraphrased.
-- Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.
-- If the topics are too scattered to infer a real goal, say so honestly in the pattern field rather than forcing one.`,
+- sourceTopics: copy verbatim the topic name(s) from the input list (character for character) that this is actually grounded in. Shown to the user as evidence, must trace back to something real.
+- Never say "Member 1," "your teammate," or any phrase that implies you know who specifically did what. Team findings belong to the team as a whole.`,
       messages: [
         {
           role: "user",
-          content: `Here is what this person has been researching over the last 14 days:\n\n${topics.map((t) => `- ${t}`).join("\n")}${teamContextBlock}\n\nWhat's the underlying goal behind this research, and what interesting, non-obvious directions could they explore next that still serve that same goal?`
+          content: `Here is what this person is working on:\n\n${topics.map((t) => `- ${t}`).join("\n")}${teamContextBlock}\n\nDoes this genuinely overlap with, conflict with, or relate to what the rest of the team is doing? If not, say so with an empty recommendations array, don't force one.`
         }
       ]
     });
@@ -316,11 +302,12 @@ RULES:
 
     const resourceItems = teamContext?.teamResourceItems ?? [];
 
+    // Hard filter, not just the schema's enum: only "team_signal" ever survives here.
+    // Discovery's whole point now is team-connected relevance, nothing else belongs.
     const recommendations: GuidanceRecommendation[] = (Array.isArray(raw.recommendations) ? raw.recommendations : [])
-      .slice(0, 3)
+      .filter((r) => r.type === "team_signal")
+      .slice(0, 2)
       .map((r) => {
-        const type = (r.type === "question" || r.type === "team_signal" ? r.type : "direction") as GuidanceType;
-        const maxWords = type === "team_signal" ? 28 : 20;
         // Only keep topics that are verifiably real (exist in what this person actually
         // researched), the same safety net Pulse uses — a hallucinated sourceTopic gets dropped
         // rather than shown as if it were evidence.
@@ -331,7 +318,7 @@ RULES:
         // Resolved server-side only, never something the model wrote out itself, so the
         // resourceRef always traces back to a real connected item, never a hallucination.
         let resourceRef: HandoffResourceRef | null = null;
-        if (type === "team_signal" && typeof r.resourceIndex === "number") {
+        if (typeof r.resourceIndex === "number") {
           const owned = resourceItems[r.resourceIndex - 1];
           if (owned) {
             resourceRef = {
@@ -344,7 +331,7 @@ RULES:
           }
         }
 
-        return { type, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), maxWords), sourceTopics, resourceRef };
+        return { type: "team_signal" as GuidanceType, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), 28), sourceTopics, resourceRef };
       })
       .filter((r) => r.text && !hasMemberLeak(r.text));
 
