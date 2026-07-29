@@ -76,11 +76,12 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     }
   }
 
-  const membersRes = await pool.query(
-    `select anonymous_user_id from room_members where room_id = $1`,
+  const membersRes = await pool.query<{ anonymous_user_id: string; workstream_note: string | null }>(
+    `select anonymous_user_id, workstream_note from room_members where room_id = $1`,
     [roomId]
   );
-  const memberIds = membersRes.rows.map((r) => String(r.anonymous_user_id));
+  const memberIds = membersRes.rows.map((r) => r.anonymous_user_id);
+  const memberNotes = new Map(membersRes.rows.map((r) => [r.anonymous_user_id, r.workstream_note?.trim() || null]));
   if (memberIds.length === 0) return null;
 
   const roomRes = await pool.query(
@@ -115,7 +116,14 @@ export async function getRoomWebOfIdeas(roomId: string, forceRefresh = false): P
     );
     const topics = res.rows.map((r) => String(r.topic_label));
     const digest = roomSlug ? await getMemberWorkstreamDigest(memberId, roomSlug).catch(() => null) : null;
-    perMemberTopics.push(digest ? [...topics, `[Workstream digest] ${digest}`] : topics);
+    const note = memberNotes.get(memberId) ?? null;
+    perMemberTopics.push([
+      ...topics,
+      ...(digest ? [`[Workstream digest] ${digest}`] : []),
+      // Explicit self-reported ground truth, ranked above the inferred digest for the same
+      // reason as Discovery: it isn't a guess about what this person is doing, they said so.
+      ...(note ? [`[What they say they're working on] ${note}`] : [])
+    ]);
   }
 
   const totalTopics = perMemberTopics.reduce((sum, t) => sum + t.length, 0);
@@ -423,7 +431,7 @@ async function computeConnectionsWithHaiku(
       tool_choice: { type: "tool", name: "web_of_ideas" },
       system: `You are a research analyst finding non-obvious, high-value connections between what different members of a private group are independently looking into. This is the core value of the product: turning quiet, separate research into a shared discovery the group wouldn't have found on its own.
 
-Each member's list mixes two kinds of signal: short browsing topic labels, and (when present) one line tagged "[Workstream digest]" which is a synthesized summary of that person's actual connected files and conversations, already resolved for recency (it states their CURRENT position, not a superseded earlier draft) and already distinguishes a settled conclusion from an open hypothesis or rejected idea. Treat the digest as much higher-value evidence than topic labels: a genuine contradiction between two members' digests (one workstream's stated conclusion undercutting another's stated assumption) is the single most valuable thing this can surface. Weight the digest accordingly when ranking connections by insight value, and prefer grounding connections in it over topic labels when both are available. Trust the digest's own framing of what's current versus still-tentative, don't re-litigate that distinction from raw content yourself, the digest step already did that work.
+Each member's list mixes up to three kinds of signal: short browsing topic labels, one line tagged "[Workstream digest]" which is a synthesized summary of that person's actual connected files and conversations, already resolved for recency (it states their CURRENT position, not a superseded earlier draft) and already distinguishes a settled conclusion from an open hypothesis or rejected idea, and one line tagged "[What they say they're working on]" which is that person's own plain-English statement of their goal, written by them, not inferred by anything. Rank these three by trust, highest first: the self-reported statement, then the digest, then topic labels. A genuine contradiction grounded in two members' self-reported statements or digests (one workstream's stated conclusion or goal undercutting another's) is the single most valuable thing this can surface. Trust each signal's own framing of what's current versus still-tentative, don't re-litigate that distinction from raw content yourself, that work is already done.
 
 RELEVANCE CHECK, BEFORE ANYTHING ELSE:
 You will be told this team's name and, if given, its stated focus. A member's browsing history can include topics that have nothing to do with why this team exists (a personal errand, an unrelated hobby, an app-store or store listing, etc.) — these are noise, not signal. Before treating any topic as material for a connection or a solo highlight, ask: "does this plausibly belong to what this team is actually researching?" If a topic is clearly off-focus for this team, exclude it entirely, even if it would otherwise connect neatly to another off-focus topic from a different member. Do not force a connection between two irrelevant topics just because they're thematically similar to each other, they still have to be relevant to the team's actual purpose.

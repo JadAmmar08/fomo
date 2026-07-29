@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name must be at least 3 characters" }, { status: 400 });
   }
 
+  // Description is the single biggest input into result quality — it's what Pulse and
+  // Discovery use to tell relevant work from noise. Enforced server-side too, not just in
+  // the create-room form, since that's the only thing that actually guarantees it exists.
+  if (!description || description.length < 20) {
+    return NextResponse.json({ error: "Description must be at least 20 characters, describe what this team is actually working on" }, { status: 400 });
+  }
+
   try {
     const result = await pool.query(
       `INSERT INTO rooms (name, slug, description, created_by, type)

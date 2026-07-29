@@ -65,8 +65,14 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
       .finally(() => setLoading(false));
   }, [type]);
 
+  const MIN_DESCRIPTION_LENGTH = 20;
+
   async function createRoom() {
     if (!name.trim()) return;
+    if (description.trim().length < MIN_DESCRIPTION_LENGTH) {
+      setError(`Description needs a bit more detail (at least ${MIN_DESCRIPTION_LENGTH} characters) so FOMO can tell what's actually relevant.`);
+      return;
+    }
     setCreating(true);
     setError("");
     const res = await fetch("/api/rooms", {
@@ -158,17 +164,24 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
               />
             </div>
             <div>
-              <label className="kicker" style={{ marginBottom: 8, display: "block" }}>Description (optional)</label>
-              <input
+              <label className="kicker" style={{ marginBottom: 8, display: "block" }}>Description (required)</label>
+              <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder={`What's this ${type} for?`}
+                placeholder={`What is this ${type} actually working on? Be specific, this is what FOMO uses to tell relevant work from noise.`}
+                rows={3}
                 style={{
                   width: "100%", padding: "10px 14px",
                   background: "var(--surface-raised)", border: "1px solid var(--line-strong)",
-                  borderRadius: "var(--radius-md)", color: "var(--text)", fontSize: "0.95rem"
+                  borderRadius: "var(--radius-md)", color: "var(--text)", fontSize: "0.95rem",
+                  fontFamily: "inherit", resize: "vertical"
                 }}
               />
+              <p style={{ fontSize: "0.78rem", color: "var(--subtle)", marginTop: 6, lineHeight: 1.5 }}>
+                This is the single biggest input into result quality. Without it, FOMO can&apos;t tell what&apos;s
+                actually relevant to this {type} from someone&apos;s unrelated browsing or files, and connections
+                get noisy fast. A real sentence or two, not a title.
+              </p>
             </div>
             {error && <p style={{ color: "var(--danger)", fontSize: "0.88rem", margin: 0 }}>{error}</p>}
             <div className="button-row">

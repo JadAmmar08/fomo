@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { WorkstreamUnified } from "@/components/workstream-unified";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { DiscoveryRecommendationCard } from "@/components/discovery-recommendation-card";
+import { WorkstreamNoteEditor } from "@/components/workstream-note-editor";
 import { logFeatureView } from "@/lib/cost-log";
 
 interface IdeaConnection {
@@ -156,6 +157,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
           Discovery
         </div>
+        <WorkstreamNoteEditor roomSlug={slug} />
         {guidance ? (
           <>
             <span className="kicker" style={{ marginBottom: 8, display: "block" }}>The pattern in what you&apos;ve been looking into</span>

@@ -78,14 +78,28 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   // content lets the pattern and team_signal reasoning below draw on real work, not just
   // passive research interest.
   let ownDigest: string | null = null;
+  let ownNote: string | null = null;
   let roomSlug: string | null = null;
   if (roomId) {
     const roomSlugRes = await pool.query<{ slug: string }>(`select slug from rooms where id = $1`, [roomId]);
     roomSlug = roomSlugRes.rows[0]?.slug ?? null;
     if (roomSlug) ownDigest = await getMemberWorkstreamDigest(anonymousUserId, roomSlug).catch(() => null);
+
+    const noteRes = await pool.query<{ workstream_note: string | null }>(
+      `select workstream_note from room_members where room_id = $1 and anonymous_user_id = $2`,
+      [roomId, anonymousUserId]
+    );
+    ownNote = noteRes.rows[0]?.workstream_note?.trim() || null;
   }
-  const topics = ownDigest ? [...browsingTopics, `[Workstream digest] ${ownDigest}`] : browsingTopics;
-  if (topics.length < 3) return null;
+  const topics = [
+    ...browsingTopics,
+    ...(ownDigest ? [`[Workstream digest] ${ownDigest}`] : []),
+    // Explicit, self-reported ground truth from the person themselves, the highest-priority
+    // signal available, ranked above inferred digests and browsing topics because it isn't
+    // a guess. Lets someone with zero connected tools still get real value from Discovery.
+    ...(ownNote ? [`[What they say they're working on] ${ownNote}`] : [])
+  ];
+  if (topics.length < 3 && !ownNote) return null;
 
   const teamContext = roomId ? await getTeamContext(pool, roomId, anonymousUserId) : null;
 
@@ -245,6 +259,8 @@ async function computeGuidanceWithSonnet(
       system: `You are helping one person see the underlying goal behind their own recent research, then pointing them toward interesting adjacent directions they likely haven't considered. This is for ONE person only, never reveal or reference which specific teammate found what, team findings are described as belonging to the team, not a person.
 
 The input list mixes short browsing topic labels with, when present, one line tagged "[Workstream digest]" — a synthesized summary of this person's own connected files and conversations, already resolved for recency (states their CURRENT position, not a superseded draft) and already distinguishes a settled conclusion from an open hypothesis or rejected idea. Treat it as stronger evidence of what they're actually producing than any topic label, and trust its framing of what's current versus tentative rather than re-deriving that yourself.
+
+If present, a line tagged "[What they say they're working on]" is this person's own plain-English statement of their goal, written by them, not inferred. This outranks everything else, it's ground truth, not a guess. Ground the pattern and recommendations in it whenever it's given, and treat a vague or thin statement here as reason to say so honestly (the pattern field can note that more detail would sharpen this) rather than papering over it with inferred topics.
 
 STEP 1, understand the goal: don't just describe their topics, infer what they're actually trying to figure out or accomplish, the destination their research is aimed at, not just the road they're currently on.
 

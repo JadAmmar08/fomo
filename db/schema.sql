@@ -127,6 +127,7 @@ create table if not exists room_members (
 
 create index if not exists idx_room_members_user on room_members(anonymous_user_id);
 create index if not exists idx_room_members_room on room_members(room_id);
+alter table room_members add column if not exists workstream_note text;
 
 -- TEAM MIRROR (an evolving mental model of the team, distinct from the connections-engine
 -- pulse. Persisted and updated incrementally, rather than recomputed fresh each time, so it
