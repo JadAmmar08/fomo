@@ -274,14 +274,37 @@ export async function disconnectMicrosoft(anonymousUserId: string, roomId: strin
 }
 
 // Lists individual files (not folders) for the specific-file picker.
+// Graph's /recent endpoint tracks activity history, not just file existence, and stays
+// empty or badly lagged for lightly-used accounts (a fresh tenant, a file that was just
+// created) even when the file is sitting right there in the account. Root-level files
+// (/me/drive/root/children) is a second, more reliable source that doesn't depend on
+// activity tracking at all, so the two are merged, deduped by id, with /recent's
+// (usually more relevantly-ordered) results first.
 export async function listPickableFiles(accessToken: string, maxFiles = 30) {
-  const res = await fetch(
-    `${GRAPH_BASE}/me/drive/recent?$top=${maxFiles}&$select=id,name,file`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!res.ok) throw new Error(`OneDrive file list failed: ${await res.text()}`);
-  const data = await res.json();
-  return (data.value as OneDriveFile[]).filter((f) => f.file).map((f) => ({ id: f.id, name: f.name }));
+  const [recentRes, rootRes] = await Promise.all([
+    fetch(`${GRAPH_BASE}/me/drive/recent?$top=${maxFiles}&$select=id,name,file`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    }),
+    fetch(`${GRAPH_BASE}/me/drive/root/children?$top=${maxFiles}&$select=id,name,file`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+  ]);
+
+  if (!recentRes.ok && !rootRes.ok) {
+    throw new Error(`OneDrive file list failed: ${await rootRes.text()}`);
+  }
+
+  const recent = recentRes.ok ? ((await recentRes.json()).value as OneDriveFile[]) : [];
+  const root = rootRes.ok ? ((await rootRes.json()).value as OneDriveFile[]) : [];
+
+  const seen = new Set<string>();
+  const merged: Array<{ id: string; name: string }> = [];
+  for (const f of [...recent, ...root]) {
+    if (!f.file || seen.has(f.id)) continue;
+    seen.add(f.id);
+    merged.push({ id: f.id, name: f.name });
+  }
+  return merged.slice(0, maxFiles);
 }
 
 // Fetches full activity (content + versions) for an exact, explicit set of file IDs.
