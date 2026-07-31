@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
-import { getRequestAnonymousUserId } from "@/lib/session";
+import { getAccountForRequest } from "@/lib/account";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -12,12 +12,19 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
   if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
+  // A team is shared, cross-device state — the creator needs a real account behind it from
+  // the start, or it risks becoming an orphaned identity nobody can ever log back into.
+  const account = await getAccountForRequest(req);
+  if (!account) {
+    return NextResponse.json({ error: "Sign in with your email first to create a team." }, { status: 401 });
+  }
+  const anonymousUserId = account.anonymousUserId;
+
   const body = await req.json();
   const name = String(body.name ?? "").trim();
   const description = String(body.description ?? "").trim();
   const type = body.type === "team" ? "team" : "room";
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const anonymousUserId = getRequestAnonymousUserId(req, body.anonymousUserId);
 
   if (!name || name.length < 3) {
     return NextResponse.json({ error: "Name must be at least 3 characters" }, { status: 400 });

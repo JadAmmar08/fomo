@@ -171,6 +171,9 @@ create table if not exists accounts (
   anonymous_user_id text not null unique,
   created_at timestamptz not null default now()
 );
+-- Unused for now (login is still email-only, no password) — added ahead of time so real
+-- password auth doesn't need another migration against live account data later.
+alter table accounts add column if not exists password_hash text;
 
 create table if not exists magic_link_tokens (
   token text primary key,

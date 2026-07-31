@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
-import { getRequestAnonymousUserId } from "@/lib/session";
+import { getAccountForRequest } from "@/lib/account";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -12,9 +12,14 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
   if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
+  const account = await getAccountForRequest(req);
+  if (!account) {
+    return NextResponse.json({ error: "Sign in with your email first to join a team." }, { status: 401 });
+  }
+  const anonymousUserId = account.anonymousUserId;
+
   const body = await req.json();
   const inviteCode = String(body.inviteCode ?? "").trim();
-  const anonymousUserId = getRequestAnonymousUserId(req, body.anonymousUserId);
 
   if (!inviteCode) {
     return NextResponse.json({ error: "Invite code required" }, { status: 400 });
