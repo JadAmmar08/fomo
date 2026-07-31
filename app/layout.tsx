@@ -21,13 +21,14 @@ export default function RootLayout({
         <div className="app-shell">
           <header className="topbar">
             <Link href="/" className="brand">
-              <img src="/fomo-logo.png" alt="FOMO" className="brand-logo" />
+              <span className="brand-dot"></span>
+              fomo
             </Link>
             <Nav />
           </header>
           <main className="page-frame">{children}</main>
           <footer style={{ borderTop: "1px solid var(--line)", padding: "24px 40px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-serif)", fontSize: "0.9rem", color: "var(--subtle)" }}>FOMO</span>
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "0.95rem", color: "var(--subtle)" }}>fomo</span>
             <div style={{ display: "flex", gap: 24 }}>
               <Link href="/privacy" style={{ fontSize: "0.8rem", color: "var(--subtle)" }}>Privacy</Link>
               <Link href="/terms" style={{ fontSize: "0.8rem", color: "var(--subtle)" }}>Terms</Link>

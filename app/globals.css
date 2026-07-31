@@ -87,12 +87,19 @@ button, input, select { font: inherit; }
 .brand {
   display: flex;
   align-items: center;
+  gap: 9px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.4rem;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }
 
-.brand-logo {
-  height: 28px;
-  width: auto;
-  display: block;
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .topnav {
