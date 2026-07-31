@@ -172,6 +172,47 @@ export async function linkMicrosoftFiles(anonymousUserId: string, roomId: string
   );
 }
 
+// Graph's push-notification equivalent of Drive's watch API. Unlike Drive, Graph lets
+// an existing subscription be extended in place (see renewSubscription) rather than
+// forcing a stop-and-recreate cycle. `clientState` is echoed back on every
+// notification so the webhook route can check it before trusting the payload.
+// driveItem subscriptions cap out well under Graph's max, so this uses a conservative
+// 1-hour window and relies on the renewal cron to keep it alive continuously.
+export async function createSubscription(accessToken: string, fileId: string, webhookUrl: string, clientState: string) {
+  const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const res = await fetch(`${GRAPH_BASE}/subscriptions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      changeType: "updated",
+      notificationUrl: webhookUrl,
+      resource: `/me/drive/items/${fileId}`,
+      expirationDateTime,
+      clientState
+    })
+  });
+  if (!res.ok) throw new Error(`Graph subscription failed: ${await res.text()}`);
+  return res.json() as Promise<{ id: string; expirationDateTime: string }>;
+}
+
+export async function renewSubscription(accessToken: string, subscriptionId: string) {
+  const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const res = await fetch(`${GRAPH_BASE}/subscriptions/${subscriptionId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ expirationDateTime })
+  });
+  if (!res.ok) throw new Error(`Graph subscription renewal failed: ${await res.text()}`);
+  return res.json() as Promise<{ expirationDateTime: string }>;
+}
+
+export async function deleteSubscription(accessToken: string, subscriptionId: string) {
+  await fetch(`${GRAPH_BASE}/subscriptions/${subscriptionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  }).catch(() => {});
+}
+
 // Clears whatever's currently linked without removing the underlying connection.
 export async function unlinkMicrosoft(anonymousUserId: string, roomId: string) {
   const pool = getPool();

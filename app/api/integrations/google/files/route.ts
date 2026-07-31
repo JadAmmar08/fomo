@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken, linkGoogleFiles, listPickableFiles } from "@/lib/google";
 import { getRequestAnonymousUserId } from "@/lib/session";
+import { registerFileWatch } from "@/lib/file-watch";
 
 export async function GET(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
@@ -29,5 +30,15 @@ export async function POST(req: NextRequest) {
   }
 
   await linkGoogleFiles(anonymousUserId, roomId, files);
+
+  // Best-effort: a watch registration failure (e.g. the webhook domain isn't verified
+  // in Google Search Console yet) should never block linking the file itself, the
+  // 15-min cron still covers it either way.
+  for (const f of files as Array<{ id: string; name: string }>) {
+    registerFileWatch("google", anonymousUserId, roomId, f.id, f.name).catch((err) =>
+      console.error("[google files] watch registration failed:", err)
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }

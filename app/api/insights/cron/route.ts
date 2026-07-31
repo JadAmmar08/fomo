@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { getRoomWebOfIdeas } from "@/lib/room-connections";
 import { getIndividualGuidance } from "@/lib/individual-guidance";
+import { renewExpiringWatches } from "@/lib/file-watch";
 
 // Triggers Pulse + per-member Discovery on a fixed schedule instead of only whenever
 // someone happens to load a page — that's what makes the push notifications in
@@ -27,6 +28,11 @@ export async function GET(req: NextRequest) {
   let roomsProcessed = 0;
   let membersProcessed = 0;
   const errors: string[] = [];
+
+  // Watch channels/subscriptions expire on their own schedule, independent of any
+  // room's pulse/guidance cache, so this needs to run every tick regardless of what
+  // else is due for recompute below.
+  await renewExpiringWatches().catch((err) => errors.push(`watch renewal: ${err instanceof Error ? err.message : String(err)}`));
 
   for (const room of roomsRes.rows) {
     try {

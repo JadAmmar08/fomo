@@ -8,12 +8,18 @@ interface GuidanceRecommendation {
   text: string;
   sourceTopics: string[];
   hasResource?: boolean;
+  conflictKind?: "duplicate" | "contradiction" | "none";
 }
 
 const GUIDANCE_LABELS: Record<GuidanceRecommendation["type"], string> = {
   direction: "Direction",
   question: "Open question",
   team_signal: "Team signal"
+};
+
+const CONFLICT_LABELS: Record<"duplicate" | "contradiction", string> = {
+  duplicate: "Duplicate work",
+  contradiction: "Conflicting data"
 };
 
 interface ArtifactResult {
@@ -30,6 +36,7 @@ export function DiscoveryRecommendationCard({ rec, roomSlug }: { rec: GuidanceRe
   const [feedbackGiven, setFeedbackGiven] = useState<"useful" | "not_relevant" | null>(null);
 
   const isTeamSignal = rec.type === "team_signal";
+  const conflict = rec.conflictKind === "duplicate" || rec.conflictKind === "contradiction" ? rec.conflictKind : null;
   const typeColor = rec.type === "question" ? "var(--question)" : rec.type === "direction" ? "var(--direction)" : "var(--accent)";
   const typeBg = rec.type === "question" ? "var(--question-soft)" : rec.type === "direction" ? "var(--direction-soft)" : "var(--accent-soft)";
 
@@ -70,14 +77,24 @@ export function DiscoveryRecommendationCard({ rec, roomSlug }: { rec: GuidanceRe
       borderRadius: 12, padding: "12px 16px"
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <span className="pill" style={{
-          fontSize: "0.68rem", marginBottom: 6, display: "inline-flex", fontWeight: 600,
-          background: isTeamSignal ? "var(--accent)" : typeBg,
-          color: isTeamSignal ? "white" : typeColor,
-          border: isTeamSignal ? "none" : `1px solid ${typeColor}`
-        }}>
-          {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
-        </span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <span className="pill" style={{
+            fontSize: "0.68rem", marginBottom: 6, display: "inline-flex", fontWeight: 600,
+            background: isTeamSignal ? "var(--accent)" : typeBg,
+            color: isTeamSignal ? "white" : typeColor,
+            border: isTeamSignal ? "none" : `1px solid ${typeColor}`
+          }}>
+            {isTeamSignal ? "◆ " : ""}{GUIDANCE_LABELS[rec.type]}
+          </span>
+          {conflict && (
+            <span className="pill" style={{
+              fontSize: "0.68rem", marginBottom: 6, display: "inline-flex", fontWeight: 600,
+              background: "var(--negative-soft, #fde2e2)", color: "var(--negative, #b42318)", border: "1px solid var(--negative, #b42318)"
+            }}>
+              ⚑ {CONFLICT_LABELS[conflict]}
+            </span>
+          )}
+        </div>
         <PinButton roomSlug={roomSlug} cardType="discovery" cardKey={`${rec.type}:${rec.text}`} cardData={rec} />
       </div>
       <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{rec.text}</p>

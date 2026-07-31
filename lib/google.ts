@@ -231,6 +231,31 @@ export async function listSpecificFiles(accessToken: string, fileIds: string[]) 
   );
 }
 
+// Registers a push-notification channel so Drive tells us the instant this one file
+// changes, instead of us polling it. Requires the webhook address's domain to be
+// verified in Google Search Console for this OAuth client — a real Drive prerequisite,
+// not something this code can route around. `token` is echoed back on every
+// notification so the webhook route can check it before trusting the payload.
+export async function watchFile(accessToken: string, fileId: string, channelId: string, webhookUrl: string, token: string) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/watch`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: channelId, type: "web_hook", address: webhookUrl, token })
+  });
+  if (!res.ok) throw new Error(`Drive watch failed: ${await res.text()}`);
+  return res.json() as Promise<{ resourceId: string; expiration: string }>;
+}
+
+// Drive channels can't be extended in place, only stopped and recreated — this just
+// stops one so a stale/duplicate channel doesn't keep firing after we've replaced it.
+export async function stopWatchChannel(accessToken: string, channelId: string, resourceId: string) {
+  await fetch("https://www.googleapis.com/drive/v3/channels/stop", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: channelId, resourceId })
+  }).catch(() => {});
+}
+
 // Clears whatever's currently linked (folder, everything-I-own, or specific files)
 // without removing the underlying connection — lets someone pick something
 // different without going through OAuth again.

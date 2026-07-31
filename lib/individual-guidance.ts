@@ -5,6 +5,12 @@ import { sendPushToUser } from "@/lib/push";
 
 export type GuidanceType = "direction" | "question" | "team_signal";
 
+// "duplicate" = a teammate is already doing/has this (case b below, or a matching
+// in-progress effort). "contradiction" = their data or conclusion conflicts with what
+// the team already found (a wrong number in a shared spreadsheet is a contradiction).
+// "none" = a softer, non-urgent connection (confirms or extends existing work).
+export type ConflictKind = "duplicate" | "contradiction" | "none";
+
 export interface HandoffResourceRef {
   source: string;
   name: string;
@@ -18,6 +24,7 @@ export interface GuidanceRecommendation {
   text: string;
   sourceTopics: string[];
   resourceRef?: HandoffResourceRef | null;
+  conflictKind?: ConflictKind;
 }
 
 export interface IndividualGuidance {
@@ -121,6 +128,24 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
     [anonymousUserId, roomId, result.pattern, JSON.stringify(result.recommendations)]
   );
 
+  // A duplicate or contradiction is never allowed to just sit in a digest waiting to be
+  // dismissed by a future recompute that doesn't reproduce it, that's the whole reason
+  // pinned_cards exists (lib/individual-guidance.ts callers already let a person pin one
+  // by hand via app/api/pins). Doing it here means it's pinned the instant it's detected,
+  // not only if the person happens to notice and click pin before it scrolls away.
+  if (roomSlug) {
+    for (const rec of result.recommendations) {
+      if (rec.conflictKind === "none" || !rec.conflictKind) continue;
+      const cardKey = `${rec.type}:${rec.text}`;
+      pool.query(
+        `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
+         values ($1, $2, 'discovery', $3, $4)
+         on conflict (anonymous_user_id, room_id, card_type, card_key) do update set card_data = excluded.card_data`,
+        [anonymousUserId, roomSlug, cardKey, JSON.stringify(rec)]
+      ).catch((err) => console.error("[guidance auto-pin] failed:", err));
+    }
+  }
+
   // Fires a real push the moment a genuinely new team_signal appears — the whole point of
   // Discovery's team_signal is timely ("go ask before you redo this"), so waiting for the
   // person to happen to reopen the page defeats it. Every recommendation here is already
@@ -129,8 +154,13 @@ export async function getIndividualGuidance(anonymousUserId: string, roomId = ""
   // affects yours."
   const newTeamSignal = result.recommendations.find((r) => !previousTeamSignalTexts.has(r.text));
   if (newTeamSignal) {
+    const title = newTeamSignal.conflictKind === "duplicate"
+      ? "Duplicate work found"
+      : newTeamSignal.conflictKind === "contradiction"
+        ? "Conflicting data found"
+        : "Someone else's work affects yours";
     sendPushToUser(anonymousUserId, {
-      title: "Someone else's work affects yours",
+      title,
       body: newTeamSignal.text,
       url: roomSlug ? `/teams/${roomSlug}` : undefined
     }).catch((err) => console.error("[guidance notify] failed:", err));
@@ -144,10 +174,11 @@ function normalizeRecommendations(raw: unknown): GuidanceRecommendation[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r) => {
     if (typeof r === "string") return { type: "direction" as const, text: r, sourceTopics: [], resourceRef: null };
-    const obj = r as { type?: string; text?: string; sourceTopics?: unknown; resourceRef?: HandoffResourceRef | null };
+    const obj = r as { type?: string; text?: string; sourceTopics?: unknown; resourceRef?: HandoffResourceRef | null; conflictKind?: string };
     const type: GuidanceType = obj.type === "question" || obj.type === "team_signal" ? obj.type : "direction";
     const sourceTopics = Array.isArray(obj.sourceTopics) ? obj.sourceTopics.map((t) => String(t)) : [];
-    return { type, text: String(obj.text ?? ""), sourceTopics, resourceRef: obj.resourceRef ?? null };
+    const conflictKind: ConflictKind = obj.conflictKind === "duplicate" || obj.conflictKind === "contradiction" ? obj.conflictKind : "none";
+    return { type, text: String(obj.text ?? ""), sourceTopics, resourceRef: obj.resourceRef ?? null, conflictKind };
   }).filter((r) => r.text);
 }
 
@@ -251,9 +282,14 @@ async function computeGuidanceWithSonnet(
                     resourceIndex: {
                       type: ["integer", "null"],
                       description: "Only when grounded in a teammate's connected material (not a team pulse connection/thesis). The 1-based index into the numbered teammate-material list this recommendation is based on. Null otherwise."
+                    },
+                    conflictKind: {
+                      type: "string",
+                      enum: ["duplicate", "contradiction", "none"],
+                      description: "'duplicate' if a teammate is already doing or already has this (case b). 'contradiction' if their data, number, or conclusion conflicts with what the team already found, including a factual error like a wrong figure in a shared spreadsheet (case a, conflicting). 'none' if it only confirms or extends existing work without urgency."
                     }
                   },
-                  required: ["type", "text", "sourceTopics", "resourceIndex"]
+                  required: ["type", "text", "sourceTopics", "resourceIndex", "conflictKind"]
                 }
               }
             },
@@ -272,6 +308,8 @@ THE ONLY THING TO PRODUCE: for each of the two cases below, at most one recommen
   (b) a teammate already has connected material relevant to their scope. NEVER describe what the material actually says, what kind of file it is, or who has it, the whole point is "this probably already exists, go ask," not a preview of its contents.
 
 If NEITHER case is real and specific, return an empty recommendations array. An empty array is the correct, common answer, not a failure state, do not force a connection that only shares a surface theme (e.g. matching vocabulary) rather than an actual substantive link. A "team_signal" requires the topic to plausibly fall within this team's actual stated focus, not something personal and off-scope for this team (coursework, job hunting, an unrelated hobby) that happens to share language with something the team found.
+
+Every recommendation also needs a conflictKind: "duplicate" when case (b) applies or someone is redoing work a teammate is already doing, "contradiction" when their data, a number, or a conclusion actually conflicts with what the team already found (this includes plain factual errors, like a figure in a shared spreadsheet that doesn't match the team's real numbers), or "none" when it's a softer confirm/extend with no urgency.
 
 RULES:
 - pattern: ONE sentence describing this person's scope as given (their stated focus if present, otherwise a synthesis of their digest/topics). Max 25 words. This is never shown to the user, it exists only to help you reason, so don't optimize its phrasing, just be accurate.
@@ -300,7 +338,7 @@ RULES:
     const toolBlock = message.content.find((b) => b.type === "tool_use");
     if (!toolBlock || toolBlock.type !== "tool_use") return null;
 
-    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string; sourceTopics?: unknown; resourceIndex?: number | null }[] };
+    const raw = toolBlock.input as { pattern: string; recommendations: { type?: string; text?: string; sourceTopics?: unknown; resourceIndex?: number | null; conflictKind?: string }[] };
     if (!raw.pattern) return null;
 
     const resourceItems = teamContext?.teamResourceItems ?? [];
@@ -334,7 +372,9 @@ RULES:
           }
         }
 
-        return { type: "team_signal" as GuidanceType, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), 28), sourceTopics, resourceRef };
+        const conflictKind: ConflictKind = r.conflictKind === "duplicate" || r.conflictKind === "contradiction" ? r.conflictKind : "none";
+
+        return { type: "team_signal" as GuidanceType, text: tightenToOneSentence(stripEmDash(String(r.text ?? "")), 28), sourceTopics, resourceRef, conflictKind };
       })
       .filter((r) => r.text && !hasMemberLeak(r.text));
 

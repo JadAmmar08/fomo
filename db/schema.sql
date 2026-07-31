@@ -365,6 +365,29 @@ create table if not exists pinned_cards (
   primary key (anonymous_user_id, room_id, card_type, card_key)
 );
 
+-- FILE WATCH CHANNELS (one row per file someone's asked FOMO to watch live —
+-- Google Drive `files.watch` / Microsoft Graph `/subscriptions`, whichever provider
+-- owns the file. Lets a webhook ping route straight back to "whose file, which room,
+-- which file" without re-deriving it, and last_content_hash dedupes the notifications
+-- both providers fire multiple times per real edit.)
+create table if not exists file_watch_channels (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null check (provider in ('google', 'microsoft')),
+  anonymous_user_id text not null,
+  room_id text not null,
+  file_id text not null,
+  file_name text not null,
+  channel_id text not null,
+  resource_id text,
+  last_content_hash text,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, file_id, anonymous_user_id, room_id)
+);
+create index if not exists idx_file_watch_channels_expiry on file_watch_channels(expires_at);
+create index if not exists idx_file_watch_channels_lookup on file_watch_channels(provider, channel_id);
+
 -- MEMBER WORKSTREAM DIGESTS (one cached, synthesized "what this person's actual
 -- work currently shows" per person per room — replaces raw file/message excerpts
 -- as the input to Pulse and Discovery's cross-referencing, since raw excerpts are
