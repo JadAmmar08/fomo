@@ -21,8 +21,7 @@ export default function RootLayout({
         <div className="app-shell">
           <header className="topbar">
             <Link href="/" className="brand">
-              <span className="brand-dot"></span>
-              FOMO
+              <img src="/fomo-logo.png" alt="FOMO" className="brand-logo" />
             </Link>
             <Nav />
           </header>
