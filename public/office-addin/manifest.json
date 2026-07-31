@@ -1,0 +1,140 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "d8200f43-c217-42fe-a186-4b1859d0e9fb",
+  "developer": {
+    "name": "FOMO",
+    "websiteUrl": "https://usefomo.net",
+    "privacyUrl": "https://usefomo.net/privacy",
+    "termsOfUseUrl": "https://usefomo.net/terms"
+  },
+  "name": {
+    "short": "FOMO Live Signal",
+    "full": "FOMO Live Signal"
+  },
+  "description": {
+    "short": "Live duplicate/conflict alerts in your document.",
+    "full": "Surfaces duplicate or conflicting teammate work right in the document you're editing, instead of only as a notification you might miss."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#1a6b5a",
+  "validDomains": [
+    "usefomo.net"
+  ],
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "Document.ReadWrite.User",
+          "type": "Delegated"
+        }
+      ]
+    }
+  },
+  "extensions": [
+    {
+      "requirements": {
+        "scopes": [
+          "document",
+          "workbook"
+        ]
+      },
+      "runtimes": [
+        {
+          "id": "TaskPaneRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://usefomo.net/office-addin/taskpane.html"
+          },
+          "lifetime": "long",
+          "actions": [
+            {
+              "id": "ShowTaskpane",
+              "type": "openPage",
+              "view": "dashboard"
+            }
+          ]
+        },
+        {
+          "id": "AutoOpenRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://usefomo.net/office-addin/commands.html",
+            "script": "https://usefomo.net/office-addin/commands.js"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "onDocumentOpened",
+              "type": "executeFunction",
+              "displayName": "onDocumentOpened"
+            }
+          ]
+        }
+      ],
+      "ribbons": [
+        {
+          "requirements": {
+            "scopes": [
+              "document",
+              "workbook"
+            ]
+          },
+          "tabs": [
+            {
+              "builtInTabId": "TabHome",
+              "groups": [
+                {
+                  "id": "FomoGroup",
+                  "label": "FOMO",
+                  "icons": [
+                    { "size": 16, "file": "outline.png" },
+                    { "size": 32, "file": "color.png" },
+                    { "size": 80, "file": "color.png" }
+                  ],
+                  "controls": [
+                    {
+                      "id": "FomoTaskpaneButton",
+                      "type": "button",
+                      "label": "Live Signal",
+                      "icons": [
+                        { "size": 16, "file": "outline.png" },
+                        { "size": 32, "file": "color.png" },
+                        { "size": 80, "file": "color.png" }
+                      ],
+                      "supertip": {
+                        "title": "Live Signal",
+                        "description": "Show duplicate/conflicting teammate work for this file"
+                      },
+                      "actionId": "ShowTaskpane"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "autoRunEvents": [
+        {
+          "requirements": {
+            "scopes": [
+              "document",
+              "workbook"
+            ]
+          },
+          "events": [
+            {
+              "type": "officeDocumentOpen",
+              "actionId": "onDocumentOpened"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
