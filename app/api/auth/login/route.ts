@@ -65,6 +65,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const response = NextResponse.json({ ok: true, redirectTo });
+  // anonymousUserId is echoed back in the body (not just the cookie) for callers that
+  // can't rely on first-party cookies persisting the way a normal browser tab does —
+  // the Word/Excel task pane add-in stores it in localStorage instead (see public/office-addin).
+  const response = NextResponse.json({ ok: true, redirectTo, anonymousUserId });
   return attachAnonymousCookie(response, anonymousUserId);
 }

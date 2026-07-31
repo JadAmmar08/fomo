@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMicrosoftConnection, getValidAccessToken, linkMicrosoftFolder, listFolders } from "@/lib/microsoft";
 import { getRequestAnonymousUserId } from "@/lib/session";
+import { registerFolderWatch, stopFolderWatches } from "@/lib/file-watch";
 
 export async function GET(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
@@ -35,5 +36,10 @@ export async function POST(req: NextRequest) {
   }
 
   await linkMicrosoftFolder(anonymousUserId, roomId, folderId, folderName);
+
+  stopFolderWatches("microsoft", anonymousUserId, roomId)
+    .then(() => registerFolderWatch("microsoft", anonymousUserId, roomId, folderId, folderName))
+    .catch((err) => console.error("[microsoft folders] watch registration failed:", err));
+
   return NextResponse.json({ ok: true });
 }

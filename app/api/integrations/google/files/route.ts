@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken, linkGoogleFiles, listPickableFiles } from "@/lib/google";
 import { getRequestAnonymousUserId } from "@/lib/session";
-import { registerFileWatch } from "@/lib/file-watch";
+import { registerFileWatch, stopFolderWatches } from "@/lib/file-watch";
 
 export async function GET(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
@@ -30,6 +30,12 @@ export async function POST(req: NextRequest) {
   }
 
   await linkGoogleFiles(anonymousUserId, roomId, files);
+
+  // Picking specific files clears any previously linked folder, so its watch
+  // (if any) needs to stop too, or it'd keep firing for a folder that's no longer linked.
+  stopFolderWatches("google", anonymousUserId, roomId).catch((err) =>
+    console.error("[google files] folder watch cleanup failed:", err)
+  );
 
   // Best-effort: a watch registration failure (e.g. the webhook domain isn't verified
   // in Google Search Console yet) should never block linking the file itself, the

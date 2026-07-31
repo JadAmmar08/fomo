@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleFileChangeNotification } from "@/lib/file-watch";
+import { handleFileChangeNotification, handleFolderChangeNotification } from "@/lib/file-watch";
 
 // Graph validates a new subscription by POSTing here with a validationToken query
 // param that must be echoed straight back as plain text within 10 seconds — this has
@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
     // clientState is the shared secret we set at subscription creation (lib/file-watch.ts
     // registerFileWatch) — Graph echoes it back on every notification unmodified.
     if (n.clientState !== secret) continue;
-    await handleFileChangeNotification("microsoft", n.subscriptionId).catch((err) => console.error("[webhook microsoft] failed:", err));
+    // The subscription id only ever matches one of the two tables (single-file watch
+    // vs folder /children watch), so trying both is safe.
+    await Promise.all([
+      handleFileChangeNotification("microsoft", n.subscriptionId).catch((err) => console.error("[webhook microsoft] file check failed:", err)),
+      handleFolderChangeNotification("microsoft", n.subscriptionId).catch((err) => console.error("[webhook microsoft] folder check failed:", err))
+    ]);
   }
 
   return NextResponse.json({ ok: true });

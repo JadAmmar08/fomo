@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken, linkMicrosoftFiles, listPickableFiles } from "@/lib/microsoft";
 import { getRequestAnonymousUserId } from "@/lib/session";
-import { registerFileWatch } from "@/lib/file-watch";
+import { registerFileWatch, stopFolderWatches } from "@/lib/file-watch";
 
 export async function GET(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
   }
 
   await linkMicrosoftFiles(anonymousUserId, roomId, files);
+
+  stopFolderWatches("microsoft", anonymousUserId, roomId).catch((err) =>
+    console.error("[microsoft files] folder watch cleanup failed:", err)
+  );
 
   for (const f of files as Array<{ id: string; name: string }>) {
     registerFileWatch("microsoft", anonymousUserId, roomId, f.id, f.name).catch((err) =>

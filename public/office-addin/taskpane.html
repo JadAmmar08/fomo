@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FOMO Live Signal</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      color: #1a1a1a;
+      background: #f7f6f3;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+    #login-view input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid #d8d6d0;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    #login-view button, .dismiss-btn {
+      background: #1a6b5a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #status {
+      font-size: 12px;
+      color: #8a8a8a;
+      margin-top: 8px;
+    }
+    #alerts-view { display: none; }
+    .alert-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .alert-label {
+      font-weight: 600;
+      font-size: 12px;
+      color: #1a6b5a;
+      margin-bottom: 4px;
+    }
+    .alert-text {
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+    .dismiss-btn { background: #1a1a1a; }
+    #empty-state {
+      font-size: 13px;
+      color: #8a8a8a;
+      padding: 20px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>FOMO Live Signal</h1>
+
+  <div id="login-view">
+    <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Sign in to see live duplicate/conflict alerts for this document.</div>
+    <input type="email" id="email-input" placeholder="you@company.com" />
+    <button id="login-btn">Sign in</button>
+    <div id="status"></div>
+  </div>
+
+  <div id="alerts-view">
+    <div id="alert-container"></div>
+    <div id="empty-state">No conflicts found for this file yet.</div>
+  </div>
+
+  <script src="taskpane.js"></script>
+</body>
+</html>

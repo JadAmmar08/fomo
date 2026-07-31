@@ -110,3 +110,104 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return true;
 });
+
+// Grammarly-style in-file alert: while someone is actually looking at a watched Google
+// Doc/Sheet/Slide or Word/Excel Online file, poll for a live duplicate/contradiction
+// signal on that exact file and surface it as a small dismissible card right on the
+// page, instead of relying on a Chrome notification they may never see or click.
+(function initLiveSignalWatcher() {
+  const LIVE_SIGNAL_POLL_MS = 20000;
+
+  function extractWatchedFileId() {
+    const host = location.hostname;
+    const path = location.pathname;
+
+    if (host === "docs.google.com") {
+      const match = path.match(/\/(document|spreadsheets|presentation)\/d\/([a-zA-Z0-9_-]+)/);
+      if (match) return match[2];
+    }
+
+    // Office Online / OneDrive / SharePoint file URLs vary a lot by tenant and entry
+    // point, so this covers the most common query-param shapes rather than every case
+    // (see lib/microsoft.ts for the same "supported vs not" honesty this mirrors).
+    if (host.includes("officeapps.live.com") || host.includes(".sharepoint.com") || host === "office.com" || host === "www.office.com") {
+      const params = new URLSearchParams(location.search);
+      const candidate = params.get("sourcedoc") || params.get("resid") || params.get("id");
+      if (candidate) return candidate.replace(/[{}]/g, "");
+    }
+
+    return null;
+  }
+
+  let currentFileId = null;
+  let pollTimer = null;
+  let cardEl = null;
+  let shownCardKey = null;
+
+  function removeCard() {
+    if (cardEl) {
+      cardEl.remove();
+      cardEl = null;
+    }
+  }
+
+  function showCard(alert) {
+    if (shownCardKey === alert.cardKey) return;
+    removeCard();
+    shownCardKey = alert.cardKey;
+
+    cardEl = document.createElement("div");
+    cardEl.style.cssText = `
+      position: fixed; bottom: 20px; right: 20px; z-index: 2147483647;
+      width: 300px; background: #1a1a1a; color: #f7f6f3; border-radius: 12px;
+      padding: 14px 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px; line-height: 1.45;
+    `;
+
+    const label = alert.conflictKind === "contradiction" ? "Conflicting data found" : "Possible overlap";
+    cardEl.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
+        <div style="font-weight:600; color:#f7f6f3;">FOMO — ${label}</div>
+        <button id="fomo-dismiss-btn" style="background:none; border:none; color:#9a9a9a; cursor:pointer; font-size:16px; line-height:1; padding:0;">&times;</button>
+      </div>
+      <div style="color:#d8d8d8;"></div>
+    `;
+    cardEl.querySelector("div > div:last-child").textContent = alert.text;
+
+    document.documentElement.appendChild(cardEl);
+    cardEl.querySelector("#fomo-dismiss-btn").addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "FOMO_DISMISS_LIVE_SIGNAL", roomSlug: alert.roomSlug, cardKey: alert.cardKey });
+      removeCard();
+    });
+  }
+
+  async function poll() {
+    if (!currentFileId) return;
+    const response = await chrome.runtime.sendMessage({ type: "FOMO_CHECK_LIVE_SIGNAL", fileId: currentFileId }).catch(() => null);
+    if (response?.alert) showCard(response.alert);
+  }
+
+  function start() {
+    const fileId = extractWatchedFileId();
+    if (!fileId || fileId === currentFileId) return;
+    currentFileId = fileId;
+    shownCardKey = null;
+    removeCard();
+    if (pollTimer) clearInterval(pollTimer);
+    poll();
+    pollTimer = setInterval(poll, LIVE_SIGNAL_POLL_MS);
+  }
+
+  start();
+  // Google Docs/Sheets and Office Online are single-page apps, so watch for
+  // client-side navigation between files without a full page reload.
+  let lastPath = location.pathname + location.search;
+  setInterval(() => {
+    const path = location.pathname + location.search;
+    if (path !== lastPath) {
+      lastPath = path;
+      start();
+    }
+  }, 3000);
+})();

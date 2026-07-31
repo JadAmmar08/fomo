@@ -166,6 +166,40 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  // Relayed from content.js's in-file watcher (see extension/content.js) rather than
+  // fetched directly from the content script, since a service worker's fetch isn't
+  // subject to the hosting page's CORS the way a content script's would be.
+  if (message.type === "FOMO_CHECK_LIVE_SIGNAL") {
+    chrome.storage.local.get(DEFAULTS, async (store) => {
+      const anonymousUserId = await ensureAnonymousUserId(store);
+      if (!anonymousUserId) return sendResponse({ alert: null });
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileId=${encodeURIComponent(message.fileId)}`
+        );
+        const data = await res.json();
+        sendResponse(data);
+      } catch {
+        sendResponse({ alert: null });
+      }
+    });
+    return true;
+  }
+
+  if (message.type === "FOMO_DISMISS_LIVE_SIGNAL") {
+    chrome.storage.local.get(DEFAULTS, async (store) => {
+      const anonymousUserId = await ensureAnonymousUserId(store);
+      if (!anonymousUserId) return sendResponse({ ok: false });
+      await fetch(`${API_BASE_URL}/api/live-signal/dismiss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousUserId, roomSlug: message.roomSlug, cardKey: message.cardKey })
+      }).catch(() => undefined);
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   return false;
 });
 

@@ -388,6 +388,30 @@ create table if not exists file_watch_channels (
 create index if not exists idx_file_watch_channels_expiry on file_watch_channels(expires_at);
 create index if not exists idx_file_watch_channels_lookup on file_watch_channels(provider, channel_id);
 
+-- FOLDER WATCH CHANNELS (one row per linked folder someone's asked FOMO to watch for
+-- newly created files — Drive's account-wide `changes.watch` feed filtered to this
+-- folder, or Graph's `/children` delta subscription. `page_token`/`delta_link` is the
+-- provider's cursor: on each ping we pull only what changed since last time, not a
+-- full folder re-scan.)
+create table if not exists folder_watch_channels (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null check (provider in ('google', 'microsoft')),
+  anonymous_user_id text not null,
+  room_id text not null,
+  folder_id text not null,
+  folder_name text not null,
+  channel_id text not null,
+  resource_id text,
+  page_token text,
+  known_file_ids jsonb not null default '[]',
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (provider, folder_id, anonymous_user_id, room_id)
+);
+create index if not exists idx_folder_watch_channels_expiry on folder_watch_channels(expires_at);
+create index if not exists idx_folder_watch_channels_lookup on folder_watch_channels(provider, channel_id);
+
 -- MEMBER WORKSTREAM DIGESTS (one cached, synthesized "what this person's actual
 -- work currently shows" per person per room — replaces raw file/message excerpts
 -- as the input to Pulse and Discovery's cross-referencing, since raw excerpts are

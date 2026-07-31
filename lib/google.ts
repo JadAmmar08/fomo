@@ -246,6 +246,51 @@ export async function watchFile(accessToken: string, fileId: string, channelId: 
   return res.json() as Promise<{ resourceId: string; expiration: string }>;
 }
 
+// Drive has no way to watch a single folder for new children — files.watch only
+// covers a file/folder's own metadata, not what gets created inside it. The account-
+// wide changes feed is the only way to learn about new files, so a folder watch
+// subscribes to that instead and the caller re-lists the folder's children on every
+// ping rather than trying to parse which specific change fired.
+export async function getChangesStartPageToken(accessToken: string) {
+  const res = await fetch("https://www.googleapis.com/drive/v3/changes/startPageToken", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) throw new Error(`Drive startPageToken failed: ${await res.text()}`);
+  const { startPageToken } = (await res.json()) as { startPageToken: string };
+  return startPageToken;
+}
+
+export async function watchChanges(accessToken: string, pageToken: string, channelId: string, webhookUrl: string, token: string) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/changes/watch?pageToken=${encodeURIComponent(pageToken)}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: channelId, type: "web_hook", address: webhookUrl, token })
+    }
+  );
+  if (!res.ok) throw new Error(`Drive changes.watch failed: ${await res.text()}`);
+  return res.json() as Promise<{ resourceId: string; expiration: string }>;
+}
+
+// Cheap re-list of exactly one folder's direct children, used to diff against the
+// last-known file id set and find what's genuinely new since the last ping —
+// simpler and more robust than tracking Drive's changes.list cursor precisely.
+export async function listFolderChildren(accessToken: string, folderId: string) {
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?" +
+      new URLSearchParams({
+        q: `'${folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
+        pageSize: "200",
+        fields: "files(id,name)"
+      }),
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`Drive folder children list failed: ${await res.text()}`);
+  const { files } = (await res.json()) as { files: Array<{ id: string; name: string }> };
+  return files;
+}
+
 // Drive channels can't be extended in place, only stopped and recreated — this just
 // stops one so a stale/duplicate channel doesn't keep firing after we've replaced it.
 export async function stopWatchChannel(accessToken: string, channelId: string, resourceId: string) {
@@ -267,12 +312,22 @@ export async function unlinkGoogle(anonymousUserId: string, roomId: string) {
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
+  const { stopFileWatches, stopFolderWatches } = await import("@/lib/file-watch");
+  await Promise.all([
+    stopFileWatches("google", anonymousUserId, roomId),
+    stopFolderWatches("google", anonymousUserId, roomId)
+  ]);
 }
 
 // Removes the connection entirely — the next visit shows "Connect" from scratch.
 export async function disconnectGoogle(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
+  const { stopFileWatches, stopFolderWatches } = await import("@/lib/file-watch");
+  await Promise.all([
+    stopFileWatches("google", anonymousUserId, roomId),
+    stopFolderWatches("google", anonymousUserId, roomId)
+  ]);
   await pool.query(`delete from google_connections where anonymous_user_id = $1 and room_id = $2`, [anonymousUserId, roomId]);
 }
 

@@ -195,6 +195,38 @@ export async function createSubscription(accessToken: string, fileId: string, we
   return res.json() as Promise<{ id: string; expirationDateTime: string }>;
 }
 
+// Unlike a single file, a folder's `/children` resource genuinely does notify on new
+// items being added, not just metadata changes — so this is folder-scoped where the
+// file version has to fall back to the account-wide changes feed.
+export async function createFolderSubscription(accessToken: string, folderId: string, webhookUrl: string, clientState: string) {
+  const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const res = await fetch(`${GRAPH_BASE}/subscriptions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      changeType: "updated",
+      notificationUrl: webhookUrl,
+      resource: `/me/drive/items/${folderId}/children`,
+      expirationDateTime,
+      clientState
+    })
+  });
+  if (!res.ok) throw new Error(`Graph folder subscription failed: ${await res.text()}`);
+  return res.json() as Promise<{ id: string; expirationDateTime: string }>;
+}
+
+// Cheap re-list of exactly one folder's direct children, diffed by the caller against
+// the last-known file id set to find what's genuinely new since the last ping.
+export async function listFolderChildren(accessToken: string, folderId: string) {
+  const res = await fetch(
+    `${GRAPH_BASE}/me/drive/items/${folderId}/children?$top=200&$select=id,name,file`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error(`OneDrive folder children list failed: ${await res.text()}`);
+  const data = await res.json();
+  return (data.value as OneDriveFile[]).filter((f) => f.file).map((f) => ({ id: f.id, name: f.name }));
+}
+
 export async function renewSubscription(accessToken: string, subscriptionId: string) {
   const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const res = await fetch(`${GRAPH_BASE}/subscriptions/${subscriptionId}`, {
@@ -222,12 +254,22 @@ export async function unlinkMicrosoft(anonymousUserId: string, roomId: string) {
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );
+  const { stopFileWatches, stopFolderWatches } = await import("@/lib/file-watch");
+  await Promise.all([
+    stopFileWatches("microsoft", anonymousUserId, roomId),
+    stopFolderWatches("microsoft", anonymousUserId, roomId)
+  ]);
 }
 
 // Removes the connection entirely.
 export async function disconnectMicrosoft(anonymousUserId: string, roomId: string) {
   const pool = getPool();
   if (!pool) throw new Error("Database not configured");
+  const { stopFileWatches, stopFolderWatches } = await import("@/lib/file-watch");
+  await Promise.all([
+    stopFileWatches("microsoft", anonymousUserId, roomId),
+    stopFolderWatches("microsoft", anonymousUserId, roomId)
+  ]);
   await pool.query(`delete from microsoft_connections where anonymous_user_id = $1 and room_id = $2`, [anonymousUserId, roomId]);
 }
 
