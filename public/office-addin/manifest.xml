@@ -12,8 +12,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="FOMO Live Signal" />
   <Description DefaultValue="Surfaces duplicate or conflicting teammate work right in the document you're editing." />
-  <IconUrl DefaultValue="https://usefomo.net/fomo-logo.png" />
-  <HighResolutionIconUrl DefaultValue="https://usefomo.net/fomo-logo.png" />
+  <IconUrl DefaultValue="https://usefomo.net/office-addin/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://usefomo.net/office-addin/icon-128.png" />
   <SupportUrl DefaultValue="https://usefomo.net" />
 
   <AppDomains>
@@ -34,11 +34,8 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Document">
-        <Runtimes>
-          <Runtime resid="Taskpane.Url" lifetime="long" />
-        </Runtimes>
         <DesktopFormFactor>
-          <FunctionFile resid="Commands.Url" />
+          <FunctionFile resid="Taskpane.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="FomoGroup">
@@ -67,20 +64,11 @@
               </Group>
             </OfficeTab>
           </ExtensionPoint>
-          <!-- Makes the pane open itself the instant ANY document is opened, not just
-               ones someone's clicked the ribbon button on before ("works for all future
-               files" — see extension/../commands.js for the handler this binds to). -->
-          <ExtensionPoint xsi:type="Events">
-            <Event Type="DocumentOpened" FunctionName="onDocumentOpened" />
-          </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
       <Host xsi:type="Workbook">
-        <Runtimes>
-          <Runtime resid="Taskpane.Url" lifetime="long" />
-        </Runtimes>
         <DesktopFormFactor>
-          <FunctionFile resid="Commands.Url" />
+          <FunctionFile resid="Taskpane.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="FomoGroupXl">
@@ -109,22 +97,18 @@
               </Group>
             </OfficeTab>
           </ExtensionPoint>
-          <ExtensionPoint xsi:type="Events">
-            <Event Type="DocumentOpened" FunctionName="onDocumentOpened" />
-          </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
     </Hosts>
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://usefomo.net/fomo-logo.png" />
-        <bt:Image id="Icon.32x32" DefaultValue="https://usefomo.net/fomo-logo.png" />
-        <bt:Image id="Icon.80x80" DefaultValue="https://usefomo.net/fomo-logo.png" />
+        <bt:Image id="Icon.16x16" DefaultValue="https://usefomo.net/office-addin/icon-32.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://usefomo.net/office-addin/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://usefomo.net/office-addin/icon-128.png" />
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Taskpane.Url" DefaultValue="https://usefomo.net/office-addin/taskpane.html" />
-        <bt:Url id="Commands.Url" DefaultValue="https://usefomo.net/office-addin/commands.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="FomoGroup.Label" DefaultValue="FOMO" />
