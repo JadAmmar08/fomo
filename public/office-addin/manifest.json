@@ -3,6 +3,7 @@
   "manifestVersion": "1.19",
   "version": "1.0.0",
   "id": "d8200f43-c217-42fe-a186-4b1859d0e9fb",
+  "packageName": "com.usefomo.officeaddin",
   "developer": {
     "name": "FOMO",
     "websiteUrl": "https://usefomo.net",
