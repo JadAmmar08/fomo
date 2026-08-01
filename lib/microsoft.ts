@@ -198,20 +198,27 @@ export async function createSubscription(accessToken: string, fileId: string, we
 // Graph genuinely does not support subscribing to an individual OneDrive file resource
 // directly ("resource ... is not supported", confirmed against a real Business/SharePoint-
 // backed tenant) — only a folder's children, drive root, or a list are subscribable. So a
-// single-file watch has to resolve the file's parent folder and watch that instead.
+// single-file watch has to resolve the file's parent folder and watch that instead. Returns
+// the literal string "root" (rather than the root folder's own item id) when the file sits
+// directly in "My files" — Graph's subscription endpoint rejects `/items/{rootId}/children`
+// even though it's the same folder as `/root/children`, confirmed the same way.
 export async function getParentFolderId(accessToken: string, fileId: string): Promise<string | null> {
   const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}?$select=parentReference`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!res.ok) return null;
   const data = await res.json();
+  const parentPath = data.parentReference?.path as string | undefined;
+  if (parentPath && /\/drive\/root:?$/.test(parentPath)) return "root";
   return data.parentReference?.id ?? null;
 }
 
 // Unlike a single file, a folder's `/children` resource genuinely does notify on new
 // items being added, not just metadata changes — so this is folder-scoped where the
-// file version has to fall back to the account-wide changes feed.
+// file version has to fall back to the account-wide changes feed. `folderId` may be the
+// literal string "root" (see getParentFolderId) for a file sitting directly in "My files".
 export async function createFolderSubscription(accessToken: string, folderId: string, webhookUrl: string, clientState: string) {
+  const resourcePath = folderId === "root" ? "/me/drive/root/children" : `/me/drive/items/${folderId}/children`;
   const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const res = await fetch(`${GRAPH_BASE}/subscriptions`, {
     method: "POST",
@@ -219,7 +226,7 @@ export async function createFolderSubscription(accessToken: string, folderId: st
     body: JSON.stringify({
       changeType: "updated",
       notificationUrl: webhookUrl,
-      resource: `/me/drive/items/${folderId}/children`,
+      resource: resourcePath,
       expirationDateTime,
       clientState
     })
