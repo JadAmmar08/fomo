@@ -54,7 +54,7 @@ export function Nav() {
       ))}
       {isMember ? (
         <Link
-          href={"/teams" as Route}
+          href={"/settings" as Route}
           className="nav-account"
           style={{
             display: "inline-flex",
