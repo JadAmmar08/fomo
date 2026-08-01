@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // signal on that exact file and surface it as a small dismissible card right on the
 // page, instead of relying on a Chrome notification they may never see or click.
 (function initLiveSignalWatcher() {
-  const LIVE_SIGNAL_POLL_MS = 20000;
+  const LIVE_SIGNAL_POLL_MS = 5000;
 
   function extractWatchedFileId() {
     const host = location.hostname;

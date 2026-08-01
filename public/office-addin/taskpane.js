@@ -1,4 +1,4 @@
-const POLL_MS = 20000;
+const POLL_MS = 5000;
 const STORAGE_KEY = "fomo_anonymous_user_id";
 
 let anonymousUserId = localStorage.getItem(STORAGE_KEY);
