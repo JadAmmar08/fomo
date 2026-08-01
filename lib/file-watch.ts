@@ -41,7 +41,13 @@ export async function registerFileWatch(provider: Provider, anonymousUserId: str
   } else {
     const token = await microsoft.getValidAccessToken(anonymousUserId, roomId);
     if (!token) return;
-    const { id, expirationDateTime } = await microsoft.createSubscription(token, fileId, webhookUrl("microsoft"), secret);
+    // Graph rejects a subscription on the file resource directly ("resource ... is not
+    // supported") — subscribe to the file's parent folder's children instead, and rely on
+    // the content-hash dedup in handleFileChangeNotification to only act on this specific
+    // file's real edits, same as any other folder-scoped ping.
+    const parentFolderId = await microsoft.getParentFolderId(token, fileId);
+    if (!parentFolderId) return;
+    const { id, expirationDateTime } = await microsoft.createFolderSubscription(token, parentFolderId, webhookUrl("microsoft"), secret);
     await pool.query(
       `insert into file_watch_channels (provider, anonymous_user_id, room_id, file_id, file_name, channel_id, expires_at)
        values ('microsoft', $1, $2, $3, $4, $5, $6)

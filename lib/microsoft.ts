@@ -195,6 +195,19 @@ export async function createSubscription(accessToken: string, fileId: string, we
   return res.json() as Promise<{ id: string; expirationDateTime: string }>;
 }
 
+// Graph genuinely does not support subscribing to an individual OneDrive file resource
+// directly ("resource ... is not supported", confirmed against a real Business/SharePoint-
+// backed tenant) — only a folder's children, drive root, or a list are subscribable. So a
+// single-file watch has to resolve the file's parent folder and watch that instead.
+export async function getParentFolderId(accessToken: string, fileId: string): Promise<string | null> {
+  const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}?$select=parentReference`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.parentReference?.id ?? null;
+}
+
 // Unlike a single file, a folder's `/children` resource genuinely does notify on new
 // items being added, not just metadata changes — so this is folder-scoped where the
 // file version has to fall back to the account-wide changes feed.
