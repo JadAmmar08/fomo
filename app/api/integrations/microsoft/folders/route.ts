@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getMicrosoftConnection, getValidAccessToken, linkMicrosoftFolder, listFolders } from "@/lib/microsoft";
 import { getRequestAnonymousUserId } from "@/lib/session";
 import { registerFolderWatch, stopFolderWatches } from "@/lib/file-watch";
@@ -37,9 +37,13 @@ export async function POST(req: NextRequest) {
 
   await linkMicrosoftFolder(anonymousUserId, roomId, folderId, folderName);
 
-  stopFolderWatches("microsoft", anonymousUserId, roomId)
-    .then(() => registerFolderWatch("microsoft", anonymousUserId, roomId, folderId, folderName))
-    .catch((err) => console.error("[microsoft folders] watch registration failed:", err));
+  // See app/api/integrations/microsoft/files/route.ts for why this needs after() rather
+  // than being a bare fire-and-forget promise.
+  after(async () => {
+    await stopFolderWatches("microsoft", anonymousUserId, roomId)
+      .then(() => registerFolderWatch("microsoft", anonymousUserId, roomId, folderId, folderName))
+      .catch((err) => console.error("[microsoft folders] watch registration failed:", err));
+  });
 
   return NextResponse.json({ ok: true });
 }

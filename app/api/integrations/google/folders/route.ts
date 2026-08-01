@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getGoogleConnection, getValidAccessToken, linkGoogleFolder, listFolders } from "@/lib/google";
 import { getRequestAnonymousUserId } from "@/lib/session";
 import { registerFolderWatch, stopFolderWatches } from "@/lib/file-watch";
@@ -39,10 +39,15 @@ export async function POST(req: NextRequest) {
 
   // Best-effort, same reasoning as the per-file watch: a subscription failure should
   // never block linking the folder itself, the 15-min cron doesn't cover new-file
-  // detection but existing content still gets picked up through other paths.
-  stopFolderWatches("google", anonymousUserId, roomId)
-    .then(() => registerFolderWatch("google", anonymousUserId, roomId, folderId, folderName))
-    .catch((err) => console.error("[google folders] watch registration failed:", err));
+  // detection but existing content still gets picked up through other paths. Still needs
+  // after() rather than a bare fire-and-forget promise — see the microsoft/files route
+  // for why (Vercel's serverless runtime doesn't keep a function alive for un-awaited
+  // work after the response is sent).
+  after(async () => {
+    await stopFolderWatches("google", anonymousUserId, roomId)
+      .then(() => registerFolderWatch("google", anonymousUserId, roomId, folderId, folderName))
+      .catch((err) => console.error("[google folders] watch registration failed:", err));
+  });
 
   return NextResponse.json({ ok: true });
 }
