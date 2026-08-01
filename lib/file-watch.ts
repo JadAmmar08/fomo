@@ -408,6 +408,16 @@ export async function handleFileChangeNotification(provider: Provider, channelId
     [hash, provider, channelId]
   );
 
+  // A real, confirmed content change just happened — force this person's own digest to
+  // regenerate right now instead of waiting on the normal 12h TTL, so the next teammate
+  // whose edit compares against it (whether in the next minute or next week) is comparing
+  // against what's actually true, not whatever was true up to 12h ago. This is what makes
+  // "auto-update on every real change" true in practice, not just in the TTL's name.
+  const { getMemberWorkstreamDigest } = await import("@/lib/workstream");
+  await getMemberWorkstreamDigest(row.anonymous_user_id, row.room_id, true).catch((err) =>
+    console.error("[file-watch] forced digest refresh failed:", err)
+  );
+
   await checkFileForConflict(row.anonymous_user_id, row.room_id, row.file_name, file.content, row.file_id);
 }
 

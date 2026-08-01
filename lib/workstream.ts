@@ -155,7 +155,7 @@ const DIGEST_TTL_MS = 12 * 60 * 60 * 1000; // shorter than the guidance/pulse ca
 // short, concrete "what their work currently shows" digest — actual findings, decisions,
 // and open items, not a topic list — which is what makes catching a real contradiction
 // between two people's work possible instead of just noticing they're in the same area.
-export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlug: string): Promise<string | null> {
+export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlug: string, force = false): Promise<string | null> {
   const pool = getPool();
   if (!pool) return null;
 
@@ -163,7 +163,7 @@ export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlu
     `select digest, generated_at from member_workstream_digests where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomSlug]
   );
-  if (cached.rows.length > 0 && Date.now() - new Date(cached.rows[0].generated_at).getTime() < DIGEST_TTL_MS) {
+  if (!force && cached.rows.length > 0 && Date.now() - new Date(cached.rows[0].generated_at).getTime() < DIGEST_TTL_MS) {
     return cached.rows[0].digest;
   }
 
