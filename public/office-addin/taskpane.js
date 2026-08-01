@@ -71,10 +71,10 @@ async function poll() {
   try {
     const res = await fetch(`/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileName=${encodeURIComponent(fileName)}`);
     const data = await res.json();
-    setDebugInfo([`matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`]);
+    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`]);
     renderAlert(data.alert ?? null);
   } catch {
-    setDebugInfo([`matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed"]);
+    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed"]);
   }
 }
 
