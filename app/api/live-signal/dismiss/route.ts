@@ -19,5 +19,14 @@ export async function POST(req: NextRequest) {
     [anonymousUserId, roomSlug, cardKey]
   );
 
+  // Also drop the dismisser's own cached workstream digest — otherwise it can keep
+  // matching future edits against the same stale fact for up to its normal 12h TTL
+  // (see lib/workstream.ts) even right after they've acknowledged and moved past it.
+  // getMemberWorkstreamDigest self-heals: the next read regenerates it fresh.
+  await pool.query(
+    `delete from member_workstream_digests where anonymous_user_id = $1 and room_id = $2`,
+    [anonymousUserId, roomSlug]
+  );
+
   return NextResponse.json({ ok: true });
 }

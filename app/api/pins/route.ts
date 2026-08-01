@@ -71,5 +71,16 @@ export async function DELETE(req: NextRequest) {
     [anonymousUserId, roomSlug, cardType, cardKey]
   );
 
+  // Same reasoning as app/api/live-signal/dismiss/route.ts: dismissing a team_signal
+  // (duplicate/contradiction) card, specifically, should let the next comparison use a
+  // fresh workstream digest instead of matching the same stale fact again for up to 12h.
+  // Doesn't apply to unpinning a Pulse/Mirror card, which is a different action.
+  if (cardType === "discovery" && cardKey.startsWith("team_signal:")) {
+    await pool.query(
+      `delete from member_workstream_digests where anonymous_user_id = $1 and room_id = $2`,
+      [anonymousUserId, roomSlug]
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }

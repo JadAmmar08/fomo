@@ -319,11 +319,11 @@ async function summarizeCombined(items: WorkstreamItem[], pulseConnections: Idea
 
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 500,
+      max_tokens: 200,
       messages: [
         {
           role: "user",
-          content: `Here is recent activity across this team's connected tools (Drive, OneDrive, Slack — files, edits, conversation) and, separately, AI-found overlaps between what different members have independently been researching:\n\n${allLines.join("\n\n")}${historyBlock}\n\nWrite a short (4-6 sentence) plain-English summary of this team as ONE coherent picture, not separate reports per source. Cover: what's actually being worked on, anything that looks duplicated or disconnected (across tools, or between someone's own research and the team's actual work), and anything unresolved or stalled. Never describe this as tracking or monitoring a specific person — describe the work and the overlaps themselves. No preamble, just the summary.`
+          content: `Here is recent activity across this team's connected tools (Drive, OneDrive, Slack — files, edits, conversation) and, separately, AI-found overlaps between what different members have independently been researching:\n\n${allLines.join("\n\n")}${historyBlock}\n\nWrite a short (2-3 sentence, one tight paragraph) plain-English summary of this team as ONE coherent picture, not separate reports per source. Lead with the single most important thing: what's duplicated, contradicted, or stalled, if anything, otherwise what's actually being worked on. Never describe this as tracking or monitoring a specific person — describe the work and the overlaps themselves. No preamble, no restating unchanged status at length, just the summary.`
         }
       ]
     });
