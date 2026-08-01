@@ -34,11 +34,8 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Document">
-        <Runtimes>
-          <Runtime resid="Taskpane.Url" lifetime="long" />
-        </Runtimes>
         <DesktopFormFactor>
-          <FunctionFile resid="Commands.Url" />
+          <FunctionFile resid="Taskpane.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="FomoGroup">
@@ -67,17 +64,11 @@
               </Group>
             </OfficeTab>
           </ExtensionPoint>
-          <ExtensionPoint xsi:type="Events">
-            <Event Type="DocumentOpened" FunctionName="onDocumentOpened" />
-          </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
       <Host xsi:type="Workbook">
-        <Runtimes>
-          <Runtime resid="Taskpane.Url" lifetime="long" />
-        </Runtimes>
         <DesktopFormFactor>
-          <FunctionFile resid="Commands.Url" />
+          <FunctionFile resid="Taskpane.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="FomoGroupXl">
@@ -106,9 +97,6 @@
               </Group>
             </OfficeTab>
           </ExtensionPoint>
-          <ExtensionPoint xsi:type="Events">
-            <Event Type="DocumentOpened" FunctionName="onDocumentOpened" />
-          </ExtensionPoint>
         </DesktopFormFactor>
       </Host>
     </Hosts>
@@ -121,7 +109,6 @@
       </bt:Images>
       <bt:Urls>
         <bt:Url id="Taskpane.Url" DefaultValue="https://usefomo.net/office-addin/taskpane.html" />
-        <bt:Url id="Commands.Url" DefaultValue="https://usefomo.net/office-addin/commands.html" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="FomoGroup.Label" DefaultValue="FOMO" />
