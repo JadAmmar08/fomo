@@ -114,6 +114,16 @@ Office.onReady(() => {
   document.getElementById("email-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleLogin();
   });
+  document.getElementById("signout-btn").addEventListener("click", () => {
+    // localStorage caches the resolved identity from login time — if the account it
+    // points to gets merged/changed server-side afterward (see lib/account.ts), this is
+    // the only way to pick up the new one, since there's no server session to invalidate.
+    localStorage.removeItem(STORAGE_KEY);
+    anonymousUserId = null;
+    if (pollTimer) clearInterval(pollTimer);
+    currentAlert = null;
+    showView("login");
+  });
 
   if (anonymousUserId) {
     startPolling();
