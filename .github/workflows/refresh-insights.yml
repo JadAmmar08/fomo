@@ -2,7 +2,12 @@ name: Refresh insights
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Microsoft Graph grants a much shorter subscription lifetime than requested for
+    # file-watch subscriptions (~9-10 minutes observed against a real production
+    # tenant, not the 60 minutes asked for) — a 15-minute check interval meant
+    # watches were dying between checks. 5 minutes keeps every check comfortably
+    # inside that window.
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 jobs:

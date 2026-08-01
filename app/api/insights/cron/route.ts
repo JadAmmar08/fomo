@@ -13,12 +13,13 @@ import { renewExpiringWatches } from "@/lib/file-watch";
 // are a cheap cache hit and a real (paid) recompute only happens once the cache actually
 // expires, on schedule rather than on someone's next visit.
 export async function GET(req: NextRequest) {
-  // Vercel's cron invocation authenticates using the CRON_SECRET env var by convention
-  // (automatically sent as this exact header on every scheduled invocation) — checking
-  // INSIGHTS_CRON_SECRET here instead meant this route would 401 on every real cron tick,
-  // silently, even once wired into vercel.json.
+  // Two independent schedulers hit this route: Vercel's own cron (authenticates using
+  // CRON_SECRET by convention) and a pre-existing GitHub Actions workflow
+  // (.github/workflows/refresh-insights.yml, authenticates using INSIGHTS_CRON_SECRET,
+  // its original secret) — accept either so fixing one path never silently breaks the other.
   const authHeader = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const validSecrets = [process.env.CRON_SECRET, process.env.INSIGHTS_CRON_SECRET].filter(Boolean);
+  if (validSecrets.length === 0 || !validSecrets.some((s) => authHeader === `Bearer ${s}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
