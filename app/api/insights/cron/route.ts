@@ -13,8 +13,12 @@ import { renewExpiringWatches } from "@/lib/file-watch";
 // are a cheap cache hit and a real (paid) recompute only happens once the cache actually
 // expires, on schedule rather than on someone's next visit.
 export async function GET(req: NextRequest) {
+  // Vercel's cron invocation authenticates using the CRON_SECRET env var by convention
+  // (automatically sent as this exact header on every scheduled invocation) — checking
+  // INSIGHTS_CRON_SECRET here instead meant this route would 401 on every real cron tick,
+  // silently, even once wired into vercel.json.
   const authHeader = req.headers.get("authorization");
-  if (!process.env.INSIGHTS_CRON_SECRET || authHeader !== `Bearer ${process.env.INSIGHTS_CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
