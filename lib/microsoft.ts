@@ -213,12 +213,18 @@ export async function getParentFolderId(accessToken: string, fileId: string): Pr
   return data.parentReference?.id ?? null;
 }
 
-// Unlike a single file, a folder's `/children` resource genuinely does notify on new
-// items being added, not just metadata changes — so this is folder-scoped where the
-// file version has to fall back to the account-wide changes feed. `folderId` may be the
-// literal string "root" (see getParentFolderId) for a file sitting directly in "My files".
-export async function createFolderSubscription(accessToken: string, folderId: string, webhookUrl: string, clientState: string) {
-  const resourcePath = folderId === "root" ? "/me/drive/root/children" : `/me/drive/items/${folderId}/children`;
+// Graph does not support folder-scoped item-change subscriptions at all — confirmed
+// against real production errors across three attempted resource paths (a single file
+// directly, a specific folder's /children, and even /root/children). The only resource
+// Graph actually accepts is the whole drive (`/me/drive/root`, its documented pattern for
+// "watch for any change, then use delta to see what changed"), so `folderId` is accepted
+// here for interface symmetry with Drive's per-folder watch but is otherwise unused — every
+// Microsoft watch is really a single whole-drive subscription. This is broader than we'd
+// like (any change anywhere in the account pings us, not just the linked file/folder), but
+// harmless: handleFileChangeNotification/handleFolderChangeNotification already re-fetch
+// only the specific known file or folder they care about and no-op on anything else.
+export async function createFolderSubscription(accessToken: string, _folderId: string, webhookUrl: string, clientState: string) {
+  const resourcePath = "/me/drive/root";
   const expirationDateTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const res = await fetch(`${GRAPH_BASE}/subscriptions`, {
     method: "POST",
