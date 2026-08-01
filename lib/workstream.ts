@@ -148,6 +148,12 @@ function formatItemsAsLines(items: WorkstreamItem[], excerptChars = 120): string
 }
 
 const DIGEST_TTL_MS = 12 * 60 * 60 * 1000; // shorter than the guidance/pulse caches that consume it, so it never serves as the stale bottleneck
+// Real-time file edits force a refresh (see lib/file-watch.ts) so a teammate's next
+// comparison is never stale, but a burst of edits in the same active session (someone
+// typing, saving every few seconds) shouldn't pay for a full resynthesis on every single
+// one — this caps it to at most once per this window regardless of how many force=true
+// calls come in back to back.
+const FORCE_DEBOUNCE_MS = 2 * 60 * 1000;
 
 // A raw excerpt from one file tells you almost nothing about what someone actually
 // concluded, and reasoning over 15 of them at once is both thin and expensive as
@@ -163,7 +169,10 @@ export async function getMemberWorkstreamDigest(anonymousUserId: string, roomSlu
     `select digest, generated_at from member_workstream_digests where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomSlug]
   );
-  if (!force && cached.rows.length > 0 && Date.now() - new Date(cached.rows[0].generated_at).getTime() < DIGEST_TTL_MS) {
+  const age = cached.rows.length > 0 ? Date.now() - new Date(cached.rows[0].generated_at).getTime() : Infinity;
+  const withinTtl = !force && age < DIGEST_TTL_MS;
+  const withinForceDebounce = force && age < FORCE_DEBOUNCE_MS;
+  if (withinTtl || withinForceDebounce) {
     return cached.rows[0].digest;
   }
 
