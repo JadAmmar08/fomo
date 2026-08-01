@@ -56,15 +56,25 @@ function renderAlert(alert) {
   });
 }
 
+function setDebugInfo(lines) {
+  const el = document.getElementById("debug-info");
+  if (el) el.textContent = lines.join(" · ");
+}
+
 async function poll() {
   const fileName = getCurrentFileName();
-  if (!fileName || !anonymousUserId) return;
+  const rawUrl = (typeof Office !== "undefined" && Office.context && Office.context.document) ? Office.context.document.url : "(no Office.context.document.url)";
+  if (!fileName || !anonymousUserId) {
+    setDebugInfo([`raw url: ${rawUrl}`, "no fileName resolved, not polling"]);
+    return;
+  }
   try {
     const res = await fetch(`/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileName=${encodeURIComponent(fileName)}`);
     const data = await res.json();
+    setDebugInfo([`matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`]);
     renderAlert(data.alert ?? null);
   } catch {
-    // best-effort, try again next tick
+    setDebugInfo([`matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed"]);
   }
 }
 
