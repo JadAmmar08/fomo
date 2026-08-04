@@ -18,6 +18,7 @@ const CONSUMER_AUTHORITY = "https://login.microsoftonline.com/consumers";
 // isn't one, and requesting it that way is a real, confirmed invalid_scope error).
 const PICKER_SCOPE = "OneDrive.ReadOnly";
 const RETURN_TO_KEY = "fomo_msal_return_to";
+const ATTEMPTED_FOR_KEY = "fomo_msal_attempted_for";
 
 let msalInstance: IPublicClientApplication | null = null;
 let msalInitPromise: Promise<IPublicClientApplication> | null = null;
@@ -137,6 +138,25 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
   const account = await getCachedAccount(expectedEmail);
 
   if (!account) {
+    // Without this, picking the wrong account in Microsoft's chooser (a different
+    // one than whatever's actually connected server-side for this room) redirected
+    // forever with no explanation — getCachedAccount kept finding no match, so
+    // openPicker kept redirecting again on every click. If we already tried once
+    // for this exact expectedEmail and still have no match, but MSAL *does* have
+    // some cached account now, that account is just the wrong one — stop and say
+    // so instead of looping.
+    const attemptedFor = sessionStorage.getItem(ATTEMPTED_FOR_KEY);
+    if (expectedEmail && attemptedFor === expectedEmail && app.getAllAccounts().length > 0) {
+      sessionStorage.removeItem(ATTEMPTED_FOR_KEY);
+      const wrongAccount = app.getAllAccounts()[0]?.username ?? "a different account";
+      window.alert(
+        `This room is connected to ${expectedEmail}, but you signed into ${wrongAccount} just now. ` +
+        `Pick "${expectedEmail}" in Microsoft's chooser, or use Disconnect below to switch this room to ${wrongAccount} instead.`
+      );
+      return null;
+    }
+
+    if (expectedEmail) sessionStorage.setItem(ATTEMPTED_FOR_KEY, expectedEmail);
     sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
     // prompt: "select_account" so Microsoft shows the chooser instead of silently
     // re-authenticating via the browser's existing SSO cookie. login_hint further
@@ -148,6 +168,8 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
     });
     return null;
   }
+
+  sessionStorage.removeItem(ATTEMPTED_FOR_KEY);
 
   // Opened synchronously relative to the click (no `await` before it) so it survives
   // popup blockers — by this point we already have a cached account, so the token
