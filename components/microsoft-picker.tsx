@@ -280,6 +280,24 @@ export function openMicrosoftPicker(): Promise<PickedFile[] | null> {
   return openPicker("files");
 }
 
+// The native "browse OneDrive" picker uses its own client-side MSAL instance,
+// entirely separate from the server-side Graph connection used by
+// "Read everything I own" / Disconnect. Picking a different account in that
+// server-side flow doesn't touch this client-side cache at all — so without
+// this, the picker keeps silently reusing whichever Microsoft account it first
+// cached, no matter what account gets connected server-side afterward. Call
+// this whenever the server-side Microsoft connection is disconnected or
+// reconnected with a different account, so the next "browse OneDrive" click
+// is forced through a real interactive sign-in again.
+export async function clearMicrosoftPickerCache(): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID) return;
+  const app = await getMsal();
+  for (const acct of app.getAllAccounts()) {
+    await app.clearCache({ account: acct });
+  }
+  localStorage.removeItem(CACHED_FOR_KEY);
+}
+
 // Same widget, restricted to folder selection — used by "or choose a folder", which
 // previously fell back to a plain custom dropdown while file-picking got the real
 // native browser.

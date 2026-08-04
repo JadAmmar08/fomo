@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WebOfIdeas } from "@/components/web-of-ideas";
-import { openMicrosoftPicker, openMicrosoftFolderPicker } from "@/components/microsoft-picker";
+import { openMicrosoftPicker, openMicrosoftFolderPicker, clearMicrosoftPickerCache } from "@/components/microsoft-picker";
 import { openGooglePicker, openGoogleFolderPicker } from "@/components/google-picker";
 
 type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
@@ -296,6 +296,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
           <button
             onClick={async () => {
               setLinking(true);
+              if (source === "microsoft") await clearMicrosoftPickerCache();
               await fetch(meta.unlinkPath, {
                 method: "POST",
                 credentials: "include",
@@ -360,6 +361,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
           <button
             onClick={async () => {
               setLinking(true);
+              if (source === "microsoft") await clearMicrosoftPickerCache();
               await fetch(meta.unlinkPath, {
                 method: "POST",
                 credentials: "include",
