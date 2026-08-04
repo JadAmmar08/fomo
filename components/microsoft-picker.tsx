@@ -91,8 +91,13 @@ export function initMicrosoftAuthRedirectHandling() {
 async function getCachedAccount(): Promise<AccountInfo | null> {
   const app = await getMsal();
 
+  // localStorage, not sessionStorage — MSAL's own account cache lives in
+  // localStorage, which persists across tabs/reloads. Using sessionStorage here
+  // meant a fresh tab always started with no memory of "who cached this," so the
+  // mismatch check below never fired and a stale Microsoft account from a
+  // different FOMO login silently got readopted instead of cleared.
   const currentFomoUser = getCurrentFomoUserId();
-  const cachedFor = sessionStorage.getItem(CACHED_FOR_KEY);
+  const cachedFor = localStorage.getItem(CACHED_FOR_KEY);
   if (currentFomoUser && cachedFor && cachedFor !== currentFomoUser) {
     // A different FOMO account is now active in this browser than the one that
     // last signed into Microsoft here — drop the stale cache so the next picker
@@ -102,13 +107,13 @@ async function getCachedAccount(): Promise<AccountInfo | null> {
     for (const acct of accounts) {
       await app.clearCache({ account: acct });
     }
-    sessionStorage.removeItem(CACHED_FOR_KEY);
+    localStorage.removeItem(CACHED_FOR_KEY);
     return null;
   }
 
   const account = app.getActiveAccount() ?? app.getAllAccounts()[0] ?? null;
   if (account && currentFomoUser && !cachedFor) {
-    sessionStorage.setItem(CACHED_FOR_KEY, currentFomoUser);
+    localStorage.setItem(CACHED_FOR_KEY, currentFomoUser);
   }
   return account;
 }
