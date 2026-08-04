@@ -154,7 +154,11 @@ async function openPicker(mode: "files" | "folders"): Promise<PickedFile[] | nul
 
   if (!account) {
     sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
-    await app.loginRedirect({ scopes: [PICKER_SCOPE] });
+    // Without prompt: "select_account", Microsoft silently re-authenticates via
+    // the browser's existing SSO cookie instead of ever showing a chooser — so
+    // even after correctly clearing the stale cached account above, the redirect
+    // just logged straight back into the same Microsoft account with no picker.
+    await app.loginRedirect({ scopes: [PICKER_SCOPE], prompt: "select_account" });
     return null;
   }
 
