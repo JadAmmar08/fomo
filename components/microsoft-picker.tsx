@@ -1,27 +1,39 @@
 "use client";
 
-import { PublicClientApplication, type IPublicClientApplication, type AccountInfo } from "@azure/msal-browser";
+import { PublicClientApplication, InteractionRequiredAuthError, type IPublicClientApplication, type AccountInfo } from "@azure/msal-browser";
 
 // Microsoft's current, actively maintained OneDrive/SharePoint file picker (v8) —
 // replaces the legacy js.live.net v7.2 SDK, which is unmaintained and whose popup
 // tracking breaks in current Chrome. v8 is a page Microsoft hosts (either as an
 // iframe or a popup) that you talk to over postMessage/MessageChannel, not a script
-// tag with its own open() call. Consumer (personal) OneDrive accounts only for now —
-// work/school accounts need a tenant-specific SharePoint "my site" base URL that
-// isn't reliably derivable from what we store today; a real, separate limitation,
-// not an oversight.
+// tag with its own open() call.
+//
+// Two genuinely different account types are supported, because they use different
+// picker hosts and different token resources:
+//  - Personal (MSA) accounts: onedrive.live.com/picker, scope "OneDrive.ReadOnly".
+//  - Work/school (Entra ID org) accounts: {tenant}-my.sharepoint.com's
+//    FilePicker.aspx, scope "{that origin}/.default" — a SharePoint-resource
+//    token, not a Graph token. Which origin to use isn't knowable up front; it's
+//    derived per-account from Graph's /me/drive.webUrl the first time that
+//    account is used, then cached.
 const CONSUMER_BASE_URL = "https://onedrive.live.com/picker";
-const CONSUMER_AUTHORITY = "https://login.microsoftonline.com/consumers";
+// "common" (not the old hardcoded /consumers) so both personal and work/school
+// accounts can actually sign in through the same MSAL instance.
+const AUTHORITY = "https://login.microsoftonline.com/common";
+const MSA_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66dad";
 // Per Microsoft's docs, the consumer OneDrive picker uses this literal scope name —
 // NOT a `{resource}/.default` scope (that pattern is for SharePoint/work-school
 // base URLs, which have their own registered API resource; onedrive.live.com/picker
 // isn't one, and requesting it that way is a real, confirmed invalid_scope error).
-const PICKER_SCOPE = "OneDrive.ReadOnly";
+const CONSUMER_PICKER_SCOPE = "OneDrive.ReadOnly";
 const RETURN_TO_KEY = "fomo_msal_return_to";
 const ATTEMPTED_FOR_KEY = "fomo_msal_attempted_for";
 
 let msalInstance: IPublicClientApplication | null = null;
 let msalInitPromise: Promise<IPublicClientApplication> | null = null;
+// Keyed by account.homeAccountId — avoids an extra Graph round trip on every
+// picker open for the same work account.
+const sharePointOriginCache = new Map<string, string>();
 
 // A single popup can only itself open one further popup (MSAL's own sign-in window)
 // before browsers start blocking the second one — confirmed directly, not assumed.
@@ -40,7 +52,7 @@ function getMsal(): Promise<IPublicClientApplication> {
     const app = new PublicClientApplication({
       auth: {
         clientId,
-        authority: CONSUMER_AUTHORITY,
+        authority: AUTHORITY,
         redirectUri: window.location.origin
       }
     });
@@ -77,6 +89,13 @@ export function initMicrosoftAuthRedirectHandling() {
   getMsal().catch((err) => console.error("[microsoft-picker] redirect handling failed:", err));
 }
 
+// The well-known consumer tenant id — every personal Microsoft account's id_token
+// carries this as `tid` regardless of which personal account it is. Anything else
+// is a real Entra ID organization tenant, i.e. a work/school account.
+function isWorkAccount(account: AccountInfo): boolean {
+  return Boolean(account.tenantId) && account.tenantId !== MSA_TENANT_ID;
+}
+
 // The client-side MSAL cache is keyed by whatever Microsoft account has signed
 // into this browser before — it has no idea which account is actually connected
 // server-side for this room (that's stored separately as `microsoft_email` on
@@ -102,25 +121,56 @@ async function getCachedAccount(expectedEmail: string | null): Promise<AccountIn
   return app.getActiveAccount() ?? accounts[0] ?? null;
 }
 
-interface AuthenticateCommand {
-  command: "authenticate";
-  resource: string;
+// Work/school OneDrive lives on a per-tenant SharePoint host
+// (e.g. https://contoso-my.sharepoint.com) that isn't derivable from anything we
+// store — it has to be read off the account's own Graph drive record. Requires a
+// Graph-scoped token first (a different resource than the SharePoint picker token
+// this feeds into).
+async function getSharePointOrigin(app: IPublicClientApplication, account: AccountInfo): Promise<string> {
+  const cached = sharePointOriginCache.get(account.homeAccountId);
+  if (cached) return cached;
+
+  const graphToken = await acquireToken(app, account, ["https://graph.microsoft.com/Files.Read"]);
+  const res = await fetch("https://graph.microsoft.com/v1.0/me/drive", {
+    headers: { Authorization: `Bearer ${graphToken}` }
+  });
+  if (!res.ok) throw new Error("Could not resolve this work account's SharePoint site");
+  const data = (await res.json()) as { webUrl?: string };
+  if (!data.webUrl) throw new Error("Graph didn't return a drive URL for this work account");
+
+  const origin = new URL(data.webUrl).origin;
+  sharePointOriginCache.set(account.homeAccountId, origin);
+  return origin;
 }
 
-// This build only supports consumer OneDrive accounts, so every "authenticate"
-// command the picker sends — the initial page load and every later request while
-// browsing — gets the same literal scope, regardless of what `resource` value the
-// picker happens to pass at runtime (it doesn't reliably match CONSUMER_BASE_URL
-// exactly, confirmed by an "unableToObtainToken" error when it was checked for
-// equality). A resource-derived `.default` scope only applies to the SharePoint/
-// work-school picker, which this doesn't handle yet.
-async function getToken(_command: AuthenticateCommand, expectedEmail: string | null): Promise<string> {
-  const app = await getMsal();
-  const account = await getCachedAccount(expectedEmail);
-  if (!account) throw new Error("No signed-in Microsoft account");
+// Silent-first, popup-fallback: the scopes actually needed (OneDrive.ReadOnly, a
+// SharePoint-resource `.default`, or Graph's Files.Read) are different resources
+// than whatever was consented to at initial sign-in, so a plain silent call can
+// legitimately need one-time interactive consent the first time. That has to be a
+// popup (not another full-page redirect) since this runs mid-session, well after
+// the initial redirect's user gesture.
+async function acquireToken(app: IPublicClientApplication, account: AccountInfo, scopes: string[]): Promise<string> {
+  try {
+    const result = await app.acquireTokenSilent({ scopes, account });
+    return result.accessToken;
+  } catch (err) {
+    if (!(err instanceof InteractionRequiredAuthError)) throw err;
+    const result = await app.acquireTokenPopup({ scopes, account });
+    return result.accessToken;
+  }
+}
 
-  const result = await app.acquireTokenSilent({ scopes: [PICKER_SCOPE], account });
-  return result.accessToken;
+interface PickerTarget {
+  baseUrl: string;
+  scopes: string[];
+}
+
+async function resolvePickerTarget(app: IPublicClientApplication, account: AccountInfo): Promise<PickerTarget> {
+  if (isWorkAccount(account)) {
+    const origin = await getSharePointOrigin(app, account);
+    return { baseUrl: `${origin}/_layouts/15/FilePicker.aspx`, scopes: [`${origin}/.default`] };
+  }
+  return { baseUrl: CONSUMER_BASE_URL, scopes: [CONSUMER_PICKER_SCOPE] };
 }
 
 interface PickedFile {
@@ -158,11 +208,16 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
 
     if (expectedEmail) sessionStorage.setItem(ATTEMPTED_FOR_KEY, expectedEmail);
     sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
+    // Login itself only requests Graph scopes (valid for both personal and
+    // work/school accounts on the "common" authority) — it can't know yet which
+    // picker resource (OneDrive.ReadOnly vs. a SharePoint origin) it'll need,
+    // since that depends on which account type signs in. The resource-specific
+    // token is acquired afterward, in resolvePickerTarget/acquireToken.
     // prompt: "select_account" so Microsoft shows the chooser instead of silently
     // re-authenticating via the browser's existing SSO cookie. login_hint further
     // pre-selects the account we actually need, when we know which one that is.
     await app.loginRedirect({
-      scopes: [PICKER_SCOPE],
+      scopes: ["User.Read", "Files.Read", "offline_access"],
       prompt: "select_account",
       loginHint: expectedEmail ?? undefined
     });
@@ -170,6 +225,18 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
   }
 
   sessionStorage.removeItem(ATTEMPTED_FOR_KEY);
+  // Re-bound to a fresh const: TS can't carry the `!account` narrowing above into
+  // the nested onPortMessage closure below, since it can't prove the outer const
+  // isn't reassigned before the closure runs.
+  const activeAccount: AccountInfo = account;
+
+  let target: PickerTarget;
+  try {
+    target = await resolvePickerTarget(app, activeAccount);
+  } catch (err) {
+    console.error("[microsoft-picker] resolving picker target failed:", err);
+    return null;
+  }
 
   // Opened synchronously relative to the click (no `await` before it) so it survives
   // popup blockers — by this point we already have a cached account, so the token
@@ -182,7 +249,7 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
 
   let initialToken: string;
   try {
-    initialToken = await getToken({ command: "authenticate", resource: CONSUMER_BASE_URL }, expectedEmail);
+    initialToken = await acquireToken(app, activeAccount, target.scopes);
   } catch (err) {
     console.error("[microsoft-picker] initial auth failed:", err);
     win.close();
@@ -212,7 +279,7 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
 
       if (command.command === "authenticate") {
         try {
-          const token = await getToken(command, expectedEmail);
+          const token = await acquireToken(app, activeAccount, target.scopes);
           port!.postMessage({ type: "result", id: payload.id, data: { result: "token", token } });
         } catch (err) {
           port!.postMessage({
@@ -265,12 +332,14 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
       selection: { mode: mode === "files" ? "multiple" : "single" }
     };
 
-    // No /_layouts/15/FilePicker.aspx suffix here — that's the SharePoint/work-school
-    // convention. The consumer endpoint is the bare base URL itself; confirmed against
-    // Microsoft's own reference sample (OneDrive/samples, javascript-basic-consumer)
-    // after the SharePoint-style path produced a real "item might not exist" error.
+    // No /_layouts/15/FilePicker.aspx suffix for consumer accounts — that's the
+    // SharePoint/work-school convention (which target.baseUrl already includes for
+    // work accounts, via resolvePickerTarget). The consumer endpoint is the bare
+    // base URL itself; confirmed against Microsoft's own reference sample
+    // (OneDrive/samples, javascript-basic-consumer) after the SharePoint-style path
+    // produced a real "item might not exist" error for a personal account.
     const queryString = new URLSearchParams({ filePicker: JSON.stringify(options) });
-    const url = `${CONSUMER_BASE_URL}?${queryString.toString()}`;
+    const url = `${target.baseUrl}?${queryString.toString()}`;
 
     const form = win.document.createElement("form");
     form.setAttribute("action", url);
@@ -302,6 +371,7 @@ export async function clearMicrosoftPickerCache(): Promise<void> {
   const app = await getMsal();
   for (const acct of app.getAllAccounts()) {
     await app.clearCache({ account: acct });
+    sharePointOriginCache.delete(acct.homeAccountId);
   }
 }
 
