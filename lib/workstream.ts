@@ -21,6 +21,7 @@ export interface SourceStatus {
   isAutoAll?: boolean;
   includeSharedEnabled?: boolean;
   linkedFiles?: Array<{ id: string; name: string }>;
+  connectedEmail?: string | null;
 }
 
 export async function getSourceStatuses(anonymousUserId: string, roomId: string): Promise<Record<"google" | "slack" | "microsoft", SourceStatus>> {
@@ -65,7 +66,8 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
           : msConn?.linked_folder_name ?? "OneDrive",
       isAutoAll: Boolean(msConn?.auto_all_files),
       includeSharedEnabled: Boolean(msConn?.include_shared_files),
-      linkedFiles: msConn?.linked_file_ids ?? []
+      linkedFiles: msConn?.linked_file_ids ?? [],
+      connectedEmail: msConn?.microsoft_email ?? null
     }
   };
 }

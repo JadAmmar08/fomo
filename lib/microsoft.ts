@@ -147,8 +147,9 @@ export async function getMicrosoftConnection(anonymousUserId: string, roomId: st
     auto_all_files: boolean;
     include_shared_files: boolean;
     linked_file_ids: Array<{ id: string; name: string }>;
+    microsoft_email: string | null;
   }>(
-    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, linked_file_ids from microsoft_connections
+    `select linked_folder_id, linked_folder_name, auto_all_files, include_shared_files, linked_file_ids, microsoft_email from microsoft_connections
      where anonymous_user_id = $1 and room_id = $2`,
     [anonymousUserId, roomId]
   );

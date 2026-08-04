@@ -18,21 +18,9 @@ const CONSUMER_AUTHORITY = "https://login.microsoftonline.com/consumers";
 // isn't one, and requesting it that way is a real, confirmed invalid_scope error).
 const PICKER_SCOPE = "OneDrive.ReadOnly";
 const RETURN_TO_KEY = "fomo_msal_return_to";
-const CACHED_FOR_KEY = "fomo_msal_cached_for";
 
 let msalInstance: IPublicClientApplication | null = null;
 let msalInitPromise: Promise<IPublicClientApplication> | null = null;
-
-// MSAL's own cache lives in browser localStorage, scoped to the origin — not to
-// which FOMO account is currently logged in. Two different FOMO accounts in the
-// same browser would otherwise silently share whichever Microsoft account was
-// last signed in, since acquireTokenSilent just grabs the cached account with no
-// idea a different FOMO identity is now active. This reads the same cookie the
-// backend uses to key `anonymous_user_id`.
-function getCurrentFomoUserId(): string | null {
-  const match = document.cookie.match(/(?:^|; )fomo_anonymous_id=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 // A single popup can only itself open one further popup (MSAL's own sign-in window)
 // before browsers start blocking the second one — confirmed directly, not assumed.
@@ -88,34 +76,29 @@ export function initMicrosoftAuthRedirectHandling() {
   getMsal().catch((err) => console.error("[microsoft-picker] redirect handling failed:", err));
 }
 
-async function getCachedAccount(): Promise<AccountInfo | null> {
+// The client-side MSAL cache is keyed by whatever Microsoft account has signed
+// into this browser before — it has no idea which account is actually connected
+// server-side for this room (that's stored separately as `microsoft_email` on
+// `microsoft_connections`, set via the OAuth flow in lib/microsoft.ts). Trying to
+// heuristically guess "is the cache stale" from FOMO login state doesn't work,
+// because MSAL account records can survive a partial cache clear. So instead:
+// always resolve against server truth. If `expectedEmail` is given, only ever use
+// a cached account whose username actually matches it; anything else — no match,
+// or no expected email known yet — forces a real interactive sign-in.
+async function getCachedAccount(expectedEmail: string | null): Promise<AccountInfo | null> {
   const app = await getMsal();
+  const accounts = app.getAllAccounts();
 
-  // localStorage, not sessionStorage — MSAL's own account cache lives in
-  // localStorage, which persists across tabs/reloads. Using sessionStorage here
-  // meant a fresh tab always started with no memory of "who cached this," so the
-  // mismatch check below never fired and a stale Microsoft account from a
-  // different FOMO login silently got readopted instead of cleared.
-  const currentFomoUser = getCurrentFomoUserId();
-  const cachedFor = localStorage.getItem(CACHED_FOR_KEY);
-  if (currentFomoUser && cachedFor && cachedFor !== currentFomoUser) {
-    // A different FOMO account is now active in this browser than the one that
-    // last signed into Microsoft here — drop the stale cache so the next picker
-    // click does a real interactive sign-in instead of silently reusing the
-    // previous FOMO account's OneDrive.
-    const accounts = app.getAllAccounts();
-    for (const acct of accounts) {
-      await app.clearCache({ account: acct });
+  if (expectedEmail) {
+    const match = accounts.find((a) => a.username?.toLowerCase() === expectedEmail.toLowerCase());
+    if (match) {
+      app.setActiveAccount(match);
+      return match;
     }
-    localStorage.removeItem(CACHED_FOR_KEY);
     return null;
   }
 
-  const account = app.getActiveAccount() ?? app.getAllAccounts()[0] ?? null;
-  if (account && currentFomoUser && !cachedFor) {
-    localStorage.setItem(CACHED_FOR_KEY, currentFomoUser);
-  }
-  return account;
+  return app.getActiveAccount() ?? accounts[0] ?? null;
 }
 
 interface AuthenticateCommand {
@@ -130,9 +113,9 @@ interface AuthenticateCommand {
 // exactly, confirmed by an "unableToObtainToken" error when it was checked for
 // equality). A resource-derived `.default` scope only applies to the SharePoint/
 // work-school picker, which this doesn't handle yet.
-async function getToken(_command: AuthenticateCommand): Promise<string> {
+async function getToken(_command: AuthenticateCommand, expectedEmail: string | null): Promise<string> {
   const app = await getMsal();
-  const account = await getCachedAccount();
+  const account = await getCachedAccount(expectedEmail);
   if (!account) throw new Error("No signed-in Microsoft account");
 
   const result = await app.acquireTokenSilent({ scopes: [PICKER_SCOPE], account });
@@ -144,21 +127,25 @@ interface PickedFile {
   name: string;
 }
 
-// First-ever call in a browser: no cached account, so this redirects the whole page
-// to Microsoft sign-in and returns — there is no popup to open yet. The caller
-// (browseAndAddFiles) should treat a `null` return here as "in progress, page is
-// navigating," not as a real failure or cancellation.
-async function openPicker(mode: "files" | "folders"): Promise<PickedFile[] | null> {
+// First-ever call in a browser, or a call where the cached account doesn't match
+// the server-connected email: no usable cached account, so this redirects the
+// whole page to Microsoft sign-in and returns — there is no popup to open yet.
+// The caller (browseAndAddFiles) should treat a `null` return here as "in
+// progress, page is navigating," not as a real failure or cancellation.
+async function openPicker(mode: "files" | "folders", expectedEmail: string | null): Promise<PickedFile[] | null> {
   const app = await getMsal();
-  const account = await getCachedAccount();
+  const account = await getCachedAccount(expectedEmail);
 
   if (!account) {
     sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
-    // Without prompt: "select_account", Microsoft silently re-authenticates via
-    // the browser's existing SSO cookie instead of ever showing a chooser — so
-    // even after correctly clearing the stale cached account above, the redirect
-    // just logged straight back into the same Microsoft account with no picker.
-    await app.loginRedirect({ scopes: [PICKER_SCOPE], prompt: "select_account" });
+    // prompt: "select_account" so Microsoft shows the chooser instead of silently
+    // re-authenticating via the browser's existing SSO cookie. login_hint further
+    // pre-selects the account we actually need, when we know which one that is.
+    await app.loginRedirect({
+      scopes: [PICKER_SCOPE],
+      prompt: "select_account",
+      loginHint: expectedEmail ?? undefined
+    });
     return null;
   }
 
@@ -173,7 +160,7 @@ async function openPicker(mode: "files" | "folders"): Promise<PickedFile[] | nul
 
   let initialToken: string;
   try {
-    initialToken = await getToken({ command: "authenticate", resource: CONSUMER_BASE_URL });
+    initialToken = await getToken({ command: "authenticate", resource: CONSUMER_BASE_URL }, expectedEmail);
   } catch (err) {
     console.error("[microsoft-picker] initial auth failed:", err);
     win.close();
@@ -203,7 +190,7 @@ async function openPicker(mode: "files" | "folders"): Promise<PickedFile[] | nul
 
       if (command.command === "authenticate") {
         try {
-          const token = await getToken(command);
+          const token = await getToken(command, expectedEmail);
           port!.postMessage({ type: "result", id: payload.id, data: { result: "token", token } });
         } catch (err) {
           port!.postMessage({
@@ -276,32 +263,30 @@ async function openPicker(mode: "files" | "folders"): Promise<PickedFile[] | nul
   });
 }
 
-export function openMicrosoftPicker(): Promise<PickedFile[] | null> {
-  return openPicker("files");
+// `expectedEmail` should be the room's currently connected `microsoft_email`
+// (from the workstream status API) — this is what makes the picker actually
+// track whichever account is connected server-side, instead of whatever
+// Microsoft account happens to be cached in this browser.
+export function openMicrosoftPicker(expectedEmail: string | null): Promise<PickedFile[] | null> {
+  return openPicker("files", expectedEmail);
 }
 
-// The native "browse OneDrive" picker uses its own client-side MSAL instance,
-// entirely separate from the server-side Graph connection used by
-// "Read everything I own" / Disconnect. Picking a different account in that
-// server-side flow doesn't touch this client-side cache at all — so without
-// this, the picker keeps silently reusing whichever Microsoft account it first
-// cached, no matter what account gets connected server-side afterward. Call
-// this whenever the server-side Microsoft connection is disconnected or
-// reconnected with a different account, so the next "browse OneDrive" click
-// is forced through a real interactive sign-in again.
+// Clears every cached Microsoft account in this browser's MSAL instance. Kept as
+// a blunt "forget everything" for Disconnect, since the email-matching in
+// getCachedAccount now does the real work of picking the right account — this
+// is just cleanup so stale accounts don't pile up in local storage over time.
 export async function clearMicrosoftPickerCache(): Promise<void> {
   if (!process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID) return;
   const app = await getMsal();
   for (const acct of app.getAllAccounts()) {
     await app.clearCache({ account: acct });
   }
-  localStorage.removeItem(CACHED_FOR_KEY);
 }
 
 // Same widget, restricted to folder selection — used by "or choose a folder", which
 // previously fell back to a plain custom dropdown while file-picking got the real
 // native browser.
-export async function openMicrosoftFolderPicker(): Promise<PickedFile | null> {
-  const files = await openPicker("folders");
+export async function openMicrosoftFolderPicker(expectedEmail: string | null): Promise<PickedFile | null> {
+  const files = await openPicker("folders", expectedEmail);
   return files?.[0] ?? null;
 }

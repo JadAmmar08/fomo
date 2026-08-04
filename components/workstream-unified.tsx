@@ -26,6 +26,7 @@ interface SourceStatus {
   isAutoAll?: boolean;
   includeSharedEnabled?: boolean;
   linkedFiles?: PickOption[];
+  connectedEmail?: string | null;
 }
 
 type Statuses = Record<SourceKey, SourceStatus>;
@@ -87,7 +88,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
 
   async function browseAndAddFiles() {
     setBrowsing(true);
-    const picked = await (source === "microsoft" ? openMicrosoftPicker() : openGooglePicker(roomId)).catch((err) => {
+    const picked = await (source === "microsoft" ? openMicrosoftPicker(status.connectedEmail ?? null) : openGooglePicker(roomId)).catch((err) => {
       console.error(`[${source} picker]`, err);
       return null;
     });
@@ -126,7 +127,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
 
   async function browseForFolder() {
     setBrowsing(true);
-    const folder = await (source === "microsoft" ? openMicrosoftFolderPicker() : openGoogleFolderPicker(roomId)).catch((err) => {
+    const folder = await (source === "microsoft" ? openMicrosoftFolderPicker(status.connectedEmail ?? null) : openGoogleFolderPicker(roomId)).catch((err) => {
       console.error(`[${source} folder picker]`, err);
       return null;
     });
