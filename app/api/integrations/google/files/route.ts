@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { getValidAccessToken, linkGoogleFiles, listPickableFiles } from "@/lib/google";
+import { getValidAccessToken, linkGoogleFiles, addGoogleFiles, removeGoogleFile, listPickableFiles } from "@/lib/google";
 import { getRequestAnonymousUserId } from "@/lib/session";
-import { registerFileWatch, stopFolderWatches } from "@/lib/file-watch";
+import { registerFileWatch, stopFileWatches, stopFolderWatches } from "@/lib/file-watch";
 
 export async function GET(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
@@ -47,6 +47,43 @@ export async function POST(req: NextRequest) {
       );
     }
   });
+
+  return NextResponse.json({ ok: true });
+}
+
+// Incremental edit on an already-linked set: add newly picked files and/or remove one
+// file, without clobbering everything else that's linked — unlike POST above, which
+// replaces the whole selection.
+export async function PATCH(req: NextRequest) {
+  const anonymousUserId = getRequestAnonymousUserId(req);
+  const body = await req.json();
+  const roomId = String(body.roomId ?? "");
+  const add = Array.isArray(body.add) ? (body.add as Array<{ id: string; name: string }>) : [];
+  const removeId = typeof body.remove === "string" ? body.remove : null;
+
+  if (!roomId || (add.length === 0 && !removeId)) {
+    return NextResponse.json({ error: "roomId and add or remove required" }, { status: 400 });
+  }
+
+  if (removeId) {
+    await removeGoogleFile(anonymousUserId, roomId, removeId);
+    after(async () => {
+      await stopFileWatches("google", anonymousUserId, roomId, [removeId]).catch((err) =>
+        console.error("[google files patch] watch cleanup failed:", err)
+      );
+    });
+  }
+
+  if (add.length > 0) {
+    await addGoogleFiles(anonymousUserId, roomId, add);
+    after(async () => {
+      for (const f of add) {
+        await registerFileWatch("google", anonymousUserId, roomId, f.id, f.name).catch((err) =>
+          console.error("[google files patch] watch registration failed:", err)
+        );
+      }
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

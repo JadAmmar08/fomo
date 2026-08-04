@@ -21,6 +21,10 @@ export function buildMicrosoftAuthUrl(state: string) {
     redirect_uri: requireEnv("MICROSOFT_REDIRECT_URI"),
     scope: MS_SCOPES,
     response_mode: "query",
+    // Without this, Microsoft silently reuses whatever account is already
+    // SSO'd into the browser — there was no way to reconnect a different
+    // Microsoft account without first signing out of Microsoft entirely.
+    prompt: "select_account",
     state
   });
   return `${MS_AUTHORIZE_URL}?${params.toString()}`;
@@ -170,6 +174,40 @@ export async function linkMicrosoftFiles(anonymousUserId: string, roomId: string
      where anonymous_user_id = $2 and room_id = $3`,
     [JSON.stringify(files), anonymousUserId, roomId]
   );
+}
+
+// Merges newly picked files into whatever's already linked, instead of clobbering the
+// existing selection — lets someone add one more file from the picker without losing
+// files they linked earlier. Returns the merged list.
+export async function addMicrosoftFiles(anonymousUserId: string, roomId: string, files: Array<{ id: string; name: string }>) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  const existing = await getMicrosoftConnection(anonymousUserId, roomId);
+  const current = existing?.linked_file_ids ?? [];
+  const merged = [...current];
+  for (const f of files) {
+    if (!merged.some((m) => m.id === f.id)) merged.push(f);
+  }
+  await pool.query(
+    `update microsoft_connections set linked_file_ids = $1, linked_folder_id = null, linked_folder_name = null, auto_all_files = false, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(merged), anonymousUserId, roomId]
+  );
+  return merged;
+}
+
+// Drops exactly one file from the linked set without touching the rest.
+export async function removeMicrosoftFile(anonymousUserId: string, roomId: string, fileId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  const existing = await getMicrosoftConnection(anonymousUserId, roomId);
+  const remaining = (existing?.linked_file_ids ?? []).filter((f) => f.id !== fileId);
+  await pool.query(
+    `update microsoft_connections set linked_file_ids = $1, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(remaining), anonymousUserId, roomId]
+  );
+  return remaining;
 }
 
 // Graph's push-notification equivalent of Drive's watch API. Unlike Drive, Graph lets

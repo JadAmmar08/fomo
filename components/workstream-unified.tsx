@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { WebOfIdeas } from "@/components/web-of-ideas";
+import { openMicrosoftPicker, openMicrosoftFolderPicker } from "@/components/microsoft-picker";
+import { openGooglePicker, openGoogleFolderPicker } from "@/components/google-picker";
 
 type InsightType = "implication" | "tension" | "question" | "opportunity" | "blind_spot";
 
@@ -23,6 +25,7 @@ interface SourceStatus {
   label: string;
   isAutoAll?: boolean;
   includeSharedEnabled?: boolean;
+  linkedFiles?: PickOption[];
 }
 
 type Statuses = Record<SourceKey, SourceStatus>;
@@ -55,8 +58,13 @@ const SOURCE_META: Record<SourceKey, {
 };
 
 function SourceDot({ color }: { color: string }) {
-  return <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />;
+  return <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: `0 0 0 3px ${color}1a` }} />;
 }
+
+const linkStyle: React.CSSProperties = {
+  textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer",
+  fontSize: "0.82rem", fontWeight: 500, color: "var(--subtle)"
+};
 
 interface PickOption {
   id: string;
@@ -72,7 +80,41 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
   const [pickingFiles, setPickingFiles] = useState(false);
   const [fileOptions, setFileOptions] = useState<PickOption[] | null>(null);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [browsing, setBrowsing] = useState(false);
   const meta = SOURCE_META[source];
+
+  const hasNativePicker = source === "microsoft" || source === "google";
+
+  async function browseAndAddFiles() {
+    setBrowsing(true);
+    const picked = await (source === "microsoft" ? openMicrosoftPicker() : openGooglePicker(roomId)).catch((err) => {
+      console.error(`[${source} picker]`, err);
+      return null;
+    });
+    setBrowsing(false);
+    if (!picked || picked.length === 0) return;
+    setLinking(true);
+    await fetch(meta.filesPath!, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, add: picked })
+    });
+    setLinking(false);
+    onLinked();
+  }
+
+  async function removeFile(fileId: string) {
+    setLinking(true);
+    await fetch(meta.filesPath!, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, remove: fileId })
+    });
+    setLinking(false);
+    onLinked();
+  }
 
   async function openPicker() {
     setPicking((v) => !v);
@@ -80,6 +122,25 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
     const res = await fetch(`${meta.pickPath}?roomId=${roomId}`, { credentials: "include" });
     const data = await res.json();
     setOptions((data.folders ?? data.channels ?? []).map((o: PickOption) => ({ id: o.id, name: o.name, isExternal: o.isExternal })));
+  }
+
+  async function browseForFolder() {
+    setBrowsing(true);
+    const folder = await (source === "microsoft" ? openMicrosoftFolderPicker() : openGoogleFolderPicker(roomId)).catch((err) => {
+      console.error(`[${source} folder picker]`, err);
+      return null;
+    });
+    setBrowsing(false);
+    if (!folder) return;
+    setLinking(true);
+    await fetch(meta.pickPath, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, [meta.pickKey]: folder.id, [meta.nameKey]: folder.name })
+    });
+    setLinking(false);
+    onLinked();
   }
 
   async function openFilePicker() {
@@ -143,17 +204,58 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
   }
 
   const baseStyle: React.CSSProperties = {
-    display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderRadius: 14,
-    border: "1px solid var(--line)", background: "var(--surface-raised)", minWidth: 168, position: "relative"
+    display: "flex", flexDirection: "column", gap: 10, padding: "20px 22px", borderRadius: 18,
+    border: "1px solid var(--line)", background: "white", minWidth: 220, position: "relative",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.04)"
+  };
+
+  const headerStyle: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)",
+    textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600
   };
 
   if (status.linked) {
     return (
       <div style={baseStyle}>
-        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <span style={headerStyle}>
           <SourceDot color={meta.color} /> {meta.name}
         </span>
-        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text-strong)" }}>{status.label}</span>
+        <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text-strong)" }}>{status.label}</span>
+        {hasNativePicker && status.linkedFiles && status.linkedFiles.length > 0 && (
+          <div style={{ display: "grid", gap: 4, marginTop: 2 }}>
+            {status.linkedFiles.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                  fontSize: "0.8rem", color: "var(--text)", background: "var(--surface-raised)",
+                  borderRadius: 8, padding: "6px 10px"
+                }}
+              >
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                <button
+                  onClick={() => removeFile(f.id)}
+                  disabled={linking}
+                  title="Remove"
+                  style={{
+                    background: "none", border: "none", padding: 0, width: 18, height: 18, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: linking ? "wait" : "pointer", color: "var(--subtle)", flexShrink: 0, fontSize: "1rem", lineHeight: 1
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={browseAndAddFiles}
+              disabled={browsing || linking}
+              style={{ ...linkStyle, marginTop: 2, fontWeight: 600, color: "var(--accent)", cursor: browsing ? "wait" : "pointer" }}
+            >
+              {browsing ? "Opening…" : "+ add more files"}
+            </button>
+          </div>
+        )}
         {status.isAutoAll && !status.includeSharedEnabled && meta.includeSharedPath && (
           <button
             onClick={async () => {
@@ -168,12 +270,12 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
               onLinked();
             }}
             disabled={linking}
-            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.76rem", fontWeight: 500, color: "var(--accent)" }}
+            style={{ ...linkStyle, fontWeight: 600, color: "var(--accent)", cursor: linking ? "wait" : "pointer" }}
           >
             {linking ? "Adding…" : "+ also include shared files"}
           </button>
         )}
-        <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+        <div style={{ display: "flex", gap: 14, marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
           <button
             onClick={async () => {
               setLinking(true);
@@ -187,7 +289,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
               onLinked();
             }}
             disabled={linking}
-            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.72rem", fontWeight: 500, color: "var(--subtle)", textDecoration: "underline" }}
+            style={{ ...linkStyle, fontSize: "0.76rem", cursor: linking ? "wait" : "pointer" }}
           >
             Change
           </button>
@@ -204,7 +306,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
               onLinked();
             }}
             disabled={linking}
-            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.72rem", fontWeight: 500, color: "var(--subtle)", textDecoration: "underline" }}
+            style={{ ...linkStyle, fontSize: "0.76rem", cursor: linking ? "wait" : "pointer" }}
           >
             Disconnect
           </button>
@@ -216,7 +318,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
   if (status.connected) {
     return (
       <div style={baseStyle}>
-        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <span style={headerStyle}>
           <SourceDot color={meta.color} /> {meta.name}
         </span>
         <button
@@ -232,38 +334,61 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
             onLinked();
           }}
           disabled={linking}
-          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.88rem", fontWeight: 600, color: "var(--accent)" }}
+          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.95rem", fontWeight: 600, color: "var(--accent)" }}
         >
           {linking ? "Connecting…" : `${meta.autoAllLabel} →`}
         </button>
-        <button
-          onClick={openPicker}
-          style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500, color: "var(--subtle)" }}
-        >
-          or {meta.pickVerb.toLowerCase()} →
-        </button>
-        {meta.filesPath && (
+        <div style={{ display: "grid", gap: 6, marginTop: -2 }}>
           <button
-            onClick={openFilePicker}
-            style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 500, color: "var(--subtle)" }}
+            onClick={hasNativePicker ? browseForFolder : openPicker}
+            disabled={hasNativePicker && browsing}
+            style={{ ...linkStyle, cursor: hasNativePicker && browsing ? "wait" : "pointer" }}
           >
-            or pick specific files →
+            {hasNativePicker && browsing ? "Opening…" : `or ${meta.pickVerb.toLowerCase()} →`}
           </button>
-        )}
+          {hasNativePicker ? (
+            <button onClick={browseAndAddFiles} disabled={browsing} style={{ ...linkStyle, cursor: browsing ? "wait" : "pointer" }}>
+              {browsing ? "Opening…" : `or browse ${meta.name} →`}
+            </button>
+          ) : meta.filesPath && (
+            <button onClick={openFilePicker} style={linkStyle}>
+              or pick specific files →
+            </button>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 14, marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+          <button
+            onClick={async () => {
+              setLinking(true);
+              await fetch(meta.unlinkPath, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId, disconnect: true })
+              });
+              setLinking(false);
+              onLinked();
+            }}
+            disabled={linking}
+            style={{ ...linkStyle, fontSize: "0.76rem", cursor: linking ? "wait" : "pointer" }}
+          >
+            {linking ? "Disconnecting…" : "Disconnect / switch account"}
+          </button>
+        </div>
         {pickingFiles && (
           <div style={{
-            position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 10, background: "white",
-            border: "1px solid var(--line)", borderRadius: 12, padding: 10, minWidth: 240,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "grid", gap: 8
+            position: "absolute", top: "100%", left: 0, marginTop: 8, zIndex: 10, background: "white",
+            border: "1px solid var(--line)", borderRadius: 14, padding: 14, minWidth: 260,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.14)", display: "grid", gap: 10
           }}>
-            <p style={{ fontSize: "0.72rem", color: "var(--subtle)", margin: 0 }}>
+            <p style={{ fontSize: "0.75rem", color: "var(--subtle)", margin: 0, lineHeight: 1.5 }}>
               The smallest option — only the exact files you check are ever read.
             </p>
             <div style={{ display: "grid", gap: 2, maxHeight: 200, overflowY: "auto" }}>
-              {fileOptions === null && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
-              {fileOptions?.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
+              {fileOptions === null && <span style={{ fontSize: "0.82rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
+              {fileOptions?.length === 0 && <span style={{ fontSize: "0.82rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
               {fileOptions?.map((f) => (
-                <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", padding: "6px 8px", cursor: "pointer" }}>
+                <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: "0.86rem", padding: "7px 8px", borderRadius: 8, cursor: "pointer" }}>
                   <input type="checkbox" checked={selectedFileIds.has(f.id)} onChange={() => toggleFile(f.id)} />
                   {f.name}
                 </label>
@@ -273,7 +398,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
               onClick={linkSelectedFiles}
               disabled={linking || selectedFileIds.size === 0}
               className="button-secondary"
-              style={{ fontSize: "0.8rem", cursor: linking || selectedFileIds.size === 0 ? "not-allowed" : "pointer" }}
+              style={{ fontSize: "0.82rem", cursor: linking || selectedFileIds.size === 0 ? "not-allowed" : "pointer" }}
             >
               {linking ? "Linking…" : `Link ${selectedFileIds.size || ""} file${selectedFileIds.size === 1 ? "" : "s"}`}
             </button>
@@ -281,27 +406,27 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
         )}
         {picking && (
           <div style={{
-            position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 10, background: "white",
-            border: "1px solid var(--line)", borderRadius: 12, padding: 6, minWidth: 220,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "grid", gap: 2, maxHeight: 240, overflowY: "auto"
+            position: "absolute", top: "100%", left: 0, marginTop: 8, zIndex: 10, background: "white",
+            border: "1px solid var(--line)", borderRadius: 14, padding: 8, minWidth: 240,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.14)", display: "grid", gap: 2, maxHeight: 260, overflowY: "auto"
           }}>
-            {options === null && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
-            {options?.length === 0 && <span style={{ fontSize: "0.8rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
+            {options === null && <span style={{ fontSize: "0.82rem", color: "var(--subtle)", padding: 8 }}>Loading…</span>}
+            {options?.length === 0 && <span style={{ fontSize: "0.82rem", color: "var(--subtle)", padding: 8 }}>Nothing found</span>}
             {options?.map((o) =>
               confirmingExternal?.id === o.id ? (
-                <div key={o.id} style={{ padding: "10px", background: "var(--blindspot-soft)", borderRadius: 8, display: "grid", gap: 8 }}>
-                  <p style={{ fontSize: "0.78rem", margin: 0, color: "var(--text-strong)", lineHeight: 1.5 }}>
+                <div key={o.id} style={{ padding: "12px", background: "var(--blindspot-soft)", borderRadius: 10, display: "grid", gap: 8 }}>
+                  <p style={{ fontSize: "0.8rem", margin: 0, color: "var(--text-strong)", lineHeight: 1.5 }}>
                     <strong>#{o.name}</strong> is shared with another organization. Only link this if that organization has explicitly agreed to FOMO reading this channel.
                   </p>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => pick(o)} disabled={linking} style={{
-                      fontSize: "0.78rem", fontWeight: 600, padding: "6px 10px", borderRadius: 6,
+                      fontSize: "0.8rem", fontWeight: 600, padding: "7px 12px", borderRadius: 8,
                       border: "1px solid var(--blindspot)", background: "white", cursor: linking ? "wait" : "pointer"
                     }}>
                       Yes, they&apos;ve agreed
                     </button>
                     <button onClick={() => setConfirmingExternal(null)} style={{
-                      fontSize: "0.78rem", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--line)",
+                      fontSize: "0.8rem", padding: "7px 12px", borderRadius: 8, border: "1px solid var(--line)",
                       background: "white", cursor: "pointer"
                     }}>
                       Cancel
@@ -310,8 +435,8 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
                 </div>
               ) : (
                 <button key={o.id} onClick={() => pick(o)} disabled={linking} style={{
-                  textAlign: "left", background: "none", border: "none", padding: "8px 10px",
-                  borderRadius: 8, cursor: linking ? "wait" : "pointer", fontSize: "0.85rem", color: "var(--text-strong)",
+                  textAlign: "left", background: "none", border: "none", padding: "9px 12px",
+                  borderRadius: 9, cursor: linking ? "wait" : "pointer", fontSize: "0.86rem", color: "var(--text-strong)",
                   display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8
                 }}>
                   <span>{o.name}</span>
@@ -331,10 +456,10 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
 
   return (
     <a href={`${meta.connectPath}?roomId=${roomId}`} style={{ ...baseStyle, textDecoration: "none" }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--subtle)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <span style={headerStyle}>
         <SourceDot color={meta.color} /> {meta.name}
       </span>
-      <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--text-strong)" }}>Connect →</span>
+      <span style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--text-strong)" }}>Connect →</span>
     </a>
   );
 }
@@ -397,7 +522,7 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
         What this team is working on and researching, stitched into one picture. Connect the tools below to go deeper — FOMO reads only what&apos;s explicitly linked.
       </p>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28 }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
         {(Object.keys(statuses) as SourceKey[]).map((key) => (
           <SourceCard key={key} source={key} status={statuses[key]} roomId={roomId} onLinked={loadStatuses} />
         ))}

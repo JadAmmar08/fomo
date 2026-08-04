@@ -20,6 +20,7 @@ export interface SourceStatus {
   label: string;
   isAutoAll?: boolean;
   includeSharedEnabled?: boolean;
+  linkedFiles?: Array<{ id: string; name: string }>;
 }
 
 export async function getSourceStatuses(anonymousUserId: string, roomId: string): Promise<Record<"google" | "slack" | "microsoft", SourceStatus>> {
@@ -42,7 +43,8 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
           ? googleConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
           : googleConn?.linked_folder_name ?? "Google Drive",
       isAutoAll: Boolean(googleConn?.auto_all_files),
-      includeSharedEnabled: Boolean(googleConn?.include_shared_files)
+      includeSharedEnabled: Boolean(googleConn?.include_shared_files),
+      linkedFiles: googleConn?.linked_file_ids ?? []
     },
     slack: {
       connected: Boolean(slackConn),
@@ -62,7 +64,8 @@ export async function getSourceStatuses(anonymousUserId: string, roomId: string)
           ? msConn.include_shared_files ? "Everything I own + shared" : "Everything I own"
           : msConn?.linked_folder_name ?? "OneDrive",
       isAutoAll: Boolean(msConn?.auto_all_files),
-      includeSharedEnabled: Boolean(msConn?.include_shared_files)
+      includeSharedEnabled: Boolean(msConn?.include_shared_files),
+      linkedFiles: msConn?.linked_file_ids ?? []
     }
   };
 }

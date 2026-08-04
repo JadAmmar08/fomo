@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Nav } from "@/components/nav";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { MicrosoftAuthRedirectHandler } from "@/components/microsoft-auth-redirect-handler";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export default function RootLayout({
         </div>
         <ScrollReveal />
         <Analytics />
+        <MicrosoftAuthRedirectHandler />
       </body>
     </html>
   );

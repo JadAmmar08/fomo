@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
+    "@azure/msal-browser": "^5.17.3",
     "@vercel/analytics": "^2.0.1",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",

@@ -25,7 +25,9 @@ export function buildGoogleAuthUrl(state: string) {
     response_type: "code",
     scope: GOOGLE_SCOPES,
     access_type: "offline",
-    prompt: "consent",
+    // "select_account" forces the account chooser (not just SSO reuse) so
+    // reconnecting with a different Google account is actually possible.
+    prompt: "select_account consent",
     state
   });
   return `${GOOGLE_AUTH_URL}?${params.toString()}`;
@@ -189,6 +191,39 @@ export async function linkGoogleFiles(anonymousUserId: string, roomId: string, f
      where anonymous_user_id = $2 and room_id = $3`,
     [JSON.stringify(files), anonymousUserId, roomId]
   );
+}
+
+// Merges newly picked files into whatever's already linked, instead of clobbering the
+// existing selection.
+export async function addGoogleFiles(anonymousUserId: string, roomId: string, files: Array<{ id: string; name: string }>) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  const existing = await getGoogleConnection(anonymousUserId, roomId);
+  const current = existing?.linked_file_ids ?? [];
+  const merged = [...current];
+  for (const f of files) {
+    if (!merged.some((m) => m.id === f.id)) merged.push(f);
+  }
+  await pool.query(
+    `update google_connections set linked_file_ids = $1, linked_folder_id = null, linked_folder_name = null, auto_all_files = false, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(merged), anonymousUserId, roomId]
+  );
+  return merged;
+}
+
+// Drops exactly one file from the linked set without touching the rest.
+export async function removeGoogleFile(anonymousUserId: string, roomId: string, fileId: string) {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+  const existing = await getGoogleConnection(anonymousUserId, roomId);
+  const remaining = (existing?.linked_file_ids ?? []).filter((f) => f.id !== fileId);
+  await pool.query(
+    `update google_connections set linked_file_ids = $1, updated_at = now()
+     where anonymous_user_id = $2 and room_id = $3`,
+    [JSON.stringify(remaining), anonymousUserId, roomId]
+  );
+  return remaining;
 }
 
 // Lists individual files (not folders) for the specific-file picker — recent files
