@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { processFileChange } from "@/lib/file-watch";
 import { rateLimit } from "@/lib/rate-limit";
@@ -36,9 +36,17 @@ export async function POST(req: NextRequest) {
   const row = res.rows[0];
   if (!row) return NextResponse.json({ ok: true, skipped: "not_linked" });
 
-  processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) =>
-    console.error("[live-signal check-now] failed:", err)
-  );
+  // Deliberately not awaited (best-effort, shouldn't block the response), but still
+  // needs `after()` to actually run to completion — a bare fire-and-forget promise
+  // here was silently getting killed once the response was sent (confirmed live:
+  // the whole-text check completed but the slower structured-facts step, which does
+  // an extra Graph fetch + LLM call after it, never did), since Vercel's serverless
+  // runtime doesn't keep a function alive for un-awaited work after it returns.
+  after(async () => {
+    await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) =>
+      console.error("[live-signal check-now] failed:", err)
+    );
+  });
 
   return NextResponse.json({ ok: true });
 }
