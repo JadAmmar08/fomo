@@ -1,5 +1,6 @@
 const POLL_MS = 1500;
 const STORAGE_KEY = "fomo_anonymous_user_id";
+const HIGHLIGHT_STORAGE_KEY = "fomo_highlighted_cells";
 
 let anonymousUserId = localStorage.getItem(STORAGE_KEY);
 let pollTimer = null;
@@ -31,9 +32,11 @@ function renderAlerts(alerts) {
   const emptyState = document.getElementById("empty-state");
 
   const incomingKeys = new Set(alerts.map((a) => a.cardKey));
-  // Clear highlights for anything that dropped off (dismissed elsewhere, or the
-  // card simply expired) before rebuilding.
-  for (const key of currentAlerts.keys()) {
+  // Sweep highlightedCells (persisted, the real source of truth for what's
+  // currently marked in the sheet), not currentAlerts (in-memory only, resets to
+  // empty on every page reload) — otherwise a reload forgets what it highlighted
+  // before and orphans that fill/comment in the sheet forever.
+  for (const key of Array.from(highlightedCells.keys())) {
     if (!incomingKeys.has(key)) clearHighlight(key);
   }
   currentAlerts = new Map(alerts.map((a) => [a.cardKey, a]));
@@ -72,7 +75,23 @@ function renderAlerts(alerts) {
   });
 }
 
-let highlightedCells = new Map(); // cardKey -> { sheetName, address } — one per open card, so Dismiss only clears its own
+// cardKey -> { sheetName, address } — one per open card, so Dismiss only clears its
+// own. Persisted to localStorage (not just kept in memory) because the task pane
+// reloads on tab switches/refreshes, and an in-memory-only map forgets what it
+// highlighted before, orphaning fills/comments in the sheet forever since nothing
+// then knows to clear them.
+function loadHighlightedCells() {
+  try {
+    const raw = localStorage.getItem(HIGHLIGHT_STORAGE_KEY);
+    return raw ? new Map(JSON.parse(raw)) : new Map();
+  } catch {
+    return new Map();
+  }
+}
+function saveHighlightedCells() {
+  localStorage.setItem(HIGHLIGHT_STORAGE_KEY, JSON.stringify(Array.from(highlightedCells.entries())));
+}
+let highlightedCells = loadHighlightedCells();
 
 // Parses "SheetName!C5" (the format extractStructuredCells/getSheetValuesWithCoordinates
 // produce) and marks that exact cell: a fill color plus a native Excel comment with the
@@ -89,6 +108,7 @@ async function highlightCell(cardKey, location, commentText) {
       await context.sync();
     });
     highlightedCells.set(cardKey, { sheetName, address });
+    saveHighlightedCells();
   } catch (err) {
     console.error("[taskpane] highlighting cell failed:", err);
   }
@@ -98,6 +118,7 @@ async function clearHighlight(cardKey) {
   const cell = highlightedCells.get(cardKey);
   if (!cell) return;
   highlightedCells.delete(cardKey);
+  saveHighlightedCells();
   const { sheetName, address } = cell;
   try {
     await Excel.run(async (context) => {
