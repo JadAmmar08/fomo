@@ -742,8 +742,8 @@ export async function checkFactsForConflict(
     // cross-entity false positives through more than once). When either side has
     // no extracted entity, this falls back to subject-only matching same as
     // before, rather than silently dropping facts without one.
-    const candidatesRes = await pool.query<{ id: string; subject: string; value: string; location: string; file_name: string }>(
-      `select id, subject, value, location, file_name from project_facts
+    const candidatesRes = await pool.query<{ id: string; subject: string; value: string; location: string; file_name: string; anonymous_user_id: string }>(
+      `select id, subject, value, location, file_name, anonymous_user_id from project_facts
        where room_id = $1 and superseded_by is null and file_id != $2 and id != $3
          and similarity(subject, $4) > 0.4
          and ($5 = '' or entity is null or entity = '' or similarity(entity, $5) > 0.5)
@@ -823,18 +823,27 @@ export async function checkFactsForConflict(
       const cardKey = `fact_conflict:${out.text}`;
       const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId, sourceLocations };
 
-      await pool.query(
-        `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
-         values ($1, $2, 'discovery', $3, $4)
-         on conflict (anonymous_user_id, room_id, card_type, card_key) do update set card_data = excluded.card_data`,
-        [anonymousUserId, roomSlug, cardKey, JSON.stringify(rec)]
-      );
-
-      await sendPushToUser(anonymousUserId, {
-        title: "Conflicting data found",
-        body: out.text,
-        url: `/teams/${roomSlug}`
-      });
+      // A conflict is pinned for BOTH files' owners, not just whoever's edit
+      // triggered this check — confirmed live: two files linked under two
+      // different anonymous_user_ids meant a conflict found while checking one
+      // side was completely invisible in the other side's own sidebar, since
+      // pinned_cards is scoped per anonymous_user_id and each side only polls
+      // its own. When the same person owns both files this is a harmless
+      // no-op duplicate insert into their own feed.
+      const owners = new Set([anonymousUserId, ...(candidate ? [candidate.anonymous_user_id] : [])]);
+      for (const ownerId of owners) {
+        await pool.query(
+          `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
+           values ($1, $2, 'discovery', $3, $4)
+           on conflict (anonymous_user_id, room_id, card_type, card_key) do update set card_data = excluded.card_data`,
+          [ownerId, roomSlug, cardKey, JSON.stringify(rec)]
+        );
+        await sendPushToUser(ownerId, {
+          title: "Conflicting data found",
+          body: out.text,
+          url: `/teams/${roomSlug}`
+        });
+      }
 
       // The new fact's own location (not the candidate's) is the cell that was
       // just edited — that's the one worth highlighting client-side. Every real
