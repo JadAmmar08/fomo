@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
-import { processFileChange } from "@/lib/file-watch";
+import { processFileChange, extractFactsFromCells, checkFactsForConflict } from "@/lib/file-watch";
+import { cellsFromGrid } from "@/lib/microsoft";
 import { rateLimit } from "@/lib/rate-limit";
 
 // On-demand trigger for the same detection pipeline the Microsoft webhook uses —
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const anonymousUserId = String(body.anonymousUserId ?? "");
   const fileName = String(body.fileName ?? "");
+  const sheetName = body.sheetName ? String(body.sheetName) : null;
+  const grid = Array.isArray(body.grid) ? (body.grid as string[][]) : null;
   if (!anonymousUserId || !fileName) {
     return NextResponse.json({ error: "anonymousUserId and fileName required" }, { status: 400 });
   }
@@ -37,10 +40,31 @@ export async function POST(req: NextRequest) {
   const row = res.rows[0];
   if (!row) return NextResponse.json({ ok: true, skipped: "not_linked", alert: null });
 
-  const result = await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) => {
-    console.error("[live-signal check-now] failed:", err);
-    return null;
-  });
+  let result;
+  if (grid && sheetName) {
+    // Fast path: the client sends its own just-committed cell values directly
+    // (Office.js has them locally the instant onChanged fires) instead of us
+    // re-downloading the file via Graph. Confirmed live: a check right after an
+    // edit could still read the file's PREVIOUS content, because OneDrive hadn't
+    // finished syncing the browser's edit to the backend Graph reads from yet —
+    // a real race, not a timing tune. Reading straight from the client instead of
+    // through that cloud round-trip removes the race entirely, and is also
+    // faster (no download + ExcelJS parse). Whole-text fallback isn't available
+    // on this path (no full-file "content" from the client) — an edit whose
+    // structured extraction finds nothing still gets caught by the next webhook
+    // delivery, same safety net as before.
+    result = await extractFactsFromCells(cellsFromGrid(sheetName, grid), fileName)
+      .then((facts) => checkFactsForConflict(anonymousUserId, row.room_id, "microsoft", row.file_id, fileName, facts))
+      .catch((err) => {
+        console.error("[live-signal check-now] client-grid path failed:", err);
+        return null;
+      });
+  } else {
+    result = await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) => {
+      console.error("[live-signal check-now] failed:", err);
+      return null;
+    });
+  }
 
   return NextResponse.json({ ok: true, alert: result });
 }

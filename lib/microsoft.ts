@@ -554,6 +554,64 @@ export interface StructuredCell {
 // cell in that row) or a column header (first non-empty cell in that column,
 // typically row 1) next to a data value — both are captured when present, and the
 // downstream fact-normalization step picks whichever actually describes the value.
+// Pure, network-free: turns a plain values grid into StructuredCells using the same
+// row/column label heuristic regardless of where the grid came from. Two real
+// callers need this: extractStructuredCells below (grid built by downloading and
+// parsing the file via Graph) and the live-edit path in the check-now route (grid
+// sent directly by the Excel client via Office.js — no Graph round trip at all,
+// which matters because Graph's content can lag a few seconds behind a just-typed
+// cell while OneDrive finishes syncing it, a real race confirmed live: a check
+// right after an edit sometimes still read the PREVIOUS value).
+export function cellsFromGrid(sheetName: string, grid: (string | number | null | undefined)[][]): StructuredCell[] {
+  const columnHeaders = new Map<number, string>();
+  const firstRow = grid[0] ?? [];
+  firstRow.forEach((cell, i) => {
+    const text = String(cell ?? "").trim();
+    if (text) columnHeaders.set(i + 1, text);
+  });
+
+  const cells: StructuredCell[] = [];
+  grid.forEach((row, rowIndex) => {
+    const nonEmptyCount = row.filter((c) => String(c ?? "").trim()).length;
+    let rowLabel: string | undefined;
+    for (const cell of row) {
+      const text = String(cell ?? "").trim();
+      if (text) { rowLabel = text; break; }
+    }
+
+    row.forEach((cell, colIndex) => {
+      const value = String(cell ?? "").trim();
+      if (!value) return;
+      // Only treat a cell as "just its own row label" when the row has a
+      // genuinely separate value cell alongside it — a row with exactly one
+      // cell (e.g. a single-cell sentence like "Q4 earnings ... is $600,000")
+      // IS the fact itself, not a label for something else. Row 1 isn't
+      // hard-skipped as "always a header" either — extractFactsFromCells' own
+      // judgment decides "real fact vs. label," not this raw extraction step.
+      if (nonEmptyCount > 1 && rowLabel && value === rowLabel && colIndex === 0) return;
+
+      cells.push({
+        location: `${sheetName}!${columnLetterMs(colIndex)}${rowIndex + 1}`,
+        value,
+        rowLabel: nonEmptyCount > 1 ? rowLabel : undefined,
+        colLabel: columnHeaders.get(colIndex + 1)
+      });
+    });
+  });
+
+  return cells;
+}
+
+function columnLetterMs(index: number): string {
+  let n = index;
+  let letters = "";
+  do {
+    letters = String.fromCharCode(65 + (n % 26)) + letters;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return letters;
+}
+
 export async function extractStructuredCells(accessToken: string, fileId: string, fileName: string): Promise<StructuredCell[] | null> {
   const ext = fileName.split(".").pop()?.toLowerCase();
   if (ext !== "xlsx" && ext !== "xls") return null;
@@ -571,42 +629,16 @@ export async function extractStructuredCells(accessToken: string, fileId: string
     const sheet = workbook.worksheets[0];
     if (!sheet) return null;
 
-    const columnHeaders = new Map<number, string>();
-    const firstRow = sheet.getRow(1);
-    firstRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-      const text = String(cell.value ?? "").trim();
-      if (text) columnHeaders.set(colNumber, text);
+    const grid: string[][] = [];
+    sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      const values: string[] = [];
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        values.push(cell.value === null || cell.value === undefined ? "" : String(cell.value));
+      });
+      grid[rowNumber - 1] = values;
     });
 
-    const cells: StructuredCell[] = [];
-    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      const nonEmptyCount = row.cellCount;
-      let rowLabel: string | undefined;
-      row.eachCell({ includeEmpty: false }, (cell) => {
-        const text = String(cell.value ?? "").trim();
-        if (text && !rowLabel) rowLabel = text;
-      });
-
-      row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-        const value = String(cell.value ?? "").trim();
-        if (!value) return;
-        // Only treat a cell as "just its own row label" when the row has a
-        // genuinely separate value cell alongside it — a row with exactly one
-        // cell (e.g. a single-cell sentence like "Q4 earnings ... is $600,000")
-        // IS the fact itself, not a label for something else. Row 1 isn't
-        // hard-skipped as "always a header" either — extractFactsFromCells' own
-        // judgment decides "real fact vs. label," not this raw extraction step.
-        if (nonEmptyCount > 1 && rowLabel && value === rowLabel && colNumber === 1) return;
-
-        cells.push({
-          location: `${sheet.name}!${cell.address}`,
-          value,
-          rowLabel: nonEmptyCount > 1 ? rowLabel : undefined,
-          colLabel: columnHeaders.get(colNumber)
-        });
-      });
-    });
-
+    const cells = cellsFromGrid(sheet.name, grid);
     return cells.length > 0 ? cells.slice(0, 200) : null;
   } catch (err) {
     console.error(`[extractStructuredCells] failed for ${fileName}:`, err);

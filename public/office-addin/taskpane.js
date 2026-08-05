@@ -164,17 +164,40 @@ async function registerLiveEditListener() {
         const fileName = getCurrentFileName();
         if (!fileName) return;
 
-        // Debounced: a paste or fill can fire onChanged many times in one burst,
-        // and each server-side check is a real Anthropic call, not a cache read —
-        // wait 2s after the last change before actually triggering one.
+        // Debounced only to collapse a burst of onChanged events (a paste or
+        // fill) into one check — this no longer needs to wait out OneDrive's
+        // cloud sync lag, since the grid read below comes straight from the
+        // local document, not a Graph re-download. 800ms is just "let the burst
+        // finish," not "wait for the cloud."
         clearTimeout(liveEditDebounceTimer);
         liveEditDebounceTimer = setTimeout(async () => {
-          liveEditStatus = `live-edit: check-now called ${new Date().toLocaleTimeString()}`;
+          liveEditStatus = `live-edit: reading grid ${new Date().toLocaleTimeString()}`;
           try {
+            // Read the used range directly from the open document via Office.js —
+            // this is local and instant, unlike re-fetching the file's content via
+            // Graph, which can lag a few seconds behind a just-typed cell while
+            // OneDrive finishes syncing it to the backend Graph reads from (a real
+            // race confirmed live: a check right after an edit sometimes still saw
+            // the PREVIOUS value). Sending the actual values removes that race.
+            let grid = null;
+            let sheetName = null;
+            await Excel.run(async (readContext) => {
+              const activeSheet = readContext.workbook.worksheets.getActiveWorksheet();
+              activeSheet.load("name");
+              const used = activeSheet.getUsedRangeOrNullObject(true);
+              used.load("values");
+              await readContext.sync();
+              if (!used.isNullObject) {
+                grid = used.values;
+                sheetName = activeSheet.name;
+              }
+            });
+
+            liveEditStatus = `live-edit: check-now called ${new Date().toLocaleTimeString()}`;
             const res = await fetch("/api/live-signal/check-now", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ anonymousUserId, fileName })
+              body: JSON.stringify({ anonymousUserId, fileName, grid, sheetName })
             });
             const data = await res.json();
             liveEditStatus = `live-edit: check-now responded ${new Date().toLocaleTimeString()}, alert=${Boolean(data.alert)}`;
@@ -189,7 +212,7 @@ async function registerLiveEditListener() {
           } catch (err) {
             liveEditStatus = `live-edit: check-now FAILED: ${err}`;
           }
-        }, 2000);
+        }, 800);
       });
       await context.sync();
     });
