@@ -684,7 +684,35 @@ export async function checkFactsForConflict(
   facts: ExtractedFact[]
 ): Promise<ConflictResult[]> {
   const pool = getPool();
-  if (!pool || facts.length === 0) return [];
+  if (!pool) return [];
+
+  // A cell whose fact disappeared entirely (cleared, or a whole table moved to
+  // new cells) never gets visited by the per-fact loop below, since extraction
+  // only reports what's THERE now, not what used to be there. Without this, the
+  // old fact stays "current" forever and any card pinned against its old
+  // location becomes a permanent, unclearable orphan, confirmed live: moving a
+  // table to new cells left a yellow highlight stuck on the now-empty old cells
+  // with nothing left to ever retract it. Runs even when facts is empty (the
+  // whole table got deleted), so that case is cleaned up too.
+  const currentLocationsRes = await pool.query<{ id: string; location: string }>(
+    `select id, location from project_facts where provider = $1 and file_id = $2 and superseded_by is null`,
+    [provider, fileId]
+  );
+  const freshLocations = new Set(facts.map((f) => f.location));
+  for (const row of currentLocationsRes.rows) {
+    if (freshLocations.has(row.location)) continue;
+    // Self-reference, not a real replacement fact, just a marker that this
+    // location's fact is gone with nothing new to supersede it with.
+    await pool.query(`update project_facts set superseded_by = id, updated_at = now() where id = $1`, [row.id]);
+    await pool.query(
+      `delete from pinned_cards
+       where room_id = $1 and card_type = 'discovery'
+         and card_key like 'fact_conflict:%' and card_data->'sourceLocations'->>$2 = $3`,
+      [roomSlug, fileName, row.location]
+    );
+  }
+
+  if (facts.length === 0) return [];
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return [];
 
