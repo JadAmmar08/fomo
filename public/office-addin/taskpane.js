@@ -1,4 +1,4 @@
-const POLL_MS = 5000;
+const POLL_MS = 1500;
 const STORAGE_KEY = "fomo_anonymous_user_id";
 
 let anonymousUserId = localStorage.getItem(STORAGE_KEY);
@@ -111,7 +111,15 @@ async function poll() {
     const res = await fetch(`/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileName=${encodeURIComponent(fileName)}`);
     const data = await res.json();
     setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`]);
+
+    // A newly-arrived alert might have been pinned by a check that ran on a
+    // DIFFERENT file (e.g. someone else's edit conflicting with this one) — the
+    // live-edit path only highlights when THIS file's own check-now call finds
+    // something, so polling has to do the same job for that case, not just render
+    // the sidebar card.
+    const isNewAlert = data.alert && (!currentAlert || currentAlert.cardKey !== data.alert.cardKey);
     renderAlert(data.alert ?? null);
+    if (isNewAlert && data.alert.location) highlightCell(data.alert.location, data.alert.text);
   } catch {
     setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed"]);
   }
@@ -132,9 +140,9 @@ let liveEditListenerRegistered = false;
 // commits, no cloud save/webhook round trip needed — this is what makes it fast
 // (Grammarly-style) instead of waiting on Graph's webhook delivery (5-40+ seconds
 // observed). check-now is awaited server-side and returns the result directly, so
-// the sidebar and cell highlight update the moment the check finishes, not on the
-// next 5s poll tick. Word has no equivalent live content-change event in Office.js,
-// so it stays on the 5s poll above as its only mechanism.
+// poll() below runs immediately after instead of waiting for its next tick. Word
+// has no equivalent live content-change event in Office.js, so it stays on the
+// poll loop as its only mechanism.
 async function registerLiveEditListener() {
   if (liveEditListenerRegistered) return;
   if (typeof Office === "undefined" || Office.context.host !== Office.HostType.Excel) return;
@@ -160,14 +168,14 @@ async function registerLiveEditListener() {
               body: JSON.stringify({ anonymousUserId, fileName })
             });
             const data = await res.json();
-            if (data.alert) {
-              // poll() (not a hand-built alert object here) so the sidebar card gets
-              // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
-              // actually delete the right row, not something check-now's leaner
-              // {conflictKind, text, location} result carries on its own.
-              poll();
-              if (data.alert.location) highlightCell(data.alert.location, data.alert.text);
-            }
+            // poll() (not a hand-built alert object here) so the sidebar card gets
+            // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
+            // actually delete the right row, not something check-now's leaner
+            // {conflictKind, text, location} result carries on its own. poll()
+            // also handles the cell highlight itself now (see poll(), it needs to
+            // do the same job for alerts that arrive from OTHER files' checks
+            // too), so this only needs to trigger it, not highlight directly.
+            if (data.alert) poll();
           } catch {
             // best-effort — the 5s poll is the real fallback if this fails
           }

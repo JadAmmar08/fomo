@@ -764,11 +764,16 @@ export async function checkFactsForConflict(
       // app/api/live-signal/route.ts) — tagging only the edited file's name meant
       // the OTHER file's sidebar, just as relevant to the conflict, never matched
       // and always showed "no conflicts found" even for a real, already-pinned one.
-      const candidateFileName = candidatesRes.rows.find((c) => c.id === out.candidateId)?.file_name;
-      const sourceTopics = candidateFileName && candidateFileName !== fileName ? [fileName, candidateFileName] : [fileName];
+      const candidate = candidatesRes.rows.find((c) => c.id === out.candidateId);
+      const sourceTopics = candidate && candidate.file_name !== fileName ? [fileName, candidate.file_name] : [fileName];
+      // Per-file cell location, keyed by file name — whichever file's sidebar polls
+      // this card needs ITS OWN cell address to highlight, not the other file's
+      // (they're different sheets/coordinates entirely).
+      const sourceLocations: Record<string, string> = { [fileName]: fact.location };
+      if (candidate && candidate.file_name !== fileName) sourceLocations[candidate.file_name] = candidate.location;
 
       const cardKey = `fact_conflict:${out.text}`;
-      const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId };
+      const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId, sourceLocations };
 
       await pool.query(
         `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
