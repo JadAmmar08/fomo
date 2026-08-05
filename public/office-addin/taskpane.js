@@ -4,6 +4,7 @@ const STORAGE_KEY = "fomo_anonymous_user_id";
 let anonymousUserId = localStorage.getItem(STORAGE_KEY);
 let pollTimer = null;
 let currentAlert = null;
+let liveEditStatus = "live-edit: not yet attempted"; // shown in debug-info — avoids needing DevTools' nested-iframe console to see what's happening
 
 function showView(view) {
   document.getElementById("login-view").style.display = view === "login" ? "block" : "none";
@@ -110,7 +111,7 @@ async function poll() {
   try {
     const res = await fetch(`/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileName=${encodeURIComponent(fileName)}`);
     const data = await res.json();
-    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`]);
+    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`, liveEditStatus]);
 
     // A newly-arrived alert might have been pinned by a check that ran on a
     // DIFFERENT file (e.g. someone else's edit conflicting with this one) — the
@@ -121,7 +122,7 @@ async function poll() {
     renderAlert(data.alert ?? null);
     if (isNewAlert && data.alert.location) highlightCell(data.alert.location, data.alert.text);
   } catch {
-    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed"]);
+    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed", liveEditStatus]);
   }
 }
 
@@ -145,13 +146,20 @@ let liveEditListenerRegistered = false;
 // poll loop as its only mechanism.
 async function registerLiveEditListener() {
   if (liveEditListenerRegistered) return;
-  if (typeof Office === "undefined" || Office.context.host !== Office.HostType.Excel) return;
-  if (typeof Excel === "undefined") return;
+  if (typeof Office === "undefined" || Office.context.host !== Office.HostType.Excel) {
+    liveEditStatus = `live-edit: skipped (host is ${typeof Office === "undefined" ? "undefined" : Office.context.host})`;
+    return;
+  }
+  if (typeof Excel === "undefined") {
+    liveEditStatus = "live-edit: skipped (Excel API not available)";
+    return;
+  }
 
   try {
     await Excel.run(async (context) => {
       const sheet = context.workbook.worksheets.getActiveWorksheet();
       sheet.onChanged.add(() => {
+        liveEditStatus = `live-edit: onChanged fired ${new Date().toLocaleTimeString()}, debouncing...`;
         if (!anonymousUserId) return;
         const fileName = getCurrentFileName();
         if (!fileName) return;
@@ -161,6 +169,7 @@ async function registerLiveEditListener() {
         // wait 2s after the last change before actually triggering one.
         clearTimeout(liveEditDebounceTimer);
         liveEditDebounceTimer = setTimeout(async () => {
+          liveEditStatus = `live-edit: check-now called ${new Date().toLocaleTimeString()}`;
           try {
             const res = await fetch("/api/live-signal/check-now", {
               method: "POST",
@@ -168,6 +177,7 @@ async function registerLiveEditListener() {
               body: JSON.stringify({ anonymousUserId, fileName })
             });
             const data = await res.json();
+            liveEditStatus = `live-edit: check-now responded ${new Date().toLocaleTimeString()}, alert=${Boolean(data.alert)}`;
             // poll() (not a hand-built alert object here) so the sidebar card gets
             // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
             // actually delete the right row, not something check-now's leaner
@@ -176,15 +186,17 @@ async function registerLiveEditListener() {
             // do the same job for alerts that arrive from OTHER files' checks
             // too), so this only needs to trigger it, not highlight directly.
             if (data.alert) poll();
-          } catch {
-            // best-effort — the 5s poll is the real fallback if this fails
+          } catch (err) {
+            liveEditStatus = `live-edit: check-now FAILED: ${err}`;
           }
         }, 2000);
       });
       await context.sync();
     });
     liveEditListenerRegistered = true;
+    liveEditStatus = "live-edit: registered OK, waiting for an edit";
   } catch (err) {
+    liveEditStatus = `live-edit: registration FAILED: ${err}`;
     console.error("[taskpane] registering live edit listener failed:", err);
   }
 }
