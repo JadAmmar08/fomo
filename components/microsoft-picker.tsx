@@ -230,25 +230,24 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
   // isn't reassigned before the closure runs.
   const activeAccount: AccountInfo = account;
 
-  let target: PickerTarget;
-  try {
-    target = await resolvePickerTarget(app, activeAccount);
-  } catch (err) {
-    console.error("[microsoft-picker] resolving picker target failed:", err);
-    return null;
-  }
-
-  // Opened synchronously relative to the click (no `await` before it) so it survives
-  // popup blockers — by this point we already have a cached account, so the token
-  // fetch just below is silent and fast, not another interactive popup.
+  // Opened as early as possible — getCachedAccount above is a fast, local lookup
+  // (in-memory/localStorage, no network), so this is still close enough to the
+  // click for browsers to trust it as a real popup. resolvePickerTarget for a work
+  // account does a real network round trip (Graph /me/drive), so it has to run
+  // AFTER the window is open, not before — putting it before window.open() here
+  // once pushed this past the browser's user-activation window entirely, causing
+  // the popup to open blank and get killed immediately instead of being blocked
+  // outright (which at least would have been visible/debuggable).
   const win = window.open("", "OneDrivePicker", "width=1080,height=680");
   if (!win) {
     console.error("[microsoft-picker] popup blocked");
     return null;
   }
 
+  let target: PickerTarget;
   let initialToken: string;
   try {
+    target = await resolvePickerTarget(app, activeAccount);
     initialToken = await acquireToken(app, activeAccount, target.scopes);
   } catch (err) {
     console.error("[microsoft-picker] initial auth failed:", err);
