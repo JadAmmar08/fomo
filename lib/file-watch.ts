@@ -708,6 +708,20 @@ export async function checkFactsForConflict(
 
     if (existingId) {
       await pool.query(`update project_facts set superseded_by = $1, updated_at = now() where id = $2`, [newId, existingId]);
+
+      // This cell is being re-checked (it already had a current fact before this
+      // edit), so any conflict card previously pinned against its OLD value is
+      // now stale regardless of what this fresh check finds: either a new,
+      // freshly-worded conflict gets pinned below, or the edit resolved it and no
+      // new card should exist at all. Without this, an old card sits in
+      // pinned_cards forever once created, even after the actual data agrees
+      // again, since nothing else ever retracts it.
+      await pool.query(
+        `delete from pinned_cards
+         where anonymous_user_id = $1 and room_id = $2 and card_type = 'discovery'
+           and card_key like 'fact_conflict:%' and card_data->'sourceLocations'->>$3 = $4`,
+        [anonymousUserId, roomSlug, fileName, fact.location]
+      );
     }
 
     // Candidates: similar subject, still current, from a different file (a
