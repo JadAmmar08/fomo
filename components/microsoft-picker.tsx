@@ -143,20 +143,26 @@ async function getSharePointOrigin(app: IPublicClientApplication, account: Accou
   return origin;
 }
 
-// Silent-first, popup-fallback: the scopes actually needed (OneDrive.ReadOnly, a
+// Silent-first, redirect-fallback: the scopes actually needed (OneDrive.ReadOnly, a
 // SharePoint-resource `.default`, or Graph's Files.Read) are different resources
 // than whatever was consented to at initial sign-in, so a plain silent call can
-// legitimately need one-time interactive consent the first time. That has to be a
-// popup (not another full-page redirect) since this runs mid-session, well after
-// the initial redirect's user gesture.
+// legitimately need one-time interactive consent the first time. This deliberately
+// does NOT fall back to acquireTokenPopup — this often runs after a picker popup is
+// already open (see openPicker below), and opening a second, nested popup for
+// consent hits the same "one popup can only open one more" browser limit the
+// original login flow exists to avoid. A full-page redirect works from any nesting
+// depth, at the cost of losing whatever picker window was open (acceptable: the
+// user just clicks "browse OneDrive" again after landing back on the page, and it
+// works silently from then on since consent is now granted).
 async function acquireToken(app: IPublicClientApplication, account: AccountInfo, scopes: string[]): Promise<string> {
   try {
     const result = await app.acquireTokenSilent({ scopes, account });
     return result.accessToken;
   } catch (err) {
     if (!(err instanceof InteractionRequiredAuthError)) throw err;
-    const result = await app.acquireTokenPopup({ scopes, account });
-    return result.accessToken;
+    sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
+    await app.loginRedirect({ scopes, account, loginHint: account.username });
+    throw new Error("Redirecting for consent — picker call should be retried after redirect returns.");
   }
 }
 
