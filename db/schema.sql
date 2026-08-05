@@ -1,4 +1,5 @@
 create extension if not exists "pgcrypto";
+create extension if not exists "pg_trgm";
 
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
@@ -427,3 +428,29 @@ create table if not exists member_workstream_digests (
   generated_at timestamptz not null default now(),
   primary key (anonymous_user_id, room_id)
 );
+
+-- PROJECT FACTS (structured, atomic facts extracted from spreadsheet cells —
+-- {subject, value, location} rather than a flattened text blob, so contradiction
+-- detection can compare exact values with exact citations instead of asking one AI
+-- call to spot a conflict in truncated prose. Accumulates as a persistent project
+-- memory: a changed value supersedes the old row (`superseded_by`) rather than
+-- overwriting it, so the fact history itself stays usable later. v1 covers Excel/
+-- Google Sheets only; see lib/file-watch.ts `checkFactsForConflict`.)
+create table if not exists project_facts (
+  id uuid primary key default gen_random_uuid(),
+  anonymous_user_id text not null,
+  room_id text not null,
+  provider text not null check (provider in ('google', 'microsoft')),
+  file_id text not null,
+  file_name text not null,
+  subject text not null,
+  value text not null,
+  location text not null,
+  snippet text,
+  superseded_by uuid references project_facts(id),
+  extracted_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_project_facts_room on project_facts(room_id) where superseded_by is null;
+create index if not exists idx_project_facts_file on project_facts(provider, file_id);
+create index if not exists idx_project_facts_subject_trgm on project_facts using gin (subject gin_trgm_ops);

@@ -419,6 +419,27 @@ export async function handleFileChangeNotification(provider: Provider, channelId
   );
 
   await checkFileForConflict(row.anonymous_user_id, row.room_id, row.file_name, file.content, row.file_id);
+
+  // Structured-facts path (v1: spreadsheets only) — runs alongside the whole-text
+  // check above, not instead of it, while this new path proves itself. Deliberately
+  // separate try/catch so a failure here never blocks the existing, working check.
+  try {
+    const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
+    const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(row.file_name);
+
+    if (isGoogleSheet || isExcelFile) {
+      const cells = provider === "google"
+        ? await google.getSheetValuesWithCoordinates(token, row.file_id)
+        : await microsoft.extractStructuredCells(token, row.file_id, row.file_name);
+
+      if (cells && cells.length > 0) {
+        const facts = await extractFactsFromCells(cells, row.file_name);
+        await checkFactsForConflict(row.anonymous_user_id, row.room_id, provider, row.file_id, row.file_name, facts);
+      }
+    }
+  } catch (err) {
+    console.error("[file-watch] structured-facts path failed:", err);
+  }
 }
 
 // The cheap, single-file version of what individual-guidance.ts does for a whole
@@ -516,5 +537,198 @@ export async function checkFileForConflict(anonymousUserId: string, roomSlug: st
     });
   } catch (err) {
     console.error("[file-watch conflict check] failed:", err);
+  }
+}
+
+interface StructuredCellInput {
+  location: string;
+  value: string;
+  rowLabel?: string;
+  colLabel?: string;
+}
+
+export interface ExtractedFact {
+  subject: string;
+  value: string;
+  location: string;
+  snippet?: string;
+}
+
+// Structured-facts v1: spreadsheets only. Turns raw cell coordinates+values (real,
+// not hallucinated — given to the model verbatim) into normalized, comparable facts
+// ({subject, value, location}). The model's only job is producing a clean subject
+// label from the row/column context; it never invents a location or value. This is
+// the extraction half of the two-part design in fomo_vision.md's "Detection
+// architecture refinement" — kept deliberately separate from the judgment half
+// (checkFactsForConflict below), which is the only place contextual ambiguity gets
+// resolved.
+export async function extractFactsFromCells(cells: StructuredCellInput[], fileName: string): Promise<ExtractedFact[]> {
+  if (cells.length === 0) return [];
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return [];
+
+  const cellLines = cells
+    .slice(0, 200)
+    .map((c) => `${c.location} | value: ${c.value}${c.rowLabel ? ` | row label: ${c.rowLabel}` : ""}${c.colLabel ? ` | column label: ${c.colLabel}` : ""}`)
+    .join("\n");
+
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey });
+
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1500,
+      tools: [
+        {
+          name: "extract_facts",
+          description: "Turn labeled spreadsheet cells into normalized, comparable facts.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              facts: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    subject: { type: "string", description: "Normalized referent, e.g. 'client 1 Q4 earnings'. Combine row + column label when both exist." },
+                    value: { type: "string", description: "The literal cell value, copied exactly." },
+                    location: { type: "string", description: "Copied exactly from the input, never invented." }
+                  },
+                  required: ["subject", "value", "location"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["facts"],
+            additionalProperties: false
+          }
+        }
+      ],
+      tool_choice: { type: "tool", name: "extract_facts" },
+      system: `Each line is one cell from "${fileName}": its coordinate, value, and any row/column label found nearby. Only keep cells that are real, checkable facts, a labeled number, date, or named conclusion someone could contradict. Skip IDs, blank labels, formatting artifacts, or cells with no meaningful label. Copy "location" and "value" exactly as given, never invent or reformat them. Max 30 facts. NO EM-DASHES.`,
+      messages: [{ role: "user", content: cellLines }]
+    });
+
+    const block = message.content.find((b) => b.type === "tool_use");
+    if (!block || block.type !== "tool_use") return [];
+    const out = block.input as { facts?: ExtractedFact[] };
+    return out.facts ?? [];
+  } catch (err) {
+    console.error("[extractFactsFromCells] failed:", err);
+    return [];
+  }
+}
+
+// Judgment half of the structured-facts design: given newly extracted facts, finds
+// candidate existing facts in the same room whose subject is textually similar
+// (Postgres trigram similarity, not embeddings, for v1), then asks a single,
+// narrow AI call per candidate set whether they're genuinely the same real-world
+// claim with disagreeing values, deliberately never given the whole team's activity
+// at once. Runs alongside the existing whole-text checkFileForConflict above for
+// spreadsheets, not in place of it, while this new path proves itself.
+export async function checkFactsForConflict(
+  anonymousUserId: string,
+  roomSlug: string,
+  provider: Provider,
+  fileId: string,
+  fileName: string,
+  facts: ExtractedFact[]
+) {
+  const pool = getPool();
+  if (!pool || facts.length === 0) return;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return;
+
+  for (const fact of facts) {
+    // A fact at the same file+location that's still current is this same cell
+    // having been re-extracted after an edit, not a new independent claim — it
+    // supersedes the old row rather than sitting alongside it.
+    const existingRes = await pool.query<{ id: string }>(
+      `select id from project_facts where provider = $1 and file_id = $2 and location = $3 and superseded_by is null`,
+      [provider, fileId, fact.location]
+    );
+    const existingId = existingRes.rows[0]?.id;
+
+    const insertRes = await pool.query<{ id: string }>(
+      `insert into project_facts (anonymous_user_id, room_id, provider, file_id, file_name, subject, value, location)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       returning id`,
+      [anonymousUserId, roomSlug, provider, fileId, fileName, fact.subject, fact.value, fact.location]
+    );
+    const newId = insertRes.rows[0].id;
+
+    if (existingId) {
+      await pool.query(`update project_facts set superseded_by = $1, updated_at = now() where id = $2`, [newId, existingId]);
+    }
+
+    // Candidates: similar subject, still current, from a different file (a
+    // different location in the same file is a supersession, handled above, not
+    // a cross-person conflict).
+    const candidatesRes = await pool.query<{ id: string; subject: string; value: string; location: string; file_name: string }>(
+      `select id, subject, value, location, file_name from project_facts
+       where room_id = $1 and superseded_by is null and file_id != $2 and id != $3
+         and similarity(subject, $4) > 0.4
+       order by similarity(subject, $4) desc
+       limit 5`,
+      [roomSlug, fileId, newId, fact.subject]
+    );
+    if (candidatesRes.rows.length === 0) continue;
+
+    try {
+      const { default: Anthropic } = await import("@anthropic-ai/sdk");
+      const client = new Anthropic({ apiKey });
+
+      const message = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        tools: [
+          {
+            name: "fact_conflict_check",
+            description: "Report whether a new fact genuinely contradicts a candidate existing fact.",
+            input_schema: {
+              type: "object" as const,
+              properties: {
+                candidateId: { type: "string", description: "id of the conflicting candidate, empty string if none conflict" },
+                text: { type: "string", description: "One sentence citing both exact locations and values. Empty string if no conflict." }
+              },
+              required: ["candidateId", "text"],
+              additionalProperties: false
+            }
+          }
+        ],
+        tool_choice: { type: "tool", name: "fact_conflict_check" },
+        system: `A new fact was just recorded: "${fact.subject}" = ${fact.value} (${fileName}, ${fact.location}). Compare it against these candidate facts from other files in the same project. A real contradiction means they're genuinely about the same real-world thing, same subject, same time period, same kind of figure, but disagree on value. Same number appearing in a different context is NOT a contradiction. If a real contradiction exists, cite both exact locations and values in one sentence. NO EM-DASHES. Max 28 words.`,
+        messages: [
+          {
+            role: "user",
+            content: candidatesRes.rows.map((c) => `id: ${c.id} | ${c.subject} = ${c.value} (${c.file_name}, ${c.location})`).join("\n")
+          }
+        ]
+      });
+
+      const block = message.content.find((b) => b.type === "tool_use");
+      if (!block || block.type !== "tool_use") continue;
+      const out = block.input as { candidateId?: string; text?: string };
+      if (!out.candidateId || !out.text) continue;
+
+      const cardKey = `fact_conflict:${out.text}`;
+      const rec = { type: "team_signal" as const, text: out.text, sourceTopics: [fileName], conflictKind: "contradiction" as const, sourceFileId: fileId };
+
+      await pool.query(
+        `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
+         values ($1, $2, 'discovery', $3, $4)
+         on conflict (anonymous_user_id, room_id, card_type, card_key) do update set card_data = excluded.card_data`,
+        [anonymousUserId, roomSlug, cardKey, JSON.stringify(rec)]
+      );
+
+      await sendPushToUser(anonymousUserId, {
+        title: "Conflicting data found",
+        body: out.text,
+        url: `/teams/${roomSlug}`
+      });
+    } catch (err) {
+      console.error("[checkFactsForConflict] judgment call failed:", err);
+    }
   }
 }

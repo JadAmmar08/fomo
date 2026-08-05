@@ -507,6 +507,76 @@ async function exportFileContent(accessToken: string, fileId: string, mimeType: 
   }
 }
 
+export interface StructuredCell {
+  location: string;
+  value: string;
+  rowLabel?: string;
+  colLabel?: string;
+}
+
+// Real cell coordinates for a Google Sheet, unlike exportFileContent's CSV export
+// above which flattens everything to text with no (row, col) identity — needed so a
+// contradiction can cite an exact cell instead of "somewhere in this file." Uses the
+// Sheets API's values.get directly rather than Drive's export endpoint, since CSV
+// export has no way to carry coordinates. `drive.readonly` (already consented by
+// every connected account) covers Sheets API reads for files the token can already
+// access — no separate `spreadsheets.readonly` scope needed as long as that holds
+// in practice; if a 403 ever shows up here specifically, that scope is the fix.
+export async function getSheetValuesWithCoordinates(accessToken: string, fileId: string): Promise<StructuredCell[] | null> {
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/A1:Z200`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { values?: string[][] };
+    const rows = data.values;
+    if (!rows || rows.length === 0) return null;
+
+    const columnHeaders = new Map<number, string>();
+    (rows[0] ?? []).forEach((text, i) => {
+      if (text?.trim()) columnHeaders.set(i, text.trim());
+    });
+
+    const cells: StructuredCell[] = [];
+    rows.forEach((row, rowIndex) => {
+      if (rowIndex === 0) return; // header row itself isn't a fact
+      let rowLabel: string | undefined;
+      for (const cell of row) {
+        if (cell?.trim()) { rowLabel = cell.trim(); break; }
+      }
+
+      row.forEach((rawValue, colIndex) => {
+        const value = rawValue?.trim();
+        if (!value) return;
+        if (rowLabel && value === rowLabel && colIndex === 0) return;
+
+        cells.push({
+          location: `${columnLetter(colIndex)}${rowIndex + 1}`,
+          value,
+          rowLabel,
+          colLabel: columnHeaders.get(colIndex)
+        });
+      });
+    });
+
+    return cells.length > 0 ? cells.slice(0, 200) : null;
+  } catch (err) {
+    console.error(`[getSheetValuesWithCoordinates] failed for ${fileId}:`, err);
+    return null;
+  }
+}
+
+function columnLetter(index: number): string {
+  let n = index;
+  let letters = "";
+  do {
+    letters = String.fromCharCode(65 + (n % 26)) + letters;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return letters;
+}
+
 interface FileActivity {
   id: string;
   name: string;

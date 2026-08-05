@@ -539,6 +539,76 @@ async function extractFileContent(accessToken: string, fileId: string, fileName:
   }
 }
 
+export interface StructuredCell {
+  location: string;
+  value: string;
+  rowLabel?: string;
+  colLabel?: string;
+}
+
+// Real cell coordinates for structured fact extraction — unlike extractFileContent
+// above, which flattens every row to one comma-joined string and discards which
+// column/row a value came from, this keeps (row, col) so a contradiction can cite
+// an exact cell ("Sheet1!C5") instead of just "somewhere in this file." Label
+// heuristic: spreadsheets almost always have either a row header (first non-empty
+// cell in that row) or a column header (first non-empty cell in that column,
+// typically row 1) next to a data value — both are captured when present, and the
+// downstream fact-normalization step picks whichever actually describes the value.
+export async function extractStructuredCells(accessToken: string, fileId: string, fileName: string): Promise<StructuredCell[] | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (ext !== "xlsx" && ext !== "xls") return null;
+
+  try {
+    const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}/content`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) return null;
+
+    const columnHeaders = new Map<number, string>();
+    const firstRow = sheet.getRow(1);
+    firstRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      const text = String(cell.value ?? "").trim();
+      if (text) columnHeaders.set(colNumber, text);
+    });
+
+    const cells: StructuredCell[] = [];
+    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      let rowLabel: string | undefined;
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        const text = String(cell.value ?? "").trim();
+        if (text && !rowLabel) rowLabel = text;
+      });
+
+      row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const value = String(cell.value ?? "").trim();
+        if (!value) return;
+        // Skip the header row itself and a cell that's only its own row label.
+        if (rowNumber === 1) return;
+        if (rowLabel && value === rowLabel && colNumber === 1) return;
+
+        cells.push({
+          location: `${sheet.name}!${cell.address}`,
+          value,
+          rowLabel,
+          colLabel: columnHeaders.get(colNumber)
+        });
+      });
+    });
+
+    return cells.length > 0 ? cells.slice(0, 200) : null;
+  } catch (err) {
+    console.error(`[extractStructuredCells] failed for ${fileName}:`, err);
+    return null;
+  }
+}
+
 async function enrichFiles(accessToken: string, files: OneDriveFile[]) {
   return Promise.all(
     files.map(async (f) => {

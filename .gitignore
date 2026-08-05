@@ -2,6 +2,7 @@ node_modules
 .next
 .DS_Store
 .env.local
+.env.production.local
 dist
 coverage
 .vercel
