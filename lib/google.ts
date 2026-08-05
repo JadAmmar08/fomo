@@ -540,7 +540,9 @@ export async function getSheetValuesWithCoordinates(accessToken: string, fileId:
 
     const cells: StructuredCell[] = [];
     rows.forEach((row, rowIndex) => {
-      if (rowIndex === 0) return; // header row itself isn't a fact
+      // Row 1 isn't hard-skipped as "always a header" — a real fact can live there
+      // too (a single-cell sentence, a title row with no separate data rows).
+      // extractFactsFromCells' own judgment decides what's a real fact vs. a label.
       let rowLabel: string | undefined;
       for (const cell of row) {
         if (cell?.trim()) { rowLabel = cell.trim(); break; }

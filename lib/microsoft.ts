@@ -589,8 +589,11 @@ export async function extractStructuredCells(accessToken: string, fileId: string
       row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
         const value = String(cell.value ?? "").trim();
         if (!value) return;
-        // Skip the header row itself and a cell that's only its own row label.
-        if (rowNumber === 1) return;
+        // A cell that's only its own row label isn't a fact by itself. Row 1 isn't
+        // hard-skipped as "always a header" — a real fact can legitimately live
+        // there (a single-cell sentence, a title row with no separate data rows)
+        // — extractFactsFromCells' own judgment is what decides "is this a real
+        // fact or just a label," not this raw extraction step.
         if (rowLabel && value === rowLabel && colNumber === 1) return;
 
         cells.push({
