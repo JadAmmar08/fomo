@@ -83,6 +83,50 @@ function startPolling() {
   poll();
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(poll, POLL_MS);
+  registerLiveEditListener();
+}
+
+let liveEditDebounceTimer = null;
+let liveEditListenerRegistered = false;
+
+// Excel-only: worksheet.onChanged reacts inside the open document the instant a cell
+// commits, no cloud save/webhook round trip needed — this is what makes it fast
+// (Grammarly-style) instead of waiting on Graph's webhook delivery (5-40+ seconds
+// observed). Word has no equivalent live content-change event in Office.js, so it
+// stays on the 5s poll above as its only mechanism. Fire-and-forget: the existing
+// poll is what actually renders the result once /api/live-signal/check-now writes
+// a pinned card, so this doesn't need to handle a response.
+async function registerLiveEditListener() {
+  if (liveEditListenerRegistered) return;
+  if (typeof Office === "undefined" || Office.context.host !== Office.HostType.Excel) return;
+  if (typeof Excel === "undefined") return;
+
+  try {
+    await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      sheet.onChanged.add(() => {
+        if (!anonymousUserId) return;
+        const fileName = getCurrentFileName();
+        if (!fileName) return;
+
+        // Debounced: a paste or fill can fire onChanged many times in one burst,
+        // and each server-side check is a real Anthropic call, not a cache read —
+        // wait 2s after the last change before actually triggering one.
+        clearTimeout(liveEditDebounceTimer);
+        liveEditDebounceTimer = setTimeout(() => {
+          fetch("/api/live-signal/check-now", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ anonymousUserId, fileName })
+          }).catch(() => undefined);
+        }, 2000);
+      });
+      await context.sync();
+    });
+    liveEditListenerRegistered = true;
+  } catch (err) {
+    console.error("[taskpane] registering live edit listener failed:", err);
+  }
 }
 
 async function handleLogin() {

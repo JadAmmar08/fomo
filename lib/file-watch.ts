@@ -375,10 +375,12 @@ export async function checkNewFileForOverlap(anonymousUserId: string, roomSlug: 
   }
 }
 
-// Entry point for both webhook routes: resolve the channel back to a real file, fetch
-// its current content, and skip out early if nothing actually changed (both providers
-// fire more notifications than there are real edits — a metadata-only touch or a
-// duplicate delivery shouldn't trigger a second LLM call for the same content).
+// Entry point for both webhook routes: resolve the channel back to a real file, then
+// hand off to processFileChange for the actual fetch/dedup/detection work. Also the
+// entry point for the on-demand check-now path (app/api/live-signal/check-now), which
+// resolves its own file_watch_channels row by anonymous_user_id+file_name instead of
+// channel_id, then calls processFileChange directly — same detection logic, triggered
+// by a client-side edit event instead of waiting on the provider's webhook delivery.
 export async function handleFileChangeNotification(provider: Provider, channelId: string) {
   const pool = getPool();
   if (!pool) return;
@@ -390,22 +392,46 @@ export async function handleFileChangeNotification(provider: Provider, channelId
   const row = res.rows[0];
   if (!row) return;
 
+  await processFileChange(provider, row.anonymous_user_id, row.room_id, row.file_id, row.file_name, row.last_content_hash, channelId);
+}
+
+// Fetches current content, skips out early if nothing actually changed (both providers
+// fire more notifications than there are real edits — a metadata-only touch or a
+// duplicate delivery shouldn't trigger a second LLM call for the same content), then
+// runs both the whole-text and structured-facts detection paths. `channelId` is only
+// used to update file_watch_channels' last_content_hash by the right row when called
+// from the webhook path; the on-demand path passes null and looks up/updates by
+// anonymous_user_id+file_name instead (see check-now route).
+export async function processFileChange(
+  provider: Provider,
+  anonymousUserId: string,
+  roomId: string,
+  fileId: string,
+  fileName: string,
+  knownHash: string | null,
+  channelId: string | null
+) {
+  const pool = getPool();
+  if (!pool) return;
+
   const token = provider === "google"
-    ? await google.getValidAccessToken(row.anonymous_user_id, row.room_id)
-    : await microsoft.getValidAccessToken(row.anonymous_user_id, row.room_id);
+    ? await google.getValidAccessToken(anonymousUserId, roomId)
+    : await microsoft.getValidAccessToken(anonymousUserId, roomId);
   if (!token) return;
 
   const [file] = provider === "google"
-    ? await google.listSpecificFiles(token, [row.file_id])
-    : await microsoft.listSpecificFiles(token, [row.file_id]);
+    ? await google.listSpecificFiles(token, [fileId])
+    : await microsoft.listSpecificFiles(token, [fileId]);
   if (!file?.content) return;
 
   const hash = crypto.createHash("sha256").update(file.content).digest("hex");
-  if (hash === row.last_content_hash) return;
+  if (hash === knownHash) return;
 
   await pool.query(
-    `update file_watch_channels set last_content_hash = $1, updated_at = now() where provider = $2 and channel_id = $3`,
-    [hash, provider, channelId]
+    channelId
+      ? `update file_watch_channels set last_content_hash = $1, updated_at = now() where provider = $2 and channel_id = $3`
+      : `update file_watch_channels set last_content_hash = $1, updated_at = now() where provider = $2 and anonymous_user_id = $3 and file_name = $4`,
+    channelId ? [hash, provider, channelId] : [hash, provider, anonymousUserId, fileName]
   );
 
   // A real, confirmed content change just happened — force this person's own digest to
@@ -414,30 +440,30 @@ export async function handleFileChangeNotification(provider: Provider, channelId
   // against what's actually true, not whatever was true up to 12h ago. This is what makes
   // "auto-update on every real change" true in practice, not just in the TTL's name.
   const { getMemberWorkstreamDigest } = await import("@/lib/workstream");
-  await getMemberWorkstreamDigest(row.anonymous_user_id, row.room_id, true).catch((err) =>
+  await getMemberWorkstreamDigest(anonymousUserId, roomId, true).catch((err) =>
     console.error("[file-watch] forced digest refresh failed:", err)
   );
 
-  await checkFileForConflict(row.anonymous_user_id, row.room_id, row.file_name, file.content, row.file_id);
+  await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
 
   // Structured-facts path (v1: spreadsheets only) — runs alongside the whole-text
   // check above, not instead of it, while this new path proves itself. Deliberately
   // separate try/catch so a failure here never blocks the existing, working check.
   try {
     const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
-    const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(row.file_name);
-    console.log(`[structured-facts] gate check: provider=${provider} fileName=${row.file_name} isGoogleSheet=${isGoogleSheet} isExcelFile=${isExcelFile}`);
+    const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
+    console.log(`[structured-facts] gate check: provider=${provider} fileName=${fileName} isGoogleSheet=${isGoogleSheet} isExcelFile=${isExcelFile}`);
 
     if (isGoogleSheet || isExcelFile) {
       const cells = provider === "google"
-        ? await google.getSheetValuesWithCoordinates(token, row.file_id)
-        : await microsoft.extractStructuredCells(token, row.file_id, row.file_name);
+        ? await google.getSheetValuesWithCoordinates(token, fileId)
+        : await microsoft.extractStructuredCells(token, fileId, fileName);
       console.log(`[structured-facts] extracted cells: count=${cells?.length ?? 0} sample=${JSON.stringify(cells?.slice(0, 3))}`);
 
       if (cells && cells.length > 0) {
-        const facts = await extractFactsFromCells(cells, row.file_name);
+        const facts = await extractFactsFromCells(cells, fileName);
         console.log(`[structured-facts] normalized facts: count=${facts.length} sample=${JSON.stringify(facts.slice(0, 3))}`);
-        await checkFactsForConflict(row.anonymous_user_id, row.room_id, provider, row.file_id, row.file_name, facts);
+        await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
         console.log(`[structured-facts] checkFactsForConflict completed`);
       }
     }
