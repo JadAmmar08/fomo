@@ -17,9 +17,15 @@ import { PublicClientApplication, InteractionRequiredAuthError, type IPublicClie
 //    derived per-account from Graph's /me/drive.webUrl the first time that
 //    account is used, then cached.
 const CONSUMER_BASE_URL = "https://onedrive.live.com/picker";
-// "common" (not the old hardcoded /consumers) so both personal and work/school
-// accounts can actually sign in through the same MSAL instance.
+// "common" (not the old hardcoded /consumers) at the app level, so both personal
+// and work/school accounts can sign in through the same MSAL instance. But the
+// "OneDrive.ReadOnly" scope itself only resolves through the dedicated /consumers
+// authority specifically — requesting it via /common throws AADSTS70011 ("scope is
+// not configured for this tenant"), confirmed live. So CONSUMER_AUTHORITY is still
+// needed as a per-call override for that one scope; every other call (sign-in
+// itself, work-account SharePoint scopes) uses the app-level AUTHORITY.
 const AUTHORITY = "https://login.microsoftonline.com/common";
+const CONSUMER_AUTHORITY = "https://login.microsoftonline.com/consumers";
 const MSA_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66dad";
 // Per Microsoft's docs, the consumer OneDrive picker uses this literal scope name —
 // NOT a `{resource}/.default` scope (that pattern is for SharePoint/work-school
@@ -154,14 +160,14 @@ async function getSharePointOrigin(app: IPublicClientApplication, account: Accou
 // depth, at the cost of losing whatever picker window was open (acceptable: the
 // user just clicks "browse OneDrive" again after landing back on the page, and it
 // works silently from then on since consent is now granted).
-async function acquireToken(app: IPublicClientApplication, account: AccountInfo, scopes: string[]): Promise<string> {
+async function acquireToken(app: IPublicClientApplication, account: AccountInfo, scopes: string[], authority?: string): Promise<string> {
   try {
-    const result = await app.acquireTokenSilent({ scopes, account });
+    const result = await app.acquireTokenSilent({ scopes, account, authority });
     return result.accessToken;
   } catch (err) {
     if (!(err instanceof InteractionRequiredAuthError)) throw err;
     sessionStorage.setItem(RETURN_TO_KEY, window.location.pathname);
-    await app.loginRedirect({ scopes, account, loginHint: account.username });
+    await app.loginRedirect({ scopes, account, authority, loginHint: account.username });
     throw new Error("Redirecting for consent — picker call should be retried after redirect returns.");
   }
 }
@@ -169,6 +175,7 @@ async function acquireToken(app: IPublicClientApplication, account: AccountInfo,
 interface PickerTarget {
   baseUrl: string;
   scopes: string[];
+  authority?: string;
 }
 
 async function resolvePickerTarget(app: IPublicClientApplication, account: AccountInfo): Promise<PickerTarget> {
@@ -176,7 +183,9 @@ async function resolvePickerTarget(app: IPublicClientApplication, account: Accou
     const origin = await getSharePointOrigin(app, account);
     return { baseUrl: `${origin}/_layouts/15/FilePicker.aspx`, scopes: [`${origin}/.default`] };
   }
-  return { baseUrl: CONSUMER_BASE_URL, scopes: [CONSUMER_PICKER_SCOPE] };
+  // OneDrive.ReadOnly must be requested against /consumers specifically — see
+  // CONSUMER_AUTHORITY comment above.
+  return { baseUrl: CONSUMER_BASE_URL, scopes: [CONSUMER_PICKER_SCOPE], authority: CONSUMER_AUTHORITY };
 }
 
 interface PickedFile {
@@ -254,7 +263,7 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
   let initialToken: string;
   try {
     target = await resolvePickerTarget(app, activeAccount);
-    initialToken = await acquireToken(app, activeAccount, target.scopes);
+    initialToken = await acquireToken(app, activeAccount, target.scopes, target.authority);
   } catch (err) {
     console.error("[microsoft-picker] initial auth failed:", err);
     win.close();
@@ -284,7 +293,7 @@ async function openPicker(mode: "files" | "folders", expectedEmail: string | nul
 
       if (command.command === "authenticate") {
         try {
-          const token = await acquireToken(app, activeAccount, target.scopes);
+          const token = await acquireToken(app, activeAccount, target.scopes, target.authority);
           port!.postMessage({ type: "result", id: payload.id, data: { result: "token", token } });
         } catch (err) {
           port!.postMessage({
