@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { processFileChange } from "@/lib/file-watch";
 import { rateLimit } from "@/lib/rate-limit";
@@ -6,9 +6,10 @@ import { rateLimit } from "@/lib/rate-limit";
 // On-demand trigger for the same detection pipeline the Microsoft webhook uses —
 // called from the Excel task pane's worksheet.onChanged handler so a real conflict
 // can surface within seconds of the edit instead of waiting on Graph's webhook
-// delivery (observed 5-40+ seconds). Fire-and-forget from the client's perspective:
-// the existing 5s poll already surfaces whatever this writes to pinned_cards, so
-// this doesn't need to return the check's result inline.
+// delivery (observed 5-40+ seconds). Awaited and returned directly (not fire-and-
+// forget) so the client can act on the result immediately — render the alert and
+// highlight the conflicting cell right away — instead of waiting up to 5s for the
+// next poll tick to pick up whatever this wrote to pinned_cards.
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const anonymousUserId = String(body.anonymousUserId ?? "");
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const pool = getPool();
-  if (!pool) return NextResponse.json({ ok: true });
+  if (!pool) return NextResponse.json({ ok: true, alert: null });
 
   const res = await pool.query<{ room_id: string; file_id: string; last_content_hash: string | null }>(
     `select room_id, file_id, last_content_hash from file_watch_channels
@@ -34,19 +35,12 @@ export async function POST(req: NextRequest) {
     [anonymousUserId, fileName]
   );
   const row = res.rows[0];
-  if (!row) return NextResponse.json({ ok: true, skipped: "not_linked" });
+  if (!row) return NextResponse.json({ ok: true, skipped: "not_linked", alert: null });
 
-  // Deliberately not awaited (best-effort, shouldn't block the response), but still
-  // needs `after()` to actually run to completion — a bare fire-and-forget promise
-  // here was silently getting killed once the response was sent (confirmed live:
-  // the whole-text check completed but the slower structured-facts step, which does
-  // an extra Graph fetch + LLM call after it, never did), since Vercel's serverless
-  // runtime doesn't keep a function alive for un-awaited work after it returns.
-  after(async () => {
-    await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) =>
-      console.error("[live-signal check-now] failed:", err)
-    );
+  const result = await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) => {
+    console.error("[live-signal check-now] failed:", err);
+    return null;
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, alert: result });
 }

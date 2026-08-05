@@ -52,8 +52,47 @@ function renderAlert(alert) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ anonymousUserId, roomSlug: alert.roomSlug, cardKey: alert.cardKey })
     }).catch(() => undefined);
+    await clearHighlight();
     renderAlert(null);
   });
+}
+
+let highlightedCell = null; // { sheetName, address } — tracked so Dismiss can clear it
+
+// Parses "SheetName!C5" (the format extractStructuredCells/getSheetValuesWithCoordinates
+// produce) and marks that exact cell: a fill color plus a native Excel comment with the
+// conflict text, the actual in-document visual (closer to Grammarly's inline underline
+// than the sidebar card alone).
+async function highlightCell(location, commentText) {
+  const [sheetName, address] = location.includes("!") ? location.split("!") : [null, location];
+  try {
+    await Excel.run(async (context) => {
+      const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
+      const range = sheet.getRange(address);
+      range.format.fill.color = "#FFF3B0";
+      sheet.comments.add(address, commentText);
+      await context.sync();
+    });
+    highlightedCell = { sheetName, address };
+  } catch (err) {
+    console.error("[taskpane] highlighting cell failed:", err);
+  }
+}
+
+async function clearHighlight() {
+  if (!highlightedCell) return;
+  const { sheetName, address } = highlightedCell;
+  highlightedCell = null;
+  try {
+    await Excel.run(async (context) => {
+      const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
+      sheet.getRange(address).format.fill.clear();
+      sheet.comments.getItemByCell(address).delete();
+      await context.sync();
+    });
+  } catch (err) {
+    console.error("[taskpane] clearing cell highlight failed:", err);
+  }
 }
 
 function setDebugInfo(lines) {
@@ -92,10 +131,10 @@ let liveEditListenerRegistered = false;
 // Excel-only: worksheet.onChanged reacts inside the open document the instant a cell
 // commits, no cloud save/webhook round trip needed — this is what makes it fast
 // (Grammarly-style) instead of waiting on Graph's webhook delivery (5-40+ seconds
-// observed). Word has no equivalent live content-change event in Office.js, so it
-// stays on the 5s poll above as its only mechanism. Fire-and-forget: the existing
-// poll is what actually renders the result once /api/live-signal/check-now writes
-// a pinned card, so this doesn't need to handle a response.
+// observed). check-now is awaited server-side and returns the result directly, so
+// the sidebar and cell highlight update the moment the check finishes, not on the
+// next 5s poll tick. Word has no equivalent live content-change event in Office.js,
+// so it stays on the 5s poll above as its only mechanism.
 async function registerLiveEditListener() {
   if (liveEditListenerRegistered) return;
   if (typeof Office === "undefined" || Office.context.host !== Office.HostType.Excel) return;
@@ -113,12 +152,25 @@ async function registerLiveEditListener() {
         // and each server-side check is a real Anthropic call, not a cache read —
         // wait 2s after the last change before actually triggering one.
         clearTimeout(liveEditDebounceTimer);
-        liveEditDebounceTimer = setTimeout(() => {
-          fetch("/api/live-signal/check-now", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ anonymousUserId, fileName })
-          }).catch(() => undefined);
+        liveEditDebounceTimer = setTimeout(async () => {
+          try {
+            const res = await fetch("/api/live-signal/check-now", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ anonymousUserId, fileName })
+            });
+            const data = await res.json();
+            if (data.alert) {
+              // poll() (not a hand-built alert object here) so the sidebar card gets
+              // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
+              // actually delete the right row, not something check-now's leaner
+              // {conflictKind, text, location} result carries on its own.
+              poll();
+              if (data.alert.location) highlightCell(data.alert.location, data.alert.text);
+            }
+          } catch {
+            // best-effort — the 5s poll is the real fallback if this fails
+          }
         }, 2000);
       });
       await context.sync();

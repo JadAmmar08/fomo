@@ -410,22 +410,22 @@ export async function processFileChange(
   fileName: string,
   knownHash: string | null,
   channelId: string | null
-) {
+): Promise<ConflictResult | null> {
   const pool = getPool();
-  if (!pool) return;
+  if (!pool) return null;
 
   const token = provider === "google"
     ? await google.getValidAccessToken(anonymousUserId, roomId)
     : await microsoft.getValidAccessToken(anonymousUserId, roomId);
-  if (!token) return;
+  if (!token) return null;
 
   const [file] = provider === "google"
     ? await google.listSpecificFiles(token, [fileId])
     : await microsoft.listSpecificFiles(token, [fileId]);
-  if (!file?.content) return;
+  if (!file?.content) return null;
 
   const hash = crypto.createHash("sha256").update(file.content).digest("hex");
-  if (hash === knownHash) return;
+  if (hash === knownHash) return null;
 
   await pool.query(
     channelId
@@ -454,6 +454,7 @@ export async function processFileChange(
   const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
 
   let usedStructuredFacts = false;
+  let result: ConflictResult | null = null;
   if (isGoogleSheet || isExcelFile) {
     try {
       const cells = provider === "google"
@@ -462,7 +463,7 @@ export async function processFileChange(
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, fileName);
-        await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
+        result = await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
         usedStructuredFacts = true;
       }
     } catch (err) {
@@ -471,8 +472,10 @@ export async function processFileChange(
   }
 
   if (!usedStructuredFacts) {
-    await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
+    result = await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
   }
+
+  return result;
 }
 
 // The cheap, single-file version of what individual-guidance.ts does for a whole
@@ -480,15 +483,21 @@ export async function processFileChange(
 // already-synthesized digests and mirror state, no fresh gathering of anyone else's
 // raw files) so this can run on every real edit without becoming its own expensive
 // full recompute.
-export async function checkFileForConflict(anonymousUserId: string, roomSlug: string, fileName: string, content: string, fileId?: string) {
+export interface ConflictResult {
+  conflictKind: "duplicate" | "contradiction";
+  text: string;
+  location?: string;
+}
+
+export async function checkFileForConflict(anonymousUserId: string, roomSlug: string, fileName: string, content: string, fileId?: string): Promise<ConflictResult | null> {
   const pool = getPool();
-  if (!pool) return;
+  if (!pool) return null;
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) return null;
 
   const roomRes = await pool.query<{ id: string }>(`select id from rooms where slug = $1`, [roomSlug]);
   const roomUuid = roomRes.rows[0]?.id;
-  if (!roomUuid) return;
+  if (!roomUuid) return null;
 
   const [membersRes, mirrorRes] = await Promise.all([
     pool.query<{ anonymous_user_id: string }>(`select anonymous_user_id from room_members where room_id = $1`, [roomUuid]),
@@ -513,7 +522,7 @@ export async function checkFileForConflict(anonymousUserId: string, roomSlug: st
     ...(mirrorRes.rows[0]?.theses ?? []).map((t) => `- Team thesis: ${t.statement}`),
     ...(mirrorRes.rows[0]?.stale_assumptions ?? []).map((s) => `- Unrevisited team assumption: ${s.statement}`)
   ];
-  if (teamLines.length === 0) return;
+  if (teamLines.length === 0) return null;
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -548,10 +557,10 @@ export async function checkFileForConflict(anonymousUserId: string, roomSlug: st
     });
 
     const block = message.content.find((b) => b.type === "tool_use");
-    if (!block || block.type !== "tool_use") return;
+    if (!block || block.type !== "tool_use") return null;
     const out = block.input as { conflictKind?: string; text?: string };
-    if (out.conflictKind !== "duplicate" && out.conflictKind !== "contradiction") return;
-    if (!out.text) return;
+    if (out.conflictKind !== "duplicate" && out.conflictKind !== "contradiction") return null;
+    if (!out.text) return null;
 
     const rec = { type: "team_signal" as const, text: out.text, sourceTopics: [fileName], conflictKind: out.conflictKind, sourceFileId: fileId };
     const cardKey = `team_signal:${rec.text}`;
@@ -568,8 +577,11 @@ export async function checkFileForConflict(anonymousUserId: string, roomSlug: st
       body: out.text,
       url: `/teams/${roomSlug}`
     });
+
+    return { conflictKind: out.conflictKind, text: out.text };
   } catch (err) {
     console.error("[file-watch conflict check] failed:", err);
+    return null;
   }
 }
 
@@ -667,11 +679,13 @@ export async function checkFactsForConflict(
   fileId: string,
   fileName: string,
   facts: ExtractedFact[]
-) {
+): Promise<ConflictResult | null> {
   const pool = getPool();
-  if (!pool || facts.length === 0) return;
+  if (!pool || facts.length === 0) return null;
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) return null;
+
+  let firstResult: ConflictResult | null = null;
 
   for (const fact of facts) {
     // A fact at the same file+location that's still current is this same cell
@@ -760,8 +774,16 @@ export async function checkFactsForConflict(
         body: out.text,
         url: `/teams/${roomSlug}`
       });
+
+      // The new fact's own location (not the candidate's) is the cell that was
+      // just edited — that's the one worth highlighting client-side. Keep the
+      // first real conflict found; later facts still get written/checked above,
+      // just not surfaced as the immediate result.
+      if (!firstResult) firstResult = { conflictKind: "contradiction", text: out.text, location: fact.location };
     } catch (err) {
       console.error("[checkFactsForConflict] judgment call failed:", err);
     }
   }
+
+  return firstResult;
 }
