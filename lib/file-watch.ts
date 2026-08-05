@@ -759,8 +759,16 @@ export async function checkFactsForConflict(
       const out = block.input as { candidateId?: string; text?: string };
       if (!out.candidateId || !out.text) continue;
 
+      // A conflict genuinely involves two files, but the Word/Excel task pane's
+      // live-signal poll matches by fileName (`sourceTopics ? $fileName`, see
+      // app/api/live-signal/route.ts) — tagging only the edited file's name meant
+      // the OTHER file's sidebar, just as relevant to the conflict, never matched
+      // and always showed "no conflicts found" even for a real, already-pinned one.
+      const candidateFileName = candidatesRes.rows.find((c) => c.id === out.candidateId)?.file_name;
+      const sourceTopics = candidateFileName && candidateFileName !== fileName ? [fileName, candidateFileName] : [fileName];
+
       const cardKey = `fact_conflict:${out.text}`;
-      const rec = { type: "team_signal" as const, text: out.text, sourceTopics: [fileName], conflictKind: "contradiction" as const, sourceFileId: fileId };
+      const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId };
 
       await pool.query(
         `insert into pinned_cards (anonymous_user_id, room_id, card_type, card_key, card_data)
