@@ -200,7 +200,9 @@ async function registerLiveEditListener() {
               body: JSON.stringify({ anonymousUserId, fileName, grid, sheetName })
             });
             const data = await res.json();
-            liveEditStatus = `live-edit: check-now responded ${new Date().toLocaleTimeString()}, alert=${Boolean(data.alert)}`;
+            liveEditStatus = data.skipped
+              ? `live-edit: skipped (${data.skipped}) ${new Date().toLocaleTimeString()} — not a real "no conflict" result`
+              : `live-edit: check-now responded ${new Date().toLocaleTimeString()}, alert=${Boolean(data.alert)}`;
             // poll() (not a hand-built alert object here) so the sidebar card gets
             // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
             // actually delete the right row, not something check-now's leaner

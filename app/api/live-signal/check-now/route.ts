@@ -23,9 +23,13 @@ export async function POST(req: NextRequest) {
 
   // worksheet.onChanged can fire multiple times in quick succession during a paste
   // or fill, and each call here triggers real Anthropic calls, not a cache read —
-  // unlike the plain poll/dismiss routes, this genuinely needs a limit.
-  if (!rateLimit(`live-signal-check-now:${anonymousUserId}`, 1, 8000)) {
-    return NextResponse.json({ ok: true, skipped: "rate_limited" });
+  // unlike the plain poll/dismiss routes, this genuinely needs a limit. 4s (not
+  // the original 8s) since the client-grid fast path below has no Graph
+  // download/parse step anymore, so back-to-back real edits round-trip faster —
+  // 8s was silently dropping genuine follow-up edits, surfacing client-side as an
+  // indistinguishable "alert=false" with no real check having run at all.
+  if (!rateLimit(`live-signal-check-now:${anonymousUserId}`, 1, 4000)) {
+    return NextResponse.json({ ok: true, skipped: "rate_limited", alert: null });
   }
 
   const pool = getPool();
