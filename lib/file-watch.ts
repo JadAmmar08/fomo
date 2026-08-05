@@ -745,11 +745,23 @@ export async function checkFactsForConflict(
        limit 5`,
       [roomSlug, fileId, newId, fact.subject, fact.entity || ""]
     );
-    // Identical values (once trimmed/case-normalized) can never be a real
-    // contradiction, they're agreement, not conflict, so this is filtered
-    // deterministically rather than trusting the LLM to notice on every call.
+    // Identical values can never be a real contradiction, they're agreement, not
+    // conflict, so this is filtered deterministically rather than trusting the
+    // LLM to notice on every call. A plain string compare isn't enough on its
+    // own: two facts about the same real date can be stored in different text
+    // forms (e.g. "10/1/2026" vs "Thu Oct 01 2026 00:00:00 GMT+0000...", the
+    // latter from a fact extracted before a formatting fix shipped, or from a
+    // teammate's file that simply hasn't been re-checked since), so dates are
+    // also compared by their actual calendar day, not just their raw text.
     const normalize = (v: string) => v.trim().toLowerCase();
-    const candidates = candidatesRes.rows.filter((c) => normalize(c.value) !== normalize(fact.value));
+    const sameDay = (a: string, b: string) => {
+      const da = new Date(a);
+      const db = new Date(b);
+      return !isNaN(da.getTime()) && !isNaN(db.getTime()) && da.toDateString() === db.toDateString();
+    };
+    const candidates = candidatesRes.rows.filter(
+      (c) => normalize(c.value) !== normalize(fact.value) && !sameDay(c.value, fact.value)
+    );
     if (candidates.length === 0) continue;
 
     try {
