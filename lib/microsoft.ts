@@ -580,6 +580,7 @@ export async function extractStructuredCells(accessToken: string, fileId: string
 
     const cells: StructuredCell[] = [];
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      const nonEmptyCount = row.cellCount;
       let rowLabel: string | undefined;
       row.eachCell({ includeEmpty: false }, (cell) => {
         const text = String(cell.value ?? "").trim();
@@ -589,17 +590,18 @@ export async function extractStructuredCells(accessToken: string, fileId: string
       row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
         const value = String(cell.value ?? "").trim();
         if (!value) return;
-        // A cell that's only its own row label isn't a fact by itself. Row 1 isn't
-        // hard-skipped as "always a header" — a real fact can legitimately live
-        // there (a single-cell sentence, a title row with no separate data rows)
-        // — extractFactsFromCells' own judgment is what decides "is this a real
-        // fact or just a label," not this raw extraction step.
-        if (rowLabel && value === rowLabel && colNumber === 1) return;
+        // Only treat a cell as "just its own row label" when the row has a
+        // genuinely separate value cell alongside it — a row with exactly one
+        // cell (e.g. a single-cell sentence like "Q4 earnings ... is $600,000")
+        // IS the fact itself, not a label for something else. Row 1 isn't
+        // hard-skipped as "always a header" either — extractFactsFromCells' own
+        // judgment decides "real fact vs. label," not this raw extraction step.
+        if (nonEmptyCount > 1 && rowLabel && value === rowLabel && colNumber === 1) return;
 
         cells.push({
           location: `${sheet.name}!${cell.address}`,
           value,
-          rowLabel,
+          rowLabel: nonEmptyCount > 1 ? rowLabel : undefined,
           colLabel: columnHeaders.get(colNumber)
         });
       });

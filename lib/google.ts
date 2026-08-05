@@ -543,6 +543,7 @@ export async function getSheetValuesWithCoordinates(accessToken: string, fileId:
       // Row 1 isn't hard-skipped as "always a header" — a real fact can live there
       // too (a single-cell sentence, a title row with no separate data rows).
       // extractFactsFromCells' own judgment decides what's a real fact vs. a label.
+      const nonEmptyCount = row.filter((c) => c?.trim()).length;
       let rowLabel: string | undefined;
       for (const cell of row) {
         if (cell?.trim()) { rowLabel = cell.trim(); break; }
@@ -551,12 +552,15 @@ export async function getSheetValuesWithCoordinates(accessToken: string, fileId:
       row.forEach((rawValue, colIndex) => {
         const value = rawValue?.trim();
         if (!value) return;
-        if (rowLabel && value === rowLabel && colIndex === 0) return;
+        // Only treat a cell as "just its own row label" when the row has a
+        // genuinely separate value cell alongside it — a row with exactly one
+        // cell IS the fact itself, not a label for something else.
+        if (nonEmptyCount > 1 && rowLabel && value === rowLabel && colIndex === 0) return;
 
         cells.push({
           location: `${columnLetter(colIndex)}${rowIndex + 1}`,
           value,
-          rowLabel,
+          rowLabel: nonEmptyCount > 1 ? rowLabel : undefined,
           colLabel: columnHeaders.get(colIndex)
         });
       });
