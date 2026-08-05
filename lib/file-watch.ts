@@ -398,10 +398,10 @@ export async function handleFileChangeNotification(provider: Provider, channelId
 // Fetches current content, skips out early if nothing actually changed (both providers
 // fire more notifications than there are real edits — a metadata-only touch or a
 // duplicate delivery shouldn't trigger a second LLM call for the same content), then
-// runs both the whole-text and structured-facts detection paths. `channelId` is only
-// used to update file_watch_channels' last_content_hash by the right row when called
-// from the webhook path; the on-demand path passes null and looks up/updates by
-// anonymous_user_id+file_name instead (see check-now route).
+// runs detection. `channelId` is only used to update file_watch_channels'
+// last_content_hash by the right row when called from the webhook path; the on-demand
+// path passes null and looks up/updates by anonymous_user_id+file_name instead (see
+// check-now route).
 export async function processFileChange(
   provider: Provider,
   anonymousUserId: string,
@@ -444,31 +444,34 @@ export async function processFileChange(
     console.error("[file-watch] forced digest refresh failed:", err)
   );
 
-  await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
+  // Structured facts (exact cell citations, e.g. "Sheet1!C5") are primary for
+  // spreadsheets — the whole-text check only runs as a fallback when structured
+  // extraction finds nothing to work with (an unsupported layout, an empty sheet),
+  // or for non-spreadsheet files where no structured extractor exists at all.
+  // Running both unconditionally on every edit used to produce two independent,
+  // sometimes differently-worded cards for the same real conflict.
+  const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
+  const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
 
-  // Structured-facts path (v1: spreadsheets only) — runs alongside the whole-text
-  // check above, not instead of it, while this new path proves itself. Deliberately
-  // separate try/catch so a failure here never blocks the existing, working check.
-  try {
-    const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
-    const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
-    console.log(`[structured-facts] gate check: provider=${provider} fileName=${fileName} isGoogleSheet=${isGoogleSheet} isExcelFile=${isExcelFile}`);
-
-    if (isGoogleSheet || isExcelFile) {
+  let usedStructuredFacts = false;
+  if (isGoogleSheet || isExcelFile) {
+    try {
       const cells = provider === "google"
         ? await google.getSheetValuesWithCoordinates(token, fileId)
         : await microsoft.extractStructuredCells(token, fileId, fileName);
-      console.log(`[structured-facts] extracted cells: count=${cells?.length ?? 0} sample=${JSON.stringify(cells?.slice(0, 3))}`);
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, fileName);
-        console.log(`[structured-facts] normalized facts: count=${facts.length} sample=${JSON.stringify(facts.slice(0, 3))}`);
         await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
-        console.log(`[structured-facts] checkFactsForConflict completed`);
+        usedStructuredFacts = true;
       }
+    } catch (err) {
+      console.error("[file-watch] structured-facts path failed:", err);
     }
-  } catch (err) {
-    console.error("[file-watch] structured-facts path failed:", err);
+  }
+
+  if (!usedStructuredFacts) {
+    await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
   }
 }
 
