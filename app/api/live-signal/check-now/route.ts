@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const row = res.rows[0];
   if (!row) return NextResponse.json({ ok: true, skipped: "not_linked", alert: null });
 
-  let result;
+  let result: Awaited<ReturnType<typeof processFileChange>>;
   if (grid && sheetName) {
     // Fast path: the client sends its own just-committed cell values directly
     // (Office.js has them locally the instant onChanged fires) instead of us
@@ -61,14 +61,14 @@ export async function POST(req: NextRequest) {
       .then((facts) => checkFactsForConflict(anonymousUserId, row.room_id, "microsoft", row.file_id, fileName, facts))
       .catch((err) => {
         console.error("[live-signal check-now] client-grid path failed:", err);
-        return null;
+        return [];
       });
   } else {
     result = await processFileChange("microsoft", anonymousUserId, row.room_id, row.file_id, fileName, row.last_content_hash, null).catch((err) => {
       console.error("[live-signal check-now] failed:", err);
-      return null;
+      return [];
     });
   }
 
-  return NextResponse.json({ ok: true, alert: result });
+  return NextResponse.json({ ok: true, alerts: result });
 }

@@ -3,7 +3,7 @@ const STORAGE_KEY = "fomo_anonymous_user_id";
 
 let anonymousUserId = localStorage.getItem(STORAGE_KEY);
 let pollTimer = null;
-let currentAlert = null;
+let currentAlerts = new Map(); // cardKey -> alert, so multiple simultaneous conflicts all show, not just one
 let liveEditStatus = "live-edit: not yet attempted"; // shown in debug-info — avoids needing DevTools' nested-iframe console to see what's happening
 
 function showView(view) {
@@ -23,48 +23,62 @@ function getCurrentFileName() {
   return name || null;
 }
 
-function renderAlert(alert) {
+// Renders every currently-open conflict as its own card, not just one — a single
+// edit (e.g. pasting a table) can break multiple facts at once, and each needs its
+// own Dismiss so resolving one doesn't hide the others.
+function renderAlerts(alerts) {
   const container = document.getElementById("alert-container");
   const emptyState = document.getElementById("empty-state");
 
-  if (!alert) {
+  const incomingKeys = new Set(alerts.map((a) => a.cardKey));
+  // Clear highlights for anything that dropped off (dismissed elsewhere, or the
+  // card simply expired) before rebuilding.
+  for (const key of currentAlerts.keys()) {
+    if (!incomingKeys.has(key)) clearHighlight(key);
+  }
+  currentAlerts = new Map(alerts.map((a) => [a.cardKey, a]));
+
+  if (alerts.length === 0) {
     container.innerHTML = "";
     emptyState.style.display = "block";
-    currentAlert = null;
     return;
   }
-
-  if (currentAlert && currentAlert.cardKey === alert.cardKey) return;
-  currentAlert = alert;
   emptyState.style.display = "none";
 
-  const label = alert.conflictKind === "contradiction" ? "Conflicting data found" : "Possible overlap";
-  container.innerHTML = `
-    <div class="alert-card">
-      <div class="alert-label">${label}</div>
-      <div class="alert-text"></div>
-      <button class="dismiss-btn">Dismiss</button>
-    </div>
-  `;
-  container.querySelector(".alert-text").textContent = alert.text;
-  container.querySelector(".dismiss-btn").addEventListener("click", async () => {
-    await fetch("/api/live-signal/dismiss", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ anonymousUserId, roomSlug: alert.roomSlug, cardKey: alert.cardKey })
-    }).catch(() => undefined);
-    await clearHighlight();
-    renderAlert(null);
+  container.innerHTML = alerts.map((alert) => {
+    const label = alert.conflictKind === "contradiction" ? "Conflicting data found" : "Possible overlap";
+    return `
+      <div class="alert-card" data-card-key="${alert.cardKey}">
+        <div class="alert-label">${label}</div>
+        <div class="alert-text">${alert.text}</div>
+        <button class="dismiss-btn">Dismiss</button>
+      </div>
+    `;
+  }).join("");
+
+  container.querySelectorAll(".alert-card").forEach((card) => {
+    const cardKey = card.getAttribute("data-card-key");
+    const alert = currentAlerts.get(cardKey);
+    card.querySelector(".dismiss-btn").addEventListener("click", async () => {
+      await fetch("/api/live-signal/dismiss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousUserId, roomSlug: alert.roomSlug, cardKey: alert.cardKey })
+      }).catch(() => undefined);
+      await clearHighlight(cardKey);
+      currentAlerts.delete(cardKey);
+      renderAlerts(Array.from(currentAlerts.values()));
+    });
   });
 }
 
-let highlightedCell = null; // { sheetName, address } — tracked so Dismiss can clear it
+let highlightedCells = new Map(); // cardKey -> { sheetName, address } — one per open card, so Dismiss only clears its own
 
 // Parses "SheetName!C5" (the format extractStructuredCells/getSheetValuesWithCoordinates
 // produce) and marks that exact cell: a fill color plus a native Excel comment with the
 // conflict text, the actual in-document visual (closer to Grammarly's inline underline
 // than the sidebar card alone).
-async function highlightCell(location, commentText) {
+async function highlightCell(cardKey, location, commentText) {
   const [sheetName, address] = location.includes("!") ? location.split("!") : [null, location];
   try {
     await Excel.run(async (context) => {
@@ -74,16 +88,17 @@ async function highlightCell(location, commentText) {
       sheet.comments.add(address, commentText);
       await context.sync();
     });
-    highlightedCell = { sheetName, address };
+    highlightedCells.set(cardKey, { sheetName, address });
   } catch (err) {
     console.error("[taskpane] highlighting cell failed:", err);
   }
 }
 
-async function clearHighlight() {
-  if (!highlightedCell) return;
-  const { sheetName, address } = highlightedCell;
-  highlightedCell = null;
+async function clearHighlight(cardKey) {
+  const cell = highlightedCells.get(cardKey);
+  if (!cell) return;
+  highlightedCells.delete(cardKey);
+  const { sheetName, address } = cell;
   try {
     await Excel.run(async (context) => {
       const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
@@ -111,16 +126,19 @@ async function poll() {
   try {
     const res = await fetch(`/api/live-signal?anonymousUserId=${encodeURIComponent(anonymousUserId)}&fileName=${encodeURIComponent(fileName)}`);
     const data = await res.json();
-    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `last check: ${new Date().toLocaleTimeString()}`, liveEditStatus]);
+    const alerts = data.alerts ?? [];
+    setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, `${alerts.length} open conflict(s)`, `last check: ${new Date().toLocaleTimeString()}`, liveEditStatus]);
 
     // A newly-arrived alert might have been pinned by a check that ran on a
     // DIFFERENT file (e.g. someone else's edit conflicting with this one) — the
     // live-edit path only highlights when THIS file's own check-now call finds
     // something, so polling has to do the same job for that case, not just render
     // the sidebar card.
-    const isNewAlert = data.alert && (!currentAlert || currentAlert.cardKey !== data.alert.cardKey);
-    renderAlert(data.alert ?? null);
-    if (isNewAlert && data.alert.location) highlightCell(data.alert.location, data.alert.text);
+    const newAlerts = alerts.filter((a) => !currentAlerts.has(a.cardKey));
+    renderAlerts(alerts);
+    for (const alert of newAlerts) {
+      if (alert.location) highlightCell(alert.cardKey, alert.location, alert.text);
+    }
   } catch {
     setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed", liveEditStatus]);
   }
@@ -185,10 +203,14 @@ async function registerLiveEditListener() {
               const activeSheet = readContext.workbook.worksheets.getActiveWorksheet();
               activeSheet.load("name");
               const used = activeSheet.getUsedRangeOrNullObject(true);
-              used.load("values");
+              // .text (not .values) so date/currency/percent cells come through
+              // already formatted the way they're displayed (e.g. "11/20/2026"
+              // instead of Excel's raw date serial "46346"), matching the
+              // Graph-download path's ExcelJS-formatted output below.
+              used.load("text");
               await readContext.sync();
               if (!used.isNullObject) {
-                grid = used.values;
+                grid = used.text;
                 sheetName = activeSheet.name;
               }
             });
@@ -200,17 +222,18 @@ async function registerLiveEditListener() {
               body: JSON.stringify({ anonymousUserId, fileName, grid, sheetName })
             });
             const data = await res.json();
+            const alertCount = Array.isArray(data.alerts) ? data.alerts.length : 0;
             liveEditStatus = data.skipped
               ? `live-edit: skipped (${data.skipped}) ${new Date().toLocaleTimeString()} — not a real "no conflict" result`
-              : `live-edit: check-now responded ${new Date().toLocaleTimeString()}, alert=${Boolean(data.alert)}`;
-            // poll() (not a hand-built alert object here) so the sidebar card gets
+              : `live-edit: check-now responded ${new Date().toLocaleTimeString()}, ${alertCount} conflict(s)`;
+            // poll() (not hand-built alert objects here) so the sidebar cards get
             // the real cardKey/roomSlug from pinned_cards — needed for Dismiss to
             // actually delete the right row, not something check-now's leaner
-            // {conflictKind, text, location} result carries on its own. poll()
-            // also handles the cell highlight itself now (see poll(), it needs to
+            // {conflictKind, text, location} results carry on their own. poll()
+            // also handles the cell highlights itself now (see poll(), it needs to
             // do the same job for alerts that arrive from OTHER files' checks
             // too), so this only needs to trigger it, not highlight directly.
-            if (data.alert) poll();
+            if (alertCount > 0) poll();
           } catch (err) {
             liveEditStatus = `live-edit: check-now FAILED: ${err}`;
           }
@@ -262,7 +285,7 @@ Office.onReady(() => {
     localStorage.removeItem(STORAGE_KEY);
     anonymousUserId = null;
     if (pollTimer) clearInterval(pollTimer);
-    currentAlert = null;
+    currentAlerts = new Map();
     showView("login");
   });
 

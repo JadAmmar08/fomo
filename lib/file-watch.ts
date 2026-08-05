@@ -410,22 +410,22 @@ export async function processFileChange(
   fileName: string,
   knownHash: string | null,
   channelId: string | null
-): Promise<ConflictResult | null> {
+): Promise<ConflictResult[]> {
   const pool = getPool();
-  if (!pool) return null;
+  if (!pool) return [];
 
   const token = provider === "google"
     ? await google.getValidAccessToken(anonymousUserId, roomId)
     : await microsoft.getValidAccessToken(anonymousUserId, roomId);
-  if (!token) return null;
+  if (!token) return [];
 
   const [file] = provider === "google"
     ? await google.listSpecificFiles(token, [fileId])
     : await microsoft.listSpecificFiles(token, [fileId]);
-  if (!file?.content) return null;
+  if (!file?.content) return [];
 
   const hash = crypto.createHash("sha256").update(file.content).digest("hex");
-  if (hash === knownHash) return null;
+  if (hash === knownHash) return [];
 
   await pool.query(
     channelId
@@ -454,7 +454,7 @@ export async function processFileChange(
   const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
 
   let usedStructuredFacts = false;
-  let result: ConflictResult | null = null;
+  let results: ConflictResult[] = [];
   if (isGoogleSheet || isExcelFile) {
     try {
       const cells = provider === "google"
@@ -463,7 +463,7 @@ export async function processFileChange(
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, fileName);
-        result = await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
+        results = await checkFactsForConflict(anonymousUserId, roomId, provider, fileId, fileName, facts);
         usedStructuredFacts = true;
       }
     } catch (err) {
@@ -472,10 +472,11 @@ export async function processFileChange(
   }
 
   if (!usedStructuredFacts) {
-    result = await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
+    const single = await checkFileForConflict(anonymousUserId, roomId, fileName, file.content, fileId);
+    results = single ? [single] : [];
   }
 
-  return result;
+  return results;
 }
 
 // The cheap, single-file version of what individual-guidance.ts does for a whole
@@ -679,13 +680,13 @@ export async function checkFactsForConflict(
   fileId: string,
   fileName: string,
   facts: ExtractedFact[]
-): Promise<ConflictResult | null> {
+): Promise<ConflictResult[]> {
   const pool = getPool();
-  if (!pool || facts.length === 0) return null;
+  if (!pool || facts.length === 0) return [];
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) return [];
 
-  let firstResult: ConflictResult | null = null;
+  const results: ConflictResult[] = [];
 
   for (const fact of facts) {
     // A fact at the same file+location that's still current is this same cell
@@ -745,7 +746,7 @@ export async function checkFactsForConflict(
           }
         ],
         tool_choice: { type: "tool", name: "fact_conflict_check" },
-        system: `A new fact was just recorded: "${fact.subject}" = ${fact.value} (${fileName}, ${fact.location}). Compare it against these candidate facts from other files in the same project. A real contradiction means they're genuinely about the same real-world thing, same subject, same time period, same kind of figure, but disagree on value. Same number appearing in a different context is NOT a contradiction. If a real contradiction exists, cite both exact locations and values in one sentence. NO EM-DASHES. Max 28 words.`,
+        system: `A new fact was just recorded: "${fact.subject}" = ${fact.value} (${fileName}, ${fact.location}). Compare it against these candidate facts from other files in the same project. A real contradiction means they're genuinely about the same real-world thing: same named entity (same client, person, or project name), same subject, same time period, same kind of figure, but disagree on value. Matching only on the metric label (e.g. both being "Launch Date" or both being "Revenue") while the named entity differs (e.g. "Gamma LLC" vs "Delta Co") is NEVER a contradiction, even if the subject text looks similar. Same number appearing in a different context is NOT a contradiction. If a real contradiction exists, cite both exact locations and values in one sentence. NO EM-DASHES. Max 28 words.`,
         messages: [
           {
             role: "user",
@@ -789,14 +790,15 @@ export async function checkFactsForConflict(
       });
 
       // The new fact's own location (not the candidate's) is the cell that was
-      // just edited — that's the one worth highlighting client-side. Keep the
-      // first real conflict found; later facts still get written/checked above,
-      // just not surfaced as the immediate result.
-      if (!firstResult) firstResult = { conflictKind: "contradiction", text: out.text, location: fact.location };
+      // just edited — that's the one worth highlighting client-side. Every real
+      // conflict found across all facts is collected, not just the first, so an
+      // edit that breaks multiple facts at once (e.g. pasting a whole table)
+      // surfaces all of them instead of only whichever happened to run first.
+      results.push({ conflictKind: "contradiction", text: out.text, location: fact.location });
     } catch (err) {
       console.error("[checkFactsForConflict] judgment call failed:", err);
     }
   }
 
-  return firstResult;
+  return results;
 }

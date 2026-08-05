@@ -23,27 +23,23 @@ export async function GET(req: NextRequest) {
     fileId
       ? `select room_id, card_key, card_data from pinned_cards
          where anonymous_user_id = $1 and card_type = 'discovery' and card_data->>'sourceFileId' = $2
-         order by pinned_at desc limit 1`
+         order by pinned_at desc limit 10`
       : `select room_id, card_key, card_data from pinned_cards
          where anonymous_user_id = $1 and card_type = 'discovery' and card_data->'sourceTopics' ? $2
-         order by pinned_at desc limit 1`,
+         order by pinned_at desc limit 10`,
     [anonymousUserId, fileId ?? fileName]
   );
-  const row = res.rows[0];
-  if (!row) return NextResponse.json({ alert: null });
 
   // sourceLocations is keyed by file name, one cell address per file involved in
   // the conflict — pick the one for whichever file is actually polling, so a
   // cell highlight (client-side) always targets the right sheet/coordinate.
-  const location = fileName ? row.card_data.sourceLocations?.[fileName] : undefined;
+  const alerts = res.rows.map((row) => ({
+    roomSlug: row.room_id,
+    cardKey: row.card_key,
+    text: row.card_data.text,
+    conflictKind: row.card_data.conflictKind,
+    location: fileName ? row.card_data.sourceLocations?.[fileName] : undefined
+  }));
 
-  return NextResponse.json({
-    alert: {
-      roomSlug: row.room_id,
-      cardKey: row.card_key,
-      text: row.card_data.text,
-      conflictKind: row.card_data.conflictKind,
-      location
-    }
-  });
+  return NextResponse.json({ alerts });
 }

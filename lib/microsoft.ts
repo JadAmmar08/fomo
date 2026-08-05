@@ -633,7 +633,12 @@ export async function extractStructuredCells(accessToken: string, fileId: string
     sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
       const values: string[] = [];
       row.eachCell({ includeEmpty: true }, (cell) => {
-        values.push(cell.value === null || cell.value === undefined ? "" : String(cell.value));
+        // cell.value is a JS Date for date-formatted cells, e.g.
+        // "Fri Nov 20 2026 00:00:00 GMT+0000 ..." if just stringified — format
+        // as a plain date so it matches how the live-edit client-grid path
+        // (which reads Office.js's already-formatted .text) sends dates.
+        const v = cell.value;
+        values.push(v === null || v === undefined ? "" : v instanceof Date ? v.toLocaleDateString("en-US") : String(v));
       });
       grid[rowNumber - 1] = values;
     });
