@@ -273,6 +273,8 @@ async function registerLiveEditListener() {
             // the PREVIOUS value). Sending the actual values removes that race.
             let grid = null;
             let sheetName = null;
+            let startRow = 1;
+            let startCol = 1;
             await Excel.run(async (readContext) => {
               const activeSheet = readContext.workbook.worksheets.getActiveWorksheet();
               activeSheet.load("name");
@@ -281,11 +283,24 @@ async function registerLiveEditListener() {
               // already formatted the way they're displayed (e.g. "11/20/2026"
               // instead of Excel's raw date serial "46346"), matching the
               // Graph-download path's ExcelJS-formatted output below.
-              used.load("text");
+              used.load("text,address");
               await readContext.sync();
               if (!used.isNullObject) {
                 grid = used.text;
                 sheetName = activeSheet.name;
+                // used.text is relative to wherever the used range actually
+                // starts, NOT necessarily A1 — a table starting at C8 means
+                // text[0][0] is C8, not A1. Without parsing this offset out of
+                // the address (e.g. "Sheet1!C8:F13") and sending it along, the
+                // server would compute every cell's location as if the table
+                // started at A1, silently citing the wrong cell (confirmed
+                // live: a table at C8:F13 got reported as B2:D4).
+                const cellRef = used.address.split("!").pop().split(":")[0];
+                const match = cellRef.match(/^([A-Z]+)(\d+)$/);
+                if (match) {
+                  startRow = parseInt(match[2], 10);
+                  startCol = match[1].split("").reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
+                }
               }
             });
 
@@ -293,7 +308,7 @@ async function registerLiveEditListener() {
             const res = await fetch("/api/live-signal/check-now", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ anonymousUserId, fileName, grid, sheetName })
+              body: JSON.stringify({ anonymousUserId, fileName, grid, sheetName, startRow, startCol })
             });
             const data = await res.json();
             const alertCount = Array.isArray(data.alerts) ? data.alerts.length : 0;

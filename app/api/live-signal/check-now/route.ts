@@ -17,6 +17,11 @@ export async function POST(req: NextRequest) {
   const fileName = String(body.fileName ?? "");
   const sheetName = body.sheetName ? String(body.sheetName) : null;
   const grid = Array.isArray(body.grid) ? (body.grid as string[][]) : null;
+  // Office.js's used-range grid is relative to wherever the used range actually
+  // starts, not necessarily A1 (see cellsFromGrid in lib/microsoft.ts) — these
+  // default to 1 (A1) for older clients that don't send them yet.
+  const startRow = Number.isInteger(body.startRow) ? (body.startRow as number) : 1;
+  const startCol = Number.isInteger(body.startCol) ? (body.startCol as number) : 1;
   if (!anonymousUserId || !fileName) {
     return NextResponse.json({ error: "anonymousUserId and fileName required" }, { status: 400 });
   }
@@ -57,7 +62,7 @@ export async function POST(req: NextRequest) {
     // on this path (no full-file "content" from the client) — an edit whose
     // structured extraction finds nothing still gets caught by the next webhook
     // delivery, same safety net as before.
-    result = await extractFactsFromCells(cellsFromGrid(sheetName, grid), fileName)
+    result = await extractFactsFromCells(cellsFromGrid(sheetName, grid, startRow, startCol), fileName)
       .then((facts) => checkFactsForConflict(anonymousUserId, row.room_id, "microsoft", row.file_id, fileName, facts))
       .catch((err) => {
         console.error("[live-signal check-now] client-grid path failed:", err);

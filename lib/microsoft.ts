@@ -562,7 +562,20 @@ export interface StructuredCell {
 // which matters because Graph's content can lag a few seconds behind a just-typed
 // cell while OneDrive finishes syncing it, a real race confirmed live: a check
 // right after an edit sometimes still read the PREVIOUS value).
-export function cellsFromGrid(sheetName: string, grid: (string | number | null | undefined)[][]): StructuredCell[] {
+// startRow/startCol (both 1-based) are the real sheet coordinates of grid[0][0].
+// They default to A1 for the Graph-download path (ExcelJS's sheet.eachRow always
+// starts from the sheet's actual row 1), but the live-edit client-grid path reads
+// Office.js's getUsedRangeOrNullObject, which returns a grid relative to wherever
+// the USED range actually starts, not necessarily A1 — a table starting at C8
+// makes grid[0][0] mean C8, not A1. Without applying that offset here, every
+// location gets computed as if the table started at A1, silently citing the
+// wrong cell (confirmed live: a table at C8:F13 was reported as B2:D4).
+export function cellsFromGrid(
+  sheetName: string,
+  grid: (string | number | null | undefined)[][],
+  startRow = 1,
+  startCol = 1
+): StructuredCell[] {
   const columnHeaders = new Map<number, string>();
   const firstRow = grid[0] ?? [];
   firstRow.forEach((cell, i) => {
@@ -591,7 +604,7 @@ export function cellsFromGrid(sheetName: string, grid: (string | number | null |
       if (nonEmptyCount > 1 && rowLabel && value === rowLabel && colIndex === 0) return;
 
       cells.push({
-        location: `${sheetName}!${columnLetterMs(colIndex)}${rowIndex + 1}`,
+        location: `${sheetName}!${columnLetterMs(startCol - 1 + colIndex)}${startRow + rowIndex}`,
         value,
         rowLabel: nonEmptyCount > 1 ? rowLabel : undefined,
         colLabel: columnHeaders.get(colIndex + 1)
