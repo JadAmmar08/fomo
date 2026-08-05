@@ -426,15 +426,19 @@ export async function handleFileChangeNotification(provider: Provider, channelId
   try {
     const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
     const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(row.file_name);
+    console.log(`[structured-facts] gate check: provider=${provider} fileName=${row.file_name} isGoogleSheet=${isGoogleSheet} isExcelFile=${isExcelFile}`);
 
     if (isGoogleSheet || isExcelFile) {
       const cells = provider === "google"
         ? await google.getSheetValuesWithCoordinates(token, row.file_id)
         : await microsoft.extractStructuredCells(token, row.file_id, row.file_name);
+      console.log(`[structured-facts] extracted cells: count=${cells?.length ?? 0} sample=${JSON.stringify(cells?.slice(0, 3))}`);
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, row.file_name);
+        console.log(`[structured-facts] normalized facts: count=${facts.length} sample=${JSON.stringify(facts.slice(0, 3))}`);
         await checkFactsForConflict(row.anonymous_user_id, row.room_id, provider, row.file_id, row.file_name, facts);
+        console.log(`[structured-facts] checkFactsForConflict completed`);
       }
     }
   } catch (err) {
