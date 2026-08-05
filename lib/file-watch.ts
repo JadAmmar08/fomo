@@ -721,7 +721,12 @@ export async function checkFactsForConflict(
        limit 5`,
       [roomSlug, fileId, newId, fact.subject]
     );
-    if (candidatesRes.rows.length === 0) continue;
+    // Identical values (once trimmed/case-normalized) can never be a real
+    // contradiction, they're agreement, not conflict, so this is filtered
+    // deterministically rather than trusting the LLM to notice on every call.
+    const normalize = (v: string) => v.trim().toLowerCase();
+    const candidates = candidatesRes.rows.filter((c) => normalize(c.value) !== normalize(fact.value));
+    if (candidates.length === 0) continue;
 
     try {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -750,7 +755,7 @@ export async function checkFactsForConflict(
         messages: [
           {
             role: "user",
-            content: candidatesRes.rows.map((c) => `id: ${c.id} | ${c.subject} = ${c.value} (${c.file_name}, ${c.location})`).join("\n")
+            content: candidates.map((c) => `id: ${c.id} | ${c.subject} = ${c.value} (${c.file_name}, ${c.location})`).join("\n")
           }
         ]
       });
@@ -765,7 +770,7 @@ export async function checkFactsForConflict(
       // app/api/live-signal/route.ts) — tagging only the edited file's name meant
       // the OTHER file's sidebar, just as relevant to the conflict, never matched
       // and always showed "no conflicts found" even for a real, already-pinned one.
-      const candidate = candidatesRes.rows.find((c) => c.id === out.candidateId);
+      const candidate = candidates.find((c) => c.id === out.candidateId);
       const sourceTopics = candidate && candidate.file_name !== fileName ? [fileName, candidate.file_name] : [fileName];
       // Per-file cell location, keyed by file name — whichever file's sidebar polls
       // this card needs ITS OWN cell address to highlight, not the other file's
