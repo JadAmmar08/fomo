@@ -12,7 +12,7 @@
   "addOns": {
     "common": {
       "name": "FOMO Live Signal",
-      "logoUrl": "https://usefomo.net/fomo-logo.png",
+      "logoUrl": "https://usefomo.net/office-addin/icon-128.png",
       "homepageTrigger": {
         "runFunction": "onHomepage"
       }
