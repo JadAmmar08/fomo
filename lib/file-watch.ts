@@ -717,12 +717,18 @@ export async function checkFactsForConflict(
       // freshly-worded conflict gets pinned below, or the edit resolved it and no
       // new card should exist at all. Without this, an old card sits in
       // pinned_cards forever once created, even after the actual data agrees
-      // again, since nothing else ever retracts it.
+      // again, since nothing else ever retracts it. Deliberately NOT scoped to
+      // this caller's own anonymous_user_id: a conflict card can be pinned to
+      // whichever side's check found it first, which may be a different person
+      // than whoever is re-editing the cell now (confirmed live: Example 1 and
+      // Example 2 were linked under two different anonymous_user_ids, and a
+      // stale card pinned to Example 1's owner never cleared when Example 2's
+      // owner re-checked, since the delete only matched its own id).
       await pool.query(
         `delete from pinned_cards
-         where anonymous_user_id = $1 and room_id = $2 and card_type = 'discovery'
-           and card_key like 'fact_conflict:%' and card_data->'sourceLocations'->>$3 = $4`,
-        [anonymousUserId, roomSlug, fileName, fact.location]
+         where room_id = $1 and card_type = 'discovery'
+           and card_key like 'fact_conflict:%' and card_data->'sourceLocations'->>$2 = $3`,
+        [roomSlug, fileName, fact.location]
       );
     }
 
