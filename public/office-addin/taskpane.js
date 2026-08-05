@@ -93,6 +93,11 @@ function saveHighlightedCells() {
 }
 let highlightedCells = loadHighlightedCells();
 
+// Every FOMO-created comment is tagged with this marker so reconcileHighlights
+// (below) can tell "an old FOMO highlight nobody's tracking anymore" apart from
+// a real comment the user actually wrote — never touch anything without it.
+const FOMO_COMMENT_MARKER = "[FOMO] ";
+
 // Parses "SheetName!C5" (the format extractStructuredCells/getSheetValuesWithCoordinates
 // produce) and marks that exact cell: a fill color plus a native Excel comment with the
 // conflict text, the actual in-document visual (closer to Grammarly's inline underline
@@ -104,7 +109,7 @@ async function highlightCell(cardKey, location, commentText) {
       const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
       const range = sheet.getRange(address);
       range.format.fill.color = "#FFF3B0";
-      sheet.comments.add(address, commentText);
+      sheet.comments.add(address, FOMO_COMMENT_MARKER + commentText);
       await context.sync();
     });
     highlightedCells.set(cardKey, { sheetName, address });
@@ -129,6 +134,50 @@ async function clearHighlight(cardKey) {
     });
   } catch (err) {
     console.error("[taskpane] clearing cell highlight failed:", err);
+  }
+}
+
+// Self-healing sweep: cardKey-based tracking (highlightedCells/localStorage) only
+// knows to clear a highlight it itself remembers setting. A highlight left over
+// from before that tracking existed (or from any other gap: a crashed tab, a
+// browser storage clear) is permanently invisible to it and would sit stuck
+// forever. This instead reconciles against the real workbook state directly:
+// scan every comment on the active sheet, and for any one carrying the FOMO
+// marker whose cell isn't backed by a currently-open alert, clear it. Only ever
+// touches marker-tagged comments, so a real comment the user wrote is never at risk.
+async function reconcileHighlights(activeLocations) {
+  try {
+    await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      sheet.load("name");
+      const comments = sheet.comments;
+      comments.load("items");
+      await context.sync();
+
+      const stale = [];
+      for (const comment of comments.items) {
+        comment.load("content");
+      }
+      await context.sync();
+      for (const comment of comments.items) {
+        if (!comment.content.startsWith(FOMO_COMMENT_MARKER)) continue;
+        const range = comment.getLocation();
+        range.load("address");
+        stale.push({ comment, range });
+      }
+      await context.sync();
+
+      for (const { comment, range } of stale) {
+        const location = `${sheet.name}!${range.address.replace(/^.*!/, "")}`;
+        if (!activeLocations.has(location)) {
+          range.format.fill.clear();
+          comment.delete();
+        }
+      }
+      await context.sync();
+    });
+  } catch (err) {
+    console.error("[taskpane] reconcileHighlights failed:", err);
   }
 }
 
@@ -159,6 +208,10 @@ async function poll() {
     renderAlerts(alerts);
     for (const alert of newAlerts) {
       if (alert.location) highlightCell(alert.cardKey, alert.location, alert.text);
+    }
+    if (typeof Excel !== "undefined") {
+      const activeLocations = new Set(alerts.filter((a) => a.location).map((a) => a.location));
+      reconcileHighlights(activeLocations);
     }
   } catch {
     setDebugInfo([`user: ${anonymousUserId}`, `matching against: "${fileName}"`, `raw url: ${rawUrl}`, "poll request failed", liveEditStatus]);
