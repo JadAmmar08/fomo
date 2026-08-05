@@ -594,6 +594,7 @@ interface StructuredCellInput {
 }
 
 export interface ExtractedFact {
+  entity: string;
   subject: string;
   value: string;
   location: string;
@@ -637,11 +638,12 @@ export async function extractFactsFromCells(cells: StructuredCellInput[], fileNa
                 items: {
                   type: "object",
                   properties: {
+                    entity: { type: "string", description: "The named real-world thing this fact is about, e.g. a client name, person, or project name. Normalize casing/spacing but never invent one, e.g. 'Acme Corp', 'Gamma LLC'. Empty string if the cell has no identifiable named entity." },
                     subject: { type: "string", description: "Normalized referent, e.g. 'client 1 Q4 earnings'. Combine row + column label when both exist." },
                     value: { type: "string", description: "The literal cell value, copied exactly." },
                     location: { type: "string", description: "Copied exactly from the input, never invented." }
                   },
-                  required: ["subject", "value", "location"],
+                  required: ["entity", "subject", "value", "location"],
                   additionalProperties: false
                 }
               }
@@ -652,7 +654,7 @@ export async function extractFactsFromCells(cells: StructuredCellInput[], fileNa
         }
       ],
       tool_choice: { type: "tool", name: "extract_facts" },
-      system: `Each line is one cell from "${fileName}": its coordinate, value, and any row/column label found nearby. Only keep cells that are real, checkable facts, a labeled number, date, or named conclusion someone could contradict. Skip IDs, blank labels, formatting artifacts, or cells with no meaningful label. Copy "location" and "value" exactly as given, never invent or reformat them. Max 30 facts. NO EM-DASHES.`,
+      system: `Each line is one cell from "${fileName}": its coordinate, value, and any row/column label found nearby. Only keep cells that are real, checkable facts, a labeled number, date, or named conclusion someone could contradict. Skip IDs, blank labels, formatting artifacts, or cells with no meaningful label. The row label is usually the named entity (client, person, project) this fact is about, extract it into "entity" separately from "subject". Copy "location" and "value" exactly as given, never invent or reformat them. Max 30 facts. NO EM-DASHES.`,
       messages: [{ role: "user", content: cellLines }]
     });
 
@@ -699,10 +701,10 @@ export async function checkFactsForConflict(
     const existingId = existingRes.rows[0]?.id;
 
     const insertRes = await pool.query<{ id: string }>(
-      `insert into project_facts (anonymous_user_id, room_id, provider, file_id, file_name, subject, value, location)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
+      `insert into project_facts (anonymous_user_id, room_id, provider, file_id, file_name, entity, subject, value, location)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        returning id`,
-      [anonymousUserId, roomSlug, provider, fileId, fileName, fact.subject, fact.value, fact.location]
+      [anonymousUserId, roomSlug, provider, fileId, fileName, fact.entity || null, fact.subject, fact.value, fact.location]
     );
     const newId = insertRes.rows[0].id;
 
@@ -726,14 +728,22 @@ export async function checkFactsForConflict(
 
     // Candidates: similar subject, still current, from a different file (a
     // different location in the same file is a supersession, handled above, not
-    // a cross-person conflict).
+    // a cross-person conflict). Entity match is enforced here deterministically,
+    // not left to the LLM's judgment: "Gamma LLC Launch Date" and "Delta Co
+    // Launch Date" score similar enough on subject text alone (they share
+    // "Launch Date") to pass the subject threshold, and relying on the model to
+    // notice the entity differs was confirmed unreliable in practice (it let
+    // cross-entity false positives through more than once). When either side has
+    // no extracted entity, this falls back to subject-only matching same as
+    // before, rather than silently dropping facts without one.
     const candidatesRes = await pool.query<{ id: string; subject: string; value: string; location: string; file_name: string }>(
       `select id, subject, value, location, file_name from project_facts
        where room_id = $1 and superseded_by is null and file_id != $2 and id != $3
          and similarity(subject, $4) > 0.4
+         and ($5 = '' or entity is null or entity = '' or similarity(entity, $5) > 0.5)
        order by similarity(subject, $4) desc
        limit 5`,
-      [roomSlug, fileId, newId, fact.subject]
+      [roomSlug, fileId, newId, fact.subject, fact.entity || ""]
     );
     // Identical values (once trimmed/case-normalized) can never be a real
     // contradiction, they're agreement, not conflict, so this is filtered

@@ -443,6 +443,7 @@ create table if not exists project_facts (
   provider text not null check (provider in ('google', 'microsoft')),
   file_id text not null,
   file_name text not null,
+  entity text,
   subject text not null,
   value text not null,
   location text not null,
@@ -454,3 +455,4 @@ create table if not exists project_facts (
 create index if not exists idx_project_facts_room on project_facts(room_id) where superseded_by is null;
 create index if not exists idx_project_facts_file on project_facts(provider, file_id);
 create index if not exists idx_project_facts_subject_trgm on project_facts using gin (subject gin_trgm_ops);
+create index if not exists idx_project_facts_entity_trgm on project_facts using gin (entity gin_trgm_ops);
