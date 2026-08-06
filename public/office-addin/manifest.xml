@@ -33,6 +33,16 @@
   <Permissions>ReadWriteDocument</Permissions>
 
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <!-- SharedRuntime keeps taskpane.html's JS context alive for as long as the
+         document itself is open, even while the visible task pane is collapsed
+         or closed — the closest Office Add-ins equivalent to a browser
+         extension's persistent background script. Without this, onChanged
+         listeners and polling stop the instant the pane closes. -->
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.1">
+        <bt:Set Name="SharedRuntime" MinVersion="1.1" />
+      </bt:Sets>
+    </Requirements>
     <Hosts>
       <Host xsi:type="Document">
         <DesktopFormFactor>
@@ -134,6 +144,10 @@
         </DesktopFormFactor>
       </Host>
     </Hosts>
+
+    <Runtimes>
+      <Runtime resid="Taskpane.Url" lifetime="long" />
+    </Runtimes>
 
     <Resources>
       <bt:Images>

@@ -362,7 +362,28 @@ async function handleLogin() {
   }
 }
 
+// Requests the pane auto-open the next time a linked document opens, so the
+// user doesn't have to manually click the ribbon button before detection is
+// running — the closest practical equivalent of Grammarly "just working" the
+// moment you open a document. Combined with the shared runtime declared in
+// manifest.xml (keeps this JS context alive even if the pane gets closed
+// again), this is what actually removes the "has to stay open" requirement,
+// not just the "has to be manually opened" one. Best-effort: older Office
+// builds don't support this API at all.
+function requestAutoLaunch() {
+  try {
+    if (typeof Office !== "undefined" && Office.addin && Office.addin.setStartupBehavior) {
+      Office.addin.setStartupBehavior(Office.StartupBehavior.Load).catch((err) => {
+        console.error("[taskpane] setStartupBehavior failed:", err);
+      });
+    }
+  } catch (err) {
+    console.error("[taskpane] requestAutoLaunch failed:", err);
+  }
+}
+
 Office.onReady(() => {
+  requestAutoLaunch();
   document.getElementById("login-btn").addEventListener("click", handleLogin);
   document.getElementById("email-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleLogin();
