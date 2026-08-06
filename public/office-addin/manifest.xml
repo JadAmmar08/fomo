@@ -23,6 +23,7 @@
   <Hosts>
     <Host Name="Document" />
     <Host Name="Workbook" />
+    <Host Name="Presentation" />
   </Hosts>
 
   <DefaultSettings>
@@ -91,6 +92,39 @@
                   </Icon>
                   <Action xsi:type="ShowTaskpane">
                     <TaskpaneId>FomoTaskpaneXl</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+      <Host xsi:type="Presentation">
+        <DesktopFormFactor>
+          <FunctionFile resid="Taskpane.Url" />
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="FomoGroupPpt">
+                <Label resid="FomoGroup.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16" />
+                  <bt:Image size="32" resid="Icon.32x32" />
+                  <bt:Image size="80" resid="Icon.80x80" />
+                </Icon>
+                <Control xsi:type="Button" id="FomoTaskpaneButtonPpt">
+                  <Label resid="FomoTaskpaneButton.Label" />
+                  <Supertip>
+                    <Title resid="FomoTaskpaneButton.Label" />
+                    <Description resid="FomoTaskpaneButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>FomoTaskpanePpt</TaskpaneId>
                     <SourceLocation resid="Taskpane.Url" />
                   </Action>
                 </Control>
