@@ -12,6 +12,35 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <div style={{ padding: "18px 0", color: "var(--subtle)", fontSize: "0.85rem", fontStyle: "italic" }}>{children}</div>;
 }
 
+const TEASER_LENGTH = 160;
+
+// Collapsed by default (a one-line gist), click to expand the full memory —
+// keeps the panel from turning into a wall of text, especially for content
+// written before the prompts were tightened to stay short.
+function MemoryContent({ content, empty }: { content: string; empty: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!content) return <p style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.6, color: "var(--text-strong)" }}>{empty}</p>;
+
+  const isLong = content.length > TEASER_LENGTH;
+  const teaser = isLong ? content.slice(0, TEASER_LENGTH).trimEnd() + "…" : content;
+
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.6, color: "var(--text-strong)" }}>
+        {expanded ? content : teaser}
+      </p>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          style={{ background: "none", border: "none", padding: 0, marginTop: 8, color: "var(--accent)", fontSize: "0.8rem", fontWeight: 500, cursor: "pointer" }}
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface Memory { content: string; updatedAt: string; }
 interface MemMessage { role: "user" | "assistant"; content: string; createdAt: string; }
 
@@ -133,9 +162,9 @@ function PersonalMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid:
 
       <div style={{ ...cardStyle, padding: "18px 20px", marginBottom: 20, background: "var(--surface-muted)" }}>
         <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--subtle)" }}>What FOMO currently understands</span>
-        <p style={{ margin: "10px 0 0", fontSize: "0.92rem", lineHeight: 1.6, color: "var(--text-strong)" }}>
-          {memory?.content ? memory.content : "Nothing recorded yet, tell it something below."}
-        </p>
+        <div style={{ marginTop: 10 }}>
+          <MemoryContent content={memory?.content ?? ""} empty="Nothing recorded yet, tell it something below." />
+        </div>
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
           <button onClick={syncFromActivity} disabled={syncing} className="button-secondary" style={{ fontSize: "0.75rem", padding: "6px 14px" }}>
             {syncing ? "Syncing..." : "Update from my activity"}
@@ -239,9 +268,9 @@ function TeamMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid: str
 
       <div style={{ ...cardStyle, padding: "18px 20px", marginBottom: 20, background: "var(--surface-muted)" }}>
         <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--subtle)" }}>What FOMO currently understands about this team</span>
-        <p style={{ margin: "10px 0 0", fontSize: "0.92rem", lineHeight: 1.6, color: "var(--text-strong)" }}>
-          {memory?.content ? memory.content : "Nothing recorded yet, tell it something below."}
-        </p>
+        <div style={{ marginTop: 10 }}>
+          <MemoryContent content={memory?.content ?? ""} empty="Nothing recorded yet, tell it something below." />
+        </div>
       </div>
 
       <div style={{ maxHeight: 320, overflowY: "auto", display: "grid", gap: 10, marginBottom: 14, paddingRight: 4 }}>

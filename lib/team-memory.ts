@@ -82,7 +82,7 @@ export async function sendTeamMemoryChat(
       }
     ],
     tool_choice: { type: "tool", name: "team_memory_turn" },
-    system: `This is the shared team memory for this project: what FOMO currently understands about the team's work, decisions, and context, visible and editable by everyone on the team. Never invent claims, only reflect what's actually been observed or what someone tells you directly. The current memory content is:\n\n${current.content || "(nothing recorded yet)"}\n\nRecent conversation:\n${transcript}\n\nIf the new message is just a question or small talk, leave updatedMemory as an empty string. Only produce updatedMemory when someone has told you something genuinely worth the whole team remembering, or corrected something already recorded. NO EM-DASHES.`,
+    system: `This is the shared team memory for this project: what FOMO currently understands about the team's work, decisions, and context, visible and editable by everyone on the team. Never invent claims, only reflect what's actually been observed or what someone tells you directly. The current memory content is:\n\n${current.content || "(nothing recorded yet)"}\n\nRecent conversation:\n${transcript}\n\nIf the new message is just a question or small talk, leave updatedMemory as an empty string. Only produce updatedMemory when someone has told you something genuinely worth the whole team remembering, or corrected something already recorded. Keep the whole memory SHORT, plain prose, a few sentences, not an exhaustive log, plain text only, no markdown syntax. NO EM-DASHES.`,
     messages: [{ role: "user", content: userMessage }]
   });
 
