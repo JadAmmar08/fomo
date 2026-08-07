@@ -3,7 +3,7 @@ import { getPool } from "@/lib/postgres";
 import * as google from "@/lib/google";
 import * as microsoft from "@/lib/microsoft";
 import { sendPushToUser } from "@/lib/push";
-import { getPersonalMemory } from "@/lib/personal-memory";
+import { getPersonalMemory, maybeSyncPersonalMemoryFromActivity } from "@/lib/personal-memory";
 
 type Provider = "google" | "microsoft";
 
@@ -915,6 +915,17 @@ export async function checkFactsForConflict(
       console.error("[checkFactsForConflict] judgment call failed:", err);
     }
   }
+
+  // Keeps the editor's personal memory current from real activity automatically,
+  // not just when they manually click "update from my activity." Throttled
+  // internally (won't fire an LLM call on every single edit), and awaited
+  // rather than fire-and-forget — a bare un-awaited promise here would get
+  // silently killed once the response returns, a real bug already hit once
+  // this session with a different background task on Vercel's serverless
+  // runtime. Never allowed to fail the actual conflict check it's riding along with.
+  await maybeSyncPersonalMemoryFromActivity(anonymousUserId, roomSlug).catch((err) =>
+    console.error("[checkFactsForConflict] personal memory auto-sync failed:", err)
+  );
 
   return results;
 }

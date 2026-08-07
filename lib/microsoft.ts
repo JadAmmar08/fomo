@@ -398,6 +398,19 @@ export async function enableAutoAllFiles(anonymousUserId: string, roomId: string
   );
 }
 
+// A one-time snapshot, not an ongoing grant: links whatever files actually exist
+// right now (via Graph's /recent, which reflects real activity, not a full drive
+// crawl), then registers a normal per-file watch for each — same mechanism as
+// hand-picking files one by one, just applied to "everything as of starting this
+// project" instead of requiring someone to select each file. Deliberately
+// replaces the old enableAutoAllFiles ("read everything I own," an open-ended,
+// ever-expanding scope flag) with a bounded, explicit action that doesn't keep
+// silently pulling in new files someone never chose to include.
+export async function snapshotAllExistingFiles(accessToken: string, maxFiles = 100, includeShared = true) {
+  const files = await listRecentFilesAcrossDrive(accessToken, maxFiles, includeShared);
+  return files.filter((f) => f.file).map((f) => ({ id: f.id, name: f.name }));
+}
+
 // A separate, explicit decision on top of "everything I own": also include files
 // shared with them that Graph's /recent shows real activity on.
 export async function enableIncludeSharedFiles(anonymousUserId: string, roomId: string) {

@@ -52,9 +52,14 @@ const SOURCE_META: Record<SourceKey, {
   includeSharedPath?: string;
   filesPath?: string;
   unlinkPath: string;
+  // A one-time snapshot of everything that exists right now, replacing the
+  // open-ended "read everything I own forever" auto-all grant for sources
+  // where that distinction matters (currently just OneDrive).
+  snapshotPath?: string;
+  snapshotLabel?: string;
 }> = {
   google: { name: "Google Drive", color: "#4285F4", connectPath: "/api/integrations/google/connect", pickPath: "/api/integrations/google/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/google/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/google/include-shared", filesPath: "/api/integrations/google/files", unlinkPath: "/api/integrations/google/unlink" },
-  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared", filesPath: "/api/integrations/microsoft/files", unlinkPath: "/api/integrations/microsoft/unlink" },
+  microsoft: { name: "OneDrive", color: "#0078D4", connectPath: "/api/integrations/microsoft/connect", pickPath: "/api/integrations/microsoft/folders", pickKey: "folderId", nameKey: "folderName", pickVerb: "Choose a folder", autoAllPath: "/api/integrations/microsoft/auto-all", autoAllLabel: "Read everything I own", includeSharedPath: "/api/integrations/microsoft/include-shared", filesPath: "/api/integrations/microsoft/files", unlinkPath: "/api/integrations/microsoft/unlink", snapshotPath: "/api/integrations/microsoft/link-all", snapshotLabel: "All files up to this point" },
   slack: { name: "Slack", color: "#611f69", connectPath: "/api/integrations/slack/connect", pickPath: "/api/integrations/slack/channels", pickKey: "channelId", nameKey: "channelName", pickVerb: "Choose a channel", autoAllPath: "/api/integrations/slack/auto-join", autoAllLabel: "Read all internal channels", unlinkPath: "/api/integrations/slack/unlink" }
 };
 
@@ -326,7 +331,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
         <button
           onClick={async () => {
             setLinking(true);
-            await fetch(meta.autoAllPath, {
+            await fetch(meta.snapshotPath ?? meta.autoAllPath, {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
@@ -338,7 +343,7 @@ function SourceCard({ source, status, roomId, onLinked }: { source: SourceKey; s
           disabled={linking}
           style={{ textAlign: "left", background: "none", border: "none", padding: 0, cursor: linking ? "wait" : "pointer", fontSize: "0.95rem", fontWeight: 600, color: "var(--accent)" }}
         >
-          {linking ? "Connecting…" : `${meta.autoAllLabel} →`}
+          {linking ? "Connecting…" : `${meta.snapshotLabel ?? meta.autoAllLabel} →`}
         </button>
         <div style={{ display: "grid", gap: 6, marginTop: -2 }}>
           <button
@@ -526,7 +531,9 @@ export function WorkstreamUnified({ roomId }: { roomId: string }) {
       </p>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}>
-        {(Object.keys(statuses) as SourceKey[]).map((key) => (
+        {/* Google Drive hidden from the UI for now — focusing on OneDrive.
+            Backend/connection logic untouched, just not surfaced here. */}
+        {(Object.keys(statuses) as SourceKey[]).filter((key) => key !== "google").map((key) => (
           <SourceCard key={key} source={key} status={statuses[key]} roomId={roomId} onLinked={loadStatuses} />
         ))}
       </div>

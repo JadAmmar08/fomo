@@ -224,6 +224,20 @@ export async function syncPersonalMemoryFromActivity(anonymousUserId: string, ro
   return { content: out.updatedMemory.trim(), updatedAt: new Date().toISOString() };
 }
 
+const AUTO_SYNC_MIN_INTERVAL_MS = 15 * 60 * 1000;
+
+// Fire-and-forget wrapper for real file activity to call after a genuine edit,
+// throttled so a burst of edits doesn't trigger an LLM call every time — only
+// syncs if the memory hasn't been touched in the last 15 minutes, or has never
+// been synced at all. Callers should not await this on the hot path; catch
+// errors themselves or let them log and drop.
+export async function maybeSyncPersonalMemoryFromActivity(anonymousUserId: string, roomId: string): Promise<void> {
+  const current = await getPersonalMemory(anonymousUserId, roomId);
+  const age = Date.now() - new Date(current.updatedAt).getTime();
+  if (current.content && age < AUTO_SYNC_MIN_INTERVAL_MS) return;
+  await syncPersonalMemoryFromActivity(anonymousUserId, roomId);
+}
+
 // Direct edit, no AI involved — the person should always be able to just
 // rewrite their own memory outright, not only through conversation.
 export async function setPersonalMemory(anonymousUserId: string, roomId: string, content: string): Promise<PersonalMemory> {
