@@ -166,14 +166,14 @@ export default function LandingPage() {
             The mirror
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Not a snapshot. A memory.
+            Not a snapshot. A directory.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, maxWidth: 420 }}>
-            Five states, read at a glance: what&apos;s live, where work is in tension, what&apos;s unresolved, what&apos;s gone stale, what&apos;s settled and why. A new member reads it and is caught up in minutes, no meeting required.
+            Decisions, open questions, disagreements, the exact history of every number that&apos;s changed, and a private file of what FOMO understands about how you specifically work. Real files, not a wall of generated prose. A new member opens the ones they need and is caught up in minutes, no meeting required.
           </p>
         </div>
 
-        {/* Product mockup card — a small preview of the actual five-column board */}
+        {/* Product mockup card — a small preview of the actual directory grid */}
         <div style={{
           background: "white",
           borderRadius: 20,
@@ -188,17 +188,80 @@ export default function LandingPage() {
             </div>
             <span className="pill" style={{ fontSize: "0.75rem" }}>Live</span>
           </div>
-          <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
+          <div style={{ padding: "22px 26px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[
-              { label: "Live", color: "var(--implication)", body: "The in-vivo delivery approach is the team's default, pending regulatory resolution." },
-              { label: "In tension", color: "var(--tension)", body: "The valuation model assumes seven years of exclusivity, but the strongest claims expire in four." },
-              { label: "Stale", color: "var(--blindspot)", body: "Nobody has revisited the exclusivity assumption since patent research surfaced the shorter expiry." },
-            ].map((c) => (
-              <div key={c.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: "14px 18px" }}>
-                <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: c.color, display: "block", marginBottom: 6 }}>{c.label}</span>
-                <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: 0, color: "var(--text-strong)" }}>{c.body}</p>
+              { label: "Decisions", count: "03", color: "var(--direction)" },
+              { label: "Disagreements", count: "01", color: "var(--tension)" },
+              { label: "Fact history", count: "—", color: "var(--accent)" },
+              { label: "Your memory", count: "🔒", color: "var(--gold)" },
+            ].map((f) => (
+              <div key={f.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: f.color }}>{f.label}</span>
+                  <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.7rem", color: "var(--subtle)" }}>{f.count}</span>
+                </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Live in-document detection — the actual live-edit mechanism, shown as a
+          document mockup rather than a card, since the whole point is that it
+          happens inside the file itself, not in a separate feed. */}
+      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+            Live detection
+          </div>
+          <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
+            Not a report. It happens as you type.
+          </h2>
+          <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
+            Edit a number that contradicts a teammate&apos;s file, and FOMO catches it in seconds, right in the document. The exact cell highlights, with a note citing both files and both values, no report to go read later.
+          </p>
+          <div style={{ display: "grid", gap: 16 }}>
+            {[
+              { title: "Right where the problem is.", body: "Not a sidebar summary you have to cross-reference. The actual conflicting cell is marked, in Excel, as you're already looking at it." },
+              { title: "Receipts, not just a claim.", body: "Every alert cites both exact files and exact cell references. Checkable in seconds, so a wrong one costs a glance, not your trust." },
+              { title: "One click, gone for good.", body: "Dismiss it and it's actually deleted, not hidden. If FOMO's wrong, say so once." },
+            ].map((f) => (
+              <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
+                <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Product mockup card — the actual Excel task pane sidebar output */}
+        <div style={{
+          background: "white",
+          borderRadius: 20,
+          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
+          border: "1px solid var(--line)",
+          overflow: "hidden"
+        }}>
+          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>FOMO Live Signal</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Q4-forecast.xlsx</div>
+            </div>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>● Live</span>
+          </div>
+          <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
+            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 18px" }}>
+              <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: 8 }}>Conflicting data found</span>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: "0 0 12px", color: "var(--text-strong)" }}>
+                Q4 Revenue is 88000 in Forecast.xlsx Sheet1!D6, but 120000 in Budget.xlsx Sheet1!B2.
+              </p>
+              <span className="button-secondary" style={{ fontSize: "0.8rem", padding: "7px 16px", display: "inline-flex" }}>Dismiss</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span className="chip">seconds, not minutes</span>
+              <span className="chip">cited to the exact cell</span>
+            </div>
           </div>
         </div>
       </section>
