@@ -453,14 +453,17 @@ export async function processFileChange(
   // sometimes differently-worded cards for the same real conflict.
   const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
   const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
+  const isPptxFile = provider === "microsoft" && /\.pptx$/i.test(fileName);
 
   let usedStructuredFacts = false;
   let results: ConflictResult[] = [];
-  if (isGoogleSheet || isExcelFile) {
+  if (isGoogleSheet || isExcelFile || isPptxFile) {
     try {
       const cells = provider === "google"
         ? await google.getSheetValuesWithCoordinates(token, fileId)
-        : await microsoft.extractStructuredCells(token, fileId, fileName);
+        : isPptxFile
+          ? await microsoft.extractStructuredSlides(token, fileId, fileName)
+          : await microsoft.extractStructuredCells(token, fileId, fileName);
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, fileName);
@@ -655,7 +658,7 @@ export async function extractFactsFromCells(cells: StructuredCellInput[], fileNa
         }
       ],
       tool_choice: { type: "tool", name: "extract_facts" },
-      system: `Each line is one cell from "${fileName}": its coordinate, value, and any row/column label found nearby. Only keep cells that are real, checkable facts, a labeled number, date, or named conclusion someone could contradict. Skip IDs, blank labels, formatting artifacts, or cells with no meaningful label. The row label is usually the named entity (client, person, project) this fact is about, extract it into "entity" separately from "subject". Copy "location" and "value" exactly as given, never invent or reformat them. Max 30 facts. NO EM-DASHES.`,
+      system: `Each line is one labeled chunk of content from "${fileName}": its location (a spreadsheet cell coordinate, or a slide number for PowerPoint), its value, and any row/column label found nearby (spreadsheets only). Only keep real, checkable facts, a labeled number, date, or named conclusion someone could contradict. For slide content, a "value" may be a full sentence or paragraph, pull out the specific factual claim(s) within it rather than copying the whole slide as one fact. Skip IDs, blank labels, formatting artifacts, or content with no identifiable claim. Where present, the row label or the slide's clear subject is usually the named entity (client, person, project) this fact is about, extract it into "entity" separately from "subject". Copy "location" exactly as given, never invent it; "value" should be the exact relevant excerpt, not reformatted or paraphrased. Max 30 facts. NO EM-DASHES.`,
       messages: [{ role: "user", content: cellLines }]
     });
 

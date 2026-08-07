@@ -467,8 +467,11 @@ const MAX_CONTENT_CHARS = 3000;
 // A .pptx is just a zip of XML — each slide's text runs live in ppt/slides/slideN.xml
 // as <a:t> elements. No mainstream "mammoth for PowerPoint" library exists, so this
 // unzips and extracts text directly rather than pull in a heavier, less-trusted
-// pptx-parsing package for what's fundamentally simple XML text extraction.
-async function extractPptxText(buffer: Buffer): Promise<string | null> {
+// pptx-parsing package for what's fundamentally simple XML text extraction. Shared
+// by extractPptxText (whole-text fallback) and extractStructuredSlides (structured-
+// facts path) below, so both read the same real slide content, not two divergent
+// parsers.
+async function readPptxSlideTexts(buffer: Buffer): Promise<string[] | null> {
   const JSZip = (await import("jszip")).default;
   const zip = await JSZip.loadAsync(buffer);
 
@@ -482,14 +485,19 @@ async function extractPptxText(buffer: Buffer): Promise<string | null> {
 
   if (slideFiles.length === 0) return null;
 
-  const slideTexts = await Promise.all(
-    slideFiles.map(async (name, i) => {
+  return Promise.all(
+    slideFiles.map(async (name) => {
       const xml = await zip.files[name].async("text");
       const texts = [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1]).filter(Boolean);
-      return texts.length > 0 ? `Slide ${i + 1}: ${texts.join(" ")}` : null;
+      return texts.join(" ");
     })
   );
+}
 
+async function extractPptxText(buffer: Buffer): Promise<string | null> {
+  const slides = await readPptxSlideTexts(buffer);
+  if (!slides) return null;
+  const slideTexts = slides.map((text, i) => (text ? `Slide ${i + 1}: ${text}` : null));
   return slideTexts.filter(Boolean).join("\n").slice(0, MAX_CONTENT_CHARS) || null;
 }
 
@@ -660,6 +668,39 @@ export async function extractStructuredCells(accessToken: string, fileId: string
     return cells.length > 0 ? cells.slice(0, 200) : null;
   } catch (err) {
     console.error(`[extractStructuredCells] failed for ${fileName}:`, err);
+    return null;
+  }
+}
+
+// Slide-level structured facts — the same {location, value} shape as
+// extractStructuredCells above, so a .pptx runs through the exact same
+// extractFactsFromCells + checkFactsForConflict pipeline Excel already has,
+// instead of only ever getting the coarser whole-text fallback. "location" is
+// the slide itself (e.g. "Slide 4"), not a cell, since slides have no natural
+// row/column structure — extractFactsFromCells' own judgment step is what
+// pulls individual factual claims (a stated TAM, a date, a headcount number)
+// out of each slide's full text.
+export async function extractStructuredSlides(accessToken: string, fileId: string, fileName: string): Promise<StructuredCell[] | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (ext !== "pptx") return null;
+
+  try {
+    const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}/content`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    const slides = await readPptxSlideTexts(buffer);
+    if (!slides) return null;
+
+    const cells: StructuredCell[] = slides
+      .map((text, i) => ({ location: `Slide ${i + 1}`, value: text.trim() }))
+      .filter((c) => c.value.length > 0);
+
+    return cells.length > 0 ? cells.slice(0, 60) : null;
+  } catch (err) {
+    console.error(`[extractStructuredSlides] failed for ${fileName}:`, err);
     return null;
   }
 }
