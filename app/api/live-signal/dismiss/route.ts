@@ -14,6 +14,25 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
   if (!pool) return NextResponse.json({ error: "Database not configured" }, { status: 500 });
 
+  // The actual resolution-data learning loop: a dismissed fact_conflict card
+  // carries the subject+entity pattern it was about (see checkFactsForConflict
+  // in lib/file-watch.ts), recorded here BEFORE the delete so future checks on
+  // the same pattern in this room get auto-suppressed instead of asking the
+  // person to dismiss the same false positive over and over.
+  if (cardKey.startsWith("fact_conflict:")) {
+    const cardRes = await pool.query<{ card_data: { subject?: string; entity?: string; text?: string } }>(
+      `select card_data from pinned_cards where anonymous_user_id = $1 and room_id = $2 and card_type = 'discovery' and card_key = $3`,
+      [anonymousUserId, roomSlug, cardKey]
+    );
+    const cardData = cardRes.rows[0]?.card_data;
+    if (cardData?.subject) {
+      await pool.query(
+        `insert into dismissed_conflict_rules (room_id, subject, entity, card_text, dismissed_by) values ($1, $2, $3, $4, $5)`,
+        [roomSlug, cardData.subject, cardData.entity || null, cardData.text || cardKey, anonymousUserId]
+      );
+    }
+  }
+
   await pool.query(
     `delete from pinned_cards where anonymous_user_id = $1 and room_id = $2 and card_type = 'discovery' and card_key = $3`,
     [anonymousUserId, roomSlug, cardKey]

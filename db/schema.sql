@@ -498,3 +498,21 @@ create table if not exists personal_memory_shares (
   shared_at timestamptz not null default now()
 );
 create index if not exists idx_personal_memory_shares_recipient on personal_memory_shares(shared_with, room_id);
+
+-- DISMISSED CONFLICT RULES (the actual resolution-data learning loop: when
+-- someone dismisses a fact_conflict card, the subject+entity pattern behind it
+-- gets recorded here, so the same class of false positive doesn't get flagged
+-- again for this room. Deliberately keyed on subject+entity, not the literal
+-- card text, since the exact wording differs every time even for the same
+-- underlying pattern.)
+create table if not exists dismissed_conflict_rules (
+  id uuid primary key default gen_random_uuid(),
+  room_id text not null,
+  subject text not null,
+  entity text,
+  card_text text not null,
+  dismissed_by text not null,
+  dismissed_at timestamptz not null default now()
+);
+create index if not exists idx_dismissed_conflict_rules_subject_trgm on dismissed_conflict_rules using gin (subject gin_trgm_ops);
+create index if not exists idx_dismissed_conflict_rules_entity_trgm on dismissed_conflict_rules using gin (entity gin_trgm_ops);

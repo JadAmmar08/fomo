@@ -3,6 +3,7 @@ import { getPool } from "@/lib/postgres";
 import * as google from "@/lib/google";
 import * as microsoft from "@/lib/microsoft";
 import { sendPushToUser } from "@/lib/push";
+import { getPersonalMemory } from "@/lib/personal-memory";
 
 type Provider = "google" | "microsoft";
 
@@ -798,9 +799,34 @@ export async function checkFactsForConflict(
     );
     if (candidates.length === 0) continue;
 
+    // The actual resolution-data learning loop: if someone already dismissed a
+    // conflict card for this same subject+entity pattern in this room, don't
+    // flag it again. Matched by subject+entity similarity, not the literal old
+    // card text, since the exact wording (and the specific values involved)
+    // differs every time even when it's the same underlying "this isn't really
+    // a conflict" pattern a person already told FOMO about once.
+    const dismissedRes = await pool.query<{ id: string }>(
+      `select id from dismissed_conflict_rules
+       where room_id = $1 and similarity(subject, $2) > 0.6
+         and ($3 = '' or entity is null or similarity(entity, $3) > 0.6)
+       limit 1`,
+      [roomSlug, fact.subject, fact.entity || ""]
+    );
+    if (dismissedRes.rows.length > 0) continue;
+
     try {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey });
+
+      // What FOMO privately understands about how this specific person works
+      // (see lib/personal-memory.ts) can matter to judgment, e.g. "I always
+      // finalize headcount after revenue" explains an in-progress-looking gap
+      // that isn't really a contradiction. Best-effort context, not a hard
+      // rule, the model still has to decide it's actually relevant.
+      const memory = await getPersonalMemory(anonymousUserId, roomSlug).catch(() => null);
+      const memoryContext = memory?.content
+        ? `\n\nWhat's privately known about how ${fileName}'s editor works (may or may not be relevant): ${memory.content}`
+        : "";
 
       const message = await client.messages.create({
         model: "claude-haiku-4-5-20251001",
@@ -821,7 +847,7 @@ export async function checkFactsForConflict(
           }
         ],
         tool_choice: { type: "tool", name: "fact_conflict_check" },
-        system: `A new fact was just recorded: "${fact.subject}" = ${fact.value} (${fileName}, ${fact.location}). Compare it against these candidate facts from other files in the same project. A real contradiction means they're genuinely about the same real-world thing: same named entity (same client, person, or project name), same subject, same time period, same kind of figure, but disagree on value. Matching only on the metric label (e.g. both being "Launch Date" or both being "Revenue") while the named entity differs (e.g. "Gamma LLC" vs "Delta Co") is NEVER a contradiction, even if the subject text looks similar. Same number appearing in a different context is NOT a contradiction. If a real contradiction exists, cite both exact locations and values in one sentence. NO EM-DASHES. Max 28 words.`,
+        system: `A new fact was just recorded: "${fact.subject}" = ${fact.value} (${fileName}, ${fact.location}). Compare it against these candidate facts from other files in the same project. A real contradiction means they're genuinely about the same real-world thing: same named entity (same client, person, or project name), same subject, same time period, same kind of figure, but disagree on value. Matching only on the metric label (e.g. both being "Launch Date" or both being "Revenue") while the named entity differs (e.g. "Gamma LLC" vs "Delta Co") is NEVER a contradiction, even if the subject text looks similar. Same number appearing in a different context is NOT a contradiction. If a real contradiction exists, cite both exact locations and values in one sentence. NO EM-DASHES. Max 28 words.${memoryContext}`,
         messages: [
           {
             role: "user",
@@ -849,7 +875,10 @@ export async function checkFactsForConflict(
       if (candidate && candidate.file_name !== fileName) sourceLocations[candidate.file_name] = candidate.location;
 
       const cardKey = `fact_conflict:${out.text}`;
-      const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId, sourceLocations };
+      // subject/entity ride along so a later Dismiss can record the pattern
+      // into dismissed_conflict_rules (see app/api/live-signal/dismiss/route.ts)
+      // without having to re-parse it out of the free-text card content.
+      const rec = { type: "team_signal" as const, text: out.text, sourceTopics, conflictKind: "contradiction" as const, sourceFileId: fileId, sourceLocations, subject: fact.subject, entity: fact.entity || null };
 
       // A conflict is pinned for BOTH files' owners, not just whoever's edit
       // triggered this check — confirmed live: two files linked under two
