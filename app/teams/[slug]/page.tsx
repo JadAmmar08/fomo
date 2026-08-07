@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
 import { WorkstreamUnified } from "@/components/workstream-unified";
-import { EnableNotifications } from "@/components/enable-notifications";
 import { DiscoveryRecommendationCard } from "@/components/discovery-recommendation-card";
 import { WorkstreamNoteEditor } from "@/components/workstream-note-editor";
 import { logFeatureView } from "@/lib/cost-log";
@@ -141,7 +140,6 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           <Link href={`/teams/${slug}/mirror` as Route} className="button-secondary" style={{ display: "inline-flex" }}>
             Memory →
           </Link>
-          <EnableNotifications />
         </div>
       </section>
 
