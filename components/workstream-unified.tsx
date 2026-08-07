@@ -52,9 +52,11 @@ const SOURCE_META: Record<SourceKey, {
   includeSharedPath?: string;
   filesPath?: string;
   unlinkPath: string;
-  // A one-time snapshot of everything that exists right now, replacing the
-  // open-ended "read everything I own forever" auto-all grant for sources
-  // where that distinction matters (currently just OneDrive).
+  // Marks a starting checkpoint, not a historical backfill: whatever exists
+  // right now becomes the baseline (never scanned/processed), and only files
+  // created or edited AFTER this point get picked up, no sidebar needed.
+  // Replaces the open-ended "read everything I own forever" auto-all grant
+  // for sources where that distinction matters (currently just OneDrive).
   snapshotPath?: string;
   snapshotLabel?: string;
 }> = {

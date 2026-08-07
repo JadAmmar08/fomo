@@ -1,36 +1,25 @@
-import { NextRequest, NextResponse, after } from "next/server";
-import { getValidAccessToken, snapshotAllExistingFiles, addMicrosoftFiles } from "@/lib/microsoft";
+import { NextRequest, NextResponse } from "next/server";
 import { getRequestAnonymousUserId } from "@/lib/session";
-import { registerFileWatch } from "@/lib/file-watch";
+import { registerFolderWatch } from "@/lib/file-watch";
 
-// "All files up to this point": a one-time snapshot of whatever files actually
-// exist right now, linked and watched the same way hand-picked files are —
-// unlike the old auto-all flag, this doesn't keep expanding to new files
-// created later, it's bounded to what existed when someone chose this.
+// "All files up to this point": marks a starting checkpoint, not a backfill.
+// Reuses the existing folder-watch mechanism rooted at the whole drive
+// ("root") — registerFolderWatch snapshots whatever files exist right now as
+// the known baseline (never processed or backfilled), and only files that
+// show up AFTER this point get treated as new and checked. No historical
+// crawl, no scrolling through old files, and no sidebar/task pane needs to be
+// open, new/edited files are caught through the same webhook path Word/Excel
+// already fall back to when the live-edit pane isn't running.
 export async function POST(req: NextRequest) {
   const anonymousUserId = getRequestAnonymousUserId(req);
   const body = await req.json();
   const roomId = String(body.roomId ?? "");
   if (!roomId) return NextResponse.json({ error: "roomId required" }, { status: 400 });
 
-  const accessToken = await getValidAccessToken(anonymousUserId, roomId);
-  if (!accessToken) return NextResponse.json({ error: "Not connected" }, { status: 400 });
-
-  const files = await snapshotAllExistingFiles(accessToken).catch((err) => {
-    console.error("[microsoft link-all] snapshot failed:", err);
-    return [];
-  });
-  if (files.length === 0) return NextResponse.json({ ok: true, count: 0 });
-
-  await addMicrosoftFiles(anonymousUserId, roomId, files);
-
-  after(async () => {
-    for (const f of files) {
-      await registerFileWatch("microsoft", anonymousUserId, roomId, f.id, f.name).catch((err) =>
-        console.error("[microsoft link-all] watch registration failed:", err)
-      );
-    }
+  await registerFolderWatch("microsoft", anonymousUserId, roomId, "root", "My files").catch((err) => {
+    console.error("[microsoft link-all] folder watch registration failed:", err);
+    throw err;
   });
 
-  return NextResponse.json({ ok: true, count: files.length });
+  return NextResponse.json({ ok: true });
 }

@@ -287,6 +287,15 @@ export async function handleFolderChangeNotification(provider: Provider, channel
     await checkNewFileForOverlap(row.anonymous_user_id, row.room_id, file.name, file.id).catch((err) =>
       console.error(`[folder-watch overlap check] failed for ${file.name}:`, err)
     );
+    // Without its own watch, a newly discovered file only ever gets this one
+    // creation-time overlap check — any edit made to it afterward would go
+    // completely unnoticed, since nothing else is watching it. Registering a
+    // real per-file watch here is what makes "all files up to this point"
+    // actually cover files created after that point too, not just their
+    // arrival.
+    await registerFileWatch(provider, row.anonymous_user_id, row.room_id, file.id, file.name).catch((err) =>
+      console.error(`[folder-watch] per-file watch registration failed for ${file.name}:`, err)
+    );
   }
 }
 
