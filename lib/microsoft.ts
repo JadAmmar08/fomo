@@ -398,17 +398,46 @@ export async function enableAutoAllFiles(anonymousUserId: string, roomId: string
   );
 }
 
-// A one-time snapshot, not an ongoing grant: links whatever files actually exist
-// right now (via Graph's /recent, which reflects real activity, not a full drive
-// crawl), then registers a normal per-file watch for each — same mechanism as
-// hand-picking files one by one, just applied to "everything as of starting this
-// project" instead of requiring someone to select each file. Deliberately
-// replaces the old enableAutoAllFiles ("read everything I own," an open-ended,
-// ever-expanding scope flag) with a bounded, explicit action that doesn't keep
-// silently pulling in new files someone never chose to include.
-export async function snapshotAllExistingFiles(accessToken: string, maxFiles = 100, includeShared = true) {
-  const files = await listRecentFilesAcrossDrive(accessToken, maxFiles, includeShared);
-  return files.filter((f) => f.file).map((f) => ({ id: f.id, name: f.name }));
+// True full-drive listing, every file that exists anywhere in the account, not
+// just recently-touched ones — Graph's /recent stays empty or badly lagged for
+// files that were made a while ago and haven't been opened since, which "every
+// file they've ever edited or made" explicitly needs. The delta endpoint is
+// built for exactly this: one paginated walk of the entire drive tree (files
+// AND folders, in one flattened list) instead of manually recursing into every
+// folder ourselves. Capped at MAX_SNAPSHOT_FILES as a safety bound, not a
+// meaningful scope restriction, real accounts rarely approach it.
+const MAX_SNAPSHOT_FILES = 2000;
+
+async function listAllDriveFiles(accessToken: string): Promise<Array<{ id: string; name: string }>> {
+  const files: Array<{ id: string; name: string }> = [];
+  let url: string | null = `${GRAPH_BASE}/me/drive/root/delta?$select=id,name,file,deleted`;
+
+  while (url && files.length < MAX_SNAPSHOT_FILES) {
+    const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) break;
+    const data: { value: Array<{ id: string; name: string; file?: unknown; deleted?: unknown }>; "@odata.nextLink"?: string } = await res.json();
+    for (const item of data.value) {
+      if (item.file && !item.deleted && item.name) {
+        files.push({ id: item.id, name: item.name });
+      }
+    }
+    url = data["@odata.nextLink"] ?? null;
+  }
+
+  return files.slice(0, MAX_SNAPSHOT_FILES);
+}
+
+// A one-time snapshot, not an ongoing grant: links every file that actually
+// exists right now, then registers a normal per-file watch for each — same
+// mechanism as hand-picking files one by one, just applied to "everything as
+// of starting this project" instead of requiring someone to select each file.
+// Deliberately replaces the old enableAutoAllFiles ("read everything I own,"
+// an open-ended, ever-expanding scope flag) with a bounded, explicit action
+// that doesn't keep silently pulling in new files someone never chose to
+// include, going forward those are still caught by the normal live-edit and
+// webhook watch mechanisms, not by this snapshot growing on its own.
+export async function snapshotAllExistingFiles(accessToken: string) {
+  return listAllDriveFiles(accessToken);
 }
 
 // A separate, explicit decision on top of "everything I own": also include files
