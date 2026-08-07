@@ -8,7 +8,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FOMO",
-  description: "Know what your community is paying attention to."
+  description: "FOMO catches contradictions and duplicated work in your team's files, live, right where you're working."
 };
 
 export default function RootLayout({

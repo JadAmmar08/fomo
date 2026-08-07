@@ -8,17 +8,83 @@ export default function LandingPage() {
       <section style={{ padding: "110px 0 72px", textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 40, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-          A living record of where your project stands.
+          Catches contradictions the moment they happen.
           <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
         </div>
         <h1 style={{ fontSize: "clamp(3.5rem, 8vw, 6.8rem)", maxWidth: 900, margin: "0 auto 36px", lineHeight: 0.98, letterSpacing: "-0.03em" }}>
           Your team knows more than it realizes.
         </h1>
         <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: "1.2rem", lineHeight: 1.7, color: "var(--muted)" }}>
-          FOMO connects to the tools your team already uses, Drive, OneDrive, Slack, and keeps a live model of what's been done, what's changed, and where separate workstreams quietly duplicate or contradict each other.
+          FOMO watches the files your team already works in, Excel, PowerPoint, Word, Slack, and catches it live when two people&apos;s numbers stop agreeing. Not a report you read later. It happens right in the document, cited to the exact cell.
         </p>
         <HeroCta />
         <p style={{ fontSize: "0.85rem", color: "var(--subtle)" }}>Free forever. Anonymous by design. You choose exactly what it can see.</p>
+      </section>
+
+      {/* Proof first: real Excel + PowerPoint examples, before any philosophy —
+          this is the thing that's actually true and demoable today, so it leads. */}
+      <section data-reveal style={{ padding: "40px 0 90px", borderTop: "1px solid var(--line)" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+            See it, don&apos;t take our word for it
+            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
+          </div>
+          <h2 style={{ fontSize: "clamp(2.4rem, 5vw, 4rem)", lineHeight: 1.05, maxWidth: 640, margin: "0 auto" }}>
+            Two people, two files, one contradiction.
+          </h2>
+        </div>
+
+        <div className="grid two" style={{ gap: 32 }}>
+          {/* Excel card */}
+          <div style={{ background: "white", borderRadius: 20, boxShadow: "0 24px 70px rgba(0,0,0,0.1)", border: "1px solid var(--line)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#1a7f37" }} />
+                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Excel</span>
+              </div>
+              <span className="pill" style={{ fontSize: "0.72rem" }}>Live, cell-level</span>
+            </div>
+            <div style={{ padding: "20px 24px" }}>
+              <div style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.78rem", background: "var(--surface-muted)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, color: "var(--muted)" }}>
+                Sheet1!D6 &nbsp;·&nbsp; Q4 Revenue &nbsp;·&nbsp; <span style={{ background: "#fff3b0", padding: "1px 6px", borderRadius: 4, color: "var(--text)" }}>88000</span>
+              </div>
+              <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "14px 16px" }}>
+                <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: 6 }}>Conflicting data found</span>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.55, margin: "0 0 10px", color: "var(--text-strong)" }}>
+                  Q4 Revenue is 88000 here, but 120000 in Budget.xlsx Sheet1!B2.
+                </p>
+                <span className="button-secondary" style={{ fontSize: "0.75rem", padding: "6px 14px", display: "inline-flex" }}>Dismiss</span>
+              </div>
+            </div>
+          </div>
+
+          {/* PowerPoint card */}
+          <div style={{ background: "white", borderRadius: 20, boxShadow: "0 24px 70px rgba(0,0,0,0.1)", border: "1px solid var(--line)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#c0392b" }} />
+                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>PowerPoint</span>
+              </div>
+              <span className="pill" style={{ fontSize: "0.72rem" }}>Slide-level</span>
+            </div>
+            <div style={{ padding: "20px 24px" }}>
+              <div style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.78rem", background: "var(--surface-muted)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, color: "var(--muted)" }}>
+                Slide 4 &nbsp;·&nbsp; &quot;Market Sizing&quot; &nbsp;·&nbsp; <span style={{ background: "#fff3b0", padding: "1px 6px", borderRadius: 4, color: "var(--text)" }}>$40M TAM</span>
+              </div>
+              <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--tension)", borderRadius: 14, padding: "14px 16px" }}>
+                <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--tension)", display: "block", marginBottom: 6 }}>Possible overlap</span>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.55, margin: "0 0 10px", color: "var(--text-strong)" }}>
+                  This deck says $40M TAM, but Market-Research.xlsx puts it at $65M as of last week.
+                </p>
+                <span className="button-secondary" style={{ fontSize: "0.75rem", padding: "6px 14px", display: "inline-flex" }}>Dismiss</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--subtle)", marginTop: 28, maxWidth: 520, margin: "28px auto 0" }}>
+          Excel catches it as you type, cell by cell. PowerPoint and Word catch it on save, cited to the exact slide or paragraph. Both dismiss for good in one click.
+        </p>
       </section>
 
       {/* Concrete value props */}
@@ -206,26 +272,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Live in-document detection — the actual live-edit mechanism, shown as a
-          document mockup rather than a card, since the whole point is that it
-          happens inside the file itself, not in a separate feed. */}
+      {/* Handoff / KT — text left, product card right. This is the payoff of the
+          fact-history + personal-memory work: not a separate feature, the same
+          substrate that catches contradictions also lets someone pick up
+          another person's work without a meeting. */}
       <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
             <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-            Live detection
+            Handoff
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Not a report. It happens as you type.
+            Picking up someone else&apos;s work shouldn&apos;t need a meeting.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-            Edit a number that contradicts a teammate&apos;s file, and FOMO catches it in seconds, right in the document. The exact cell highlights, with a note citing both files and both values, no report to go read later.
+            Every number FOMO has ever caught has a history: what it was, who set it, when it changed, and why it mattered. When someone moves on or hands off a project, that history is already there, not reconstructed from memory in a rushed call.
           </p>
           <div style={{ display: "grid", gap: 16 }}>
             {[
-              { title: "Right where the problem is.", body: "Not a sidebar summary you have to cross-reference. The actual conflicting cell is marked, in Excel, as you're already looking at it." },
-              { title: "Receipts, not just a claim.", body: "Every alert cites both exact files and exact cell references. Checkable in seconds, so a wrong one costs a glance, not your trust." },
-              { title: "One click, gone for good.", body: "Dismiss it and it's actually deleted, not hidden. If FOMO's wrong, say so once." },
+              { title: "A private file, not a performance review.", body: "What FOMO understands about how you work stays yours. No manager view, no team-wide visibility, ever. Only you see it, only you edit it." },
+              { title: "You hand it off, on purpose.", body: "Share a one-time snapshot with whoever's taking over. Not a live sync, they get what's true right now, not a moving target." },
+              { title: "The receipts carry over.", body: "Exact file, exact cell, exact timestamp, for every value that's changed. The new person doesn't have to trust a summary, they can check it." },
             ].map((f) => (
               <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                 <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
@@ -235,7 +302,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Product mockup card — the actual Excel task pane sidebar output */}
+        {/* Product mockup card — the personal memory + share flow */}
         <div style={{
           background: "white",
           borderRadius: 20,
@@ -245,22 +312,28 @@ export default function LandingPage() {
         }}>
           <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>FOMO Live Signal</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Q4-forecast.xlsx</div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Your memory</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Private to you</div>
             </div>
-            <span className="pill" style={{ fontSize: "0.75rem" }}>● Live</span>
+            <span className="pill" style={{ fontSize: "0.75rem" }}>🔒 Only you</span>
           </div>
-          <div style={{ padding: "22px 26px", display: "grid", gap: 14 }}>
-            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 18px" }}>
-              <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: 8 }}>Conflicting data found</span>
-              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: "0 0 12px", color: "var(--text-strong)" }}>
-                Q4 Revenue is 88000 in Forecast.xlsx Sheet1!D6, but 120000 in Budget.xlsx Sheet1!B2.
+          <div style={{ padding: "22px 26px" }}>
+            <div style={{ background: "var(--surface-muted)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--subtle)" }}>What FOMO understands</span>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: "8px 0 0", color: "var(--text-strong)" }}>
+                You always double-check Q4 numbers against Budget.xlsx before pushing an update.
               </p>
-              <span className="button-secondary" style={{ fontSize: "0.8rem", padding: "7px 16px", display: "inline-flex" }}>Dismiss</span>
+            </div>
+            <div style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", marginBottom: 14 }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--gold)", display: "block", marginBottom: 8 }}>Share for handoff</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1, background: "white", border: "1px solid var(--line-strong)", borderRadius: 10, padding: "8px 12px", fontSize: "0.8rem", color: "var(--subtle)" }}>Their ID...</div>
+                <span className="button-secondary" style={{ fontSize: "0.75rem", padding: "8px 16px", display: "inline-flex" }}>Share</span>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <span className="chip">seconds, not minutes</span>
-              <span className="chip">cited to the exact cell</span>
+              <span className="chip">one-time snapshot</span>
+              <span className="chip">not a live sync</span>
             </div>
           </div>
         </div>
