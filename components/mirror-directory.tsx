@@ -59,6 +59,8 @@ function PersonalMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid:
   const [sending, setSending] = useState(false);
   const [shareWith, setShareWith] = useState("");
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => {
@@ -67,6 +69,25 @@ function PersonalMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid:
       .then((r) => r.json())
       .then((d) => { setMemory(d.memory); setMessages(d.messages ?? []); });
   }, [roomId, viewerUid]);
+
+  async function syncFromActivity() {
+    setSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await fetch("/api/personal-memory/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousUserId: viewerUid, roomId })
+      });
+      const data = await res.json();
+      if (data.memory) setMemory(data.memory);
+      setSyncStatus(res.ok ? "Updated from your recent file activity." : "Nothing new to sync right now.");
+    } catch {
+      setSyncStatus("Couldn't sync right now.");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -115,6 +136,12 @@ function PersonalMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid:
         <p style={{ margin: "10px 0 0", fontSize: "0.92rem", lineHeight: 1.6, color: "var(--text-strong)" }}>
           {memory?.content ? memory.content : "Nothing recorded yet, tell it something below."}
         </p>
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={syncFromActivity} disabled={syncing} className="button-secondary" style={{ fontSize: "0.75rem", padding: "6px 14px" }}>
+            {syncing ? "Syncing..." : "Update from my activity"}
+          </button>
+          {syncStatus && <span style={{ fontSize: "0.75rem", color: "var(--subtle)" }}>{syncStatus}</span>}
+        </div>
       </div>
 
       <div style={{ maxHeight: 320, overflowY: "auto", display: "grid", gap: 10, marginBottom: 14, paddingRight: 4 }}>

@@ -134,6 +134,92 @@ export async function sendPersonalMemoryChat(
   return { reply, memory };
 }
 
+// Synthesizes memory from what's actually been OBSERVED, not just what the
+// person has said in chat — real file activity from project_facts: which
+// files/entities they touch, how often, and in what order. This is the
+// buildable half of "map how this person operates" (2026-08-07 vision
+// revisit): file-editing habits are real signal already captured, versus
+// "who they talk to about what," which needs the Slack integration that
+// doesn't exist yet. Depth here is intentionally unrestricted (per that
+// revisit, only visibility is the hard boundary, not how much is modeled),
+// merged with whatever the person has already told FOMO directly, not
+// overwriting self-reported context, and never producing anything as a
+// character judgment, always framed as observed working patterns.
+export async function syncPersonalMemoryFromActivity(anonymousUserId: string, roomId: string): Promise<PersonalMemory> {
+  const pool = getPool();
+  if (!pool) throw new Error("Database not configured");
+
+  const [current, factsRes] = await Promise.all([
+    getPersonalMemory(anonymousUserId, roomId),
+    pool.query<{ file_name: string; entity: string | null; subject: string; value: string; location: string; extracted_at: string }>(
+      `select file_name, entity, subject, value, location, extracted_at
+       from project_facts
+       where anonymous_user_id = $1 and room_id = $2
+       order by extracted_at desc
+       limit 150`,
+      [anonymousUserId, roomId]
+    )
+  ]);
+
+  if (factsRes.rows.length === 0) return current;
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return current;
+
+  const activityLines = factsRes.rows
+    .map((r) => `${r.extracted_at} | ${r.file_name} | ${r.location} | ${r.entity ? r.entity + " " : ""}${r.subject} = ${r.value}`)
+    .join("\n");
+
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const client = new Anthropic({ apiKey });
+
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 800,
+    tools: [
+      {
+        name: "activity_sync",
+        description: "Update the person's private memory with real patterns observed in their file activity.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            updatedMemory: {
+              type: "string",
+              description: "Full replacement memory text, merging real observed patterns (which files/entities they work in most, structural habits, timing, sequence) with whatever the person has already told FOMO. Empty string if there's nothing new worth recording."
+            }
+          },
+          required: ["updatedMemory"],
+          additionalProperties: false
+        }
+      }
+    ],
+    tool_choice: { type: "tool", name: "activity_sync" },
+    system: `This is a private, self-facing memory file: what FOMO understands about how this one person works, used so someone inheriting their work later can pick it up like a colleague who already knows the context, not a cold file. Only this person will ever read it directly, and only whoever they explicitly choose to hand a KT snapshot to sees it otherwise. Speak in second person about them ("you tend to...") when writing the memory itself. Describe real, observed working patterns, never a character judgment or evaluative language. The current memory content, don't discard anything true in it: \n\n${current.content || "(nothing recorded yet)"}\n\nTheir real recent file activity (file, cell/slide location, what changed):\n${activityLines}\n\nMerge in only genuine, useful patterns (which files/entities they're most active in, how they tend to structure or sequence their edits, anything a successor would benefit from knowing). Empty string if the activity doesn't add anything new. NO EM-DASHES.`,
+    messages: [{ role: "user", content: "Sync my memory with my real activity." }]
+  });
+
+  logApiCall({
+    callType: "personal_memory_chat",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+    roomId,
+    anonymousUserId
+  });
+
+  const block = message.content.find((b) => b.type === "tool_use");
+  const out = block && block.type === "tool_use" ? (block.input as { updatedMemory?: string }) : {};
+  if (!out.updatedMemory || !out.updatedMemory.trim()) return current;
+
+  await pool.query(
+    `insert into personal_memory (anonymous_user_id, room_id, content, updated_at)
+     values ($1, $2, $3, now())
+     on conflict (anonymous_user_id, room_id) do update set content = excluded.content, updated_at = now()`,
+    [anonymousUserId, roomId, out.updatedMemory.trim()]
+  );
+  return { content: out.updatedMemory.trim(), updatedAt: new Date().toISOString() };
+}
+
 // Direct edit, no AI involved — the person should always be able to just
 // rewrite their own memory outright, not only through conversation.
 export async function setPersonalMemory(anonymousUserId: string, roomId: string, content: string): Promise<PersonalMemory> {
