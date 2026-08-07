@@ -456,3 +456,45 @@ create index if not exists idx_project_facts_room on project_facts(room_id) wher
 create index if not exists idx_project_facts_file on project_facts(provider, file_id);
 create index if not exists idx_project_facts_subject_trgm on project_facts using gin (subject gin_trgm_ops);
 create index if not exists idx_project_facts_entity_trgm on project_facts using gin (entity gin_trgm_ops);
+
+-- PERSONAL MEMORY (private, per-person-per-room record of what FOMO currently
+-- understands about how this person works, edited through conversation rather
+-- than passively regenerated. Strictly self-facing: no route ever returns
+-- another person's row, and it's never surfaced to anyone else in the room —
+-- this is FOMO's trust boundary in schema form, "works for the person, never
+-- reports on them." Sharing only ever happens through an explicit KT snapshot
+-- below, never automatically or by a manager/admin view.)
+create table if not exists personal_memory (
+  anonymous_user_id text not null,
+  room_id text not null,
+  content text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (anonymous_user_id, room_id)
+);
+
+-- The chat log behind a personal_memory row — the conversation IS how the
+-- memory gets corrected/refined ("no, I always double-check numbers before
+-- pushing"), not a black-box regeneration on some cadence.
+create table if not exists personal_memory_messages (
+  id uuid primary key default gen_random_uuid(),
+  anonymous_user_id text not null,
+  room_id text not null,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_personal_memory_messages_lookup on personal_memory_messages(anonymous_user_id, room_id, created_at);
+
+-- KT handoff: an explicit, one-time snapshot of the sharer's memory content at
+-- the moment of sharing, not a live link — the recipient sees what was true
+-- when shared, not whatever the sharer's memory says later. A re-share is its
+-- own new explicit action, not an automatic sync.
+create table if not exists personal_memory_shares (
+  id uuid primary key default gen_random_uuid(),
+  room_id text not null,
+  shared_by text not null,
+  shared_with text not null,
+  snapshot_content text not null,
+  shared_at timestamptz not null default now()
+);
+create index if not exists idx_personal_memory_shares_recipient on personal_memory_shares(shared_with, room_id);

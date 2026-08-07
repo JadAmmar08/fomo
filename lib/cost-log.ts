@@ -1,6 +1,6 @@
 import { getPool } from "@/lib/postgres";
 
-type CallType = "classification" | "pulse_synthesis" | "mirror_synthesis" | "guidance_synthesis";
+type CallType = "classification" | "pulse_synthesis" | "mirror_synthesis" | "guidance_synthesis" | "personal_memory_chat";
 
 // Per-million-token pricing, approximate. Update if Anthropic pricing changes.
 const PRICING: Record<string, { input: number; output: number }> = {
