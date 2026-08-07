@@ -516,3 +516,23 @@ create table if not exists dismissed_conflict_rules (
 );
 create index if not exists idx_dismissed_conflict_rules_subject_trgm on dismissed_conflict_rules using gin (subject gin_trgm_ops);
 create index if not exists idx_dismissed_conflict_rules_entity_trgm on dismissed_conflict_rules using gin (entity gin_trgm_ops);
+
+-- TEAM MEMORY (the shared counterpart to personal_memory — one record per room,
+-- visible and editable by anyone in the room via the same chat-driven pattern.
+-- No trust-boundary concerns here the way personal_memory has, since this is
+-- explicitly team-shared by design, not surfaced as anyone's individual record.)
+create table if not exists team_memory (
+  room_id text primary key,
+  content text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists team_memory_messages (
+  id uuid primary key default gen_random_uuid(),
+  room_id text not null,
+  anonymous_user_id text not null,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_team_memory_messages_lookup on team_memory_messages(room_id, created_at);
