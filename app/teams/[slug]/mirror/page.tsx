@@ -54,7 +54,7 @@ export default async function TeamMirrorPage({ params }: { params: Promise<{ slu
           What FOMO understands, and how it can help.
         </h1>
         <p style={{ maxWidth: 460, margin: "0 auto", fontSize: "1.05rem", lineHeight: 1.7 }}>
-          Private to you in {room.name}. Talk to it, correct it, or hand a snapshot to whoever&apos;s taking over your work.
+          Private to you in {room.name}. The more accurate this is, the better your alerts get, FOMO actually uses it to judge whether something&apos;s really worth flagging you for. Correct it any time, or hand a snapshot to whoever&apos;s taking over your work.
         </p>
       </section>
 

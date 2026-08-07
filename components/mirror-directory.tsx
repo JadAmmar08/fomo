@@ -107,7 +107,7 @@ function PersonalMemoryPanel({ roomId, viewerUid }: { roomId: string; viewerUid:
   return (
     <div style={{ ...cardStyle, padding: "32px 36px" }}>
       <p style={{ fontSize: "0.8rem", color: "var(--subtle)", marginBottom: 20 }}>
-        Private to you. No one else in this room, including admins, can see this file unless you explicitly share a snapshot below.
+        Private to you, no one else in this room, including admins, can see this file unless you explicitly share a snapshot below. FOMO actually reads this when deciding whether to flag something for you, so the more accurate it is, the fewer irrelevant alerts you get.
       </p>
 
       <div style={{ ...cardStyle, padding: "18px 20px", marginBottom: 20, background: "var(--surface-muted)" }}>

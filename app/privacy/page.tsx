@@ -57,7 +57,7 @@ export default function PrivacyPage() {
         <p>We use your browsing signals to:</p>
         <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
           <li>Build your own private research pattern and guidance (shown only to you)</li>
-          <li>Contribute anonymously to your team's Pulse (found connections) and Mirror (evolving mental model)</li>
+          <li>Contribute anonymously to your team's Pulse (found connections) and Memory (what FOMO understands about the team's work)</li>
           <li>Improve classification accuracy over time</li>
         </ul>
         <p>If you provide an email address, we use it only to send you a sign-in link, product updates, or (for digest emails) a summary of activity relevant to you. We do not sell your data. We do not share it with advertisers. We do not use it for any purpose other than running FOMO.</p>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
 
       <section className="panel">
         <h2>How data is shared</h2>
-        <p>Your browsing signals contribute anonymously to the team you join. Other members see found connections and the team's evolving mental model, never individual browsing activity, never your user ID, never anything that could identify you.</p>
+        <p>Your browsing signals contribute anonymously to the team you join. Other members see found connections and the team's shared memory, never individual browsing activity, never your user ID, never anything that could identify you.</p>
         <p>We share data with the following third parties, solely to operate FOMO:</p>
         <ul style={{ paddingLeft: 20, lineHeight: 2 }}>
           <li><strong>Anthropic</strong> (Claude API): page titles, URLs, and page text snippets are sent to classify content and generate team insights. See <a href="https://www.anthropic.com/privacy" style={{ color: "var(--accent)" }} target="_blank" rel="noopener noreferrer">Anthropic&apos;s privacy policy</a>.</li>

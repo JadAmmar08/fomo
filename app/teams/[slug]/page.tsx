@@ -139,7 +139,7 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
         </div>
         <div style={{ marginTop: 20, display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
           <Link href={`/teams/${slug}/mirror` as Route} className="button-secondary" style={{ display: "inline-flex" }}>
-            See the team&apos;s mental model →
+            See the team&apos;s memory →
           </Link>
           <EnableNotifications />
         </div>
