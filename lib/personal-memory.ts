@@ -175,7 +175,11 @@ export async function syncPersonalMemoryFromActivity(anonymousUserId: string, ro
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 800,
+    // Higher than the chat path's 800 — a real activity summary across many
+    // files/entities can run long, and hitting the cap mid-JSON silently
+    // corrupts the tool call (confirmed live: stop_reason "max_tokens" left
+    // updatedMemory undefined even though the model had real content to write).
+    max_tokens: 2000,
     tools: [
       {
         name: "activity_sync",
