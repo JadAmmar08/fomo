@@ -4,30 +4,17 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Route } from "next";
 import { WorkstreamUnified } from "@/components/workstream-unified";
-import { DiscoveryRecommendationCard } from "@/components/discovery-recommendation-card";
-import { WorkstreamNoteEditor } from "@/components/workstream-note-editor";
 import { logFeatureView } from "@/lib/cost-log";
 
-interface IdeaConnection {
-  headline: string;
-  from: string;
-  to: string;
-  explanation: string;
-  insightType: "implication" | "tension" | "question" | "opportunity" | "blind_spot";
-  peopleCount: number;
-  sourceTopics: string[];
-  isNew: boolean;
+interface RoomCatch {
+  cardKey: string;
+  text: string;
+  conflictKind: "contradiction" | "duplicate";
+  files: string[];
+  pinnedAt: string;
 }
 
-interface WebOfIdeasData {
-  connections: IdeaConnection[];
-  soloHighlights: string[];
-  generatedAt: string;
-  newSinceLastView: number;
-  previouslyViewedAt: string | null;
-}
-
-async function getTeamPulse(slug: string) {
+async function getRoom(slug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const cookieStore = await cookies();
   const uid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
@@ -36,57 +23,36 @@ async function getTeamPulse(slug: string) {
     headers: uid ? { "x-fomo-anonymous-id": uid } : {},
     cache: "no-store",
   });
-
   if (!res.ok) return null;
-  return res.json() as Promise<{
-    room: { id: string; name: string; type: string };
-    webOfIdeas: WebOfIdeasData | null;
-    generatedAt: string;
-  }>;
+  return res.json() as Promise<{ room: { id: string; name: string; type: string } }>;
 }
 
-interface GuidanceRecommendation {
-  type: "direction" | "question" | "team_signal";
-  text: string;
-  sourceTopics: string[];
-  hasResource?: boolean;
-}
-
-interface GuidanceData {
-  pattern: string;
-  recommendations: GuidanceRecommendation[];
-}
-
-async function getGuidance(slug: string) {
+async function getCatches(slug: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const cookieStore = await cookies();
-  const uid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
-  if (!uid) return null;
-
-  const res = await fetch(`${appUrl}/api/guidance?room=${slug}`, {
-    headers: { "x-fomo-anonymous-id": uid },
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const data = await res.json() as { guidance: GuidanceData | null };
-  if (!data.guidance) return null;
-
-  // Pinned recommendations stay visible even if a later recompute doesn't reproduce them.
-  const pinsRes = await fetch(`${appUrl}/api/pins?roomSlug=${slug}&cardType=discovery`, {
-    headers: { "x-fomo-anonymous-id": uid },
-    cache: "no-store",
-  }).catch(() => null);
-  const pinsData = pinsRes && pinsRes.ok ? await pinsRes.json() as { pins: { cardKey: string; cardData: GuidanceRecommendation }[] } : { pins: [] };
-
-  const liveKeys = new Set(data.guidance.recommendations.map((r) => `${r.type}:${r.text}`));
-  const pinnedOnly = pinsData.pins.map((p) => p.cardData).filter((r) => !liveKeys.has(`${r.type}:${r.text}`));
-
-  return { ...data.guidance, recommendations: [...data.guidance.recommendations, ...pinnedOnly] };
+  const res = await fetch(`${appUrl}/api/rooms/catches?room=${slug}`, { cache: "no-store" });
+  if (!res.ok) return [];
+  const data = await res.json() as { catches: RoomCatch[] };
+  return data.catches;
 }
 
-export default async function TeamPulsePage({ params }: { params: Promise<{ slug: string }> }) {
+const CONFLICT_LABEL: Record<RoomCatch["conflictKind"], string> = {
+  contradiction: "Conflicting data",
+  duplicate: "Duplicate work"
+};
+
+function timeAgo(iso: string) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [data, guidance] = await Promise.all([getTeamPulse(slug), getGuidance(slug)]);
+  const [data, catches] = await Promise.all([getRoom(slug), getCatches(slug)]);
 
   if (!data) {
     return (
@@ -103,13 +69,12 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
     );
   }
 
-  const { room, generatedAt } = data;
+  const { room } = data;
 
   const cookieStore = await cookies();
   const viewerUid = cookieStore.get("fomo_anonymous_id")?.value ?? "";
   if (viewerUid) {
     logFeatureView({ eventType: "pulse_view", anonymousUserId: viewerUid, roomId: room.id });
-    if (guidance) logFeatureView({ eventType: "guidance_view", anonymousUserId: viewerUid, roomId: room.id });
   }
 
   return (
@@ -124,13 +89,9 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
           {room.name}
         </h1>
         <p style={{ maxWidth: 480, margin: "0 auto 28px", fontSize: "1.05rem", lineHeight: 1.7 }}>
-          What this team is separately researching, stitched together. Never who found what, only how it connects.
+          Contradictions and duplicated work FOMO has caught across everything this team has connected, live, in-document, cited to the exact source.
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-          <span className="status-tile" style={{ background: "white" }}>
-            <span style={{ color: "var(--subtle)", fontSize: "0.75rem", marginRight: 6 }}>UPDATED</span>
-            {new Date(generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
           <span className="status-tile" style={{ background: "white" }}>
             <span style={{ color: "var(--accent)", marginRight: 6 }}>●</span>
             Team members only
@@ -143,34 +104,45 @@ export default async function TeamPulsePage({ params }: { params: Promise<{ slug
         </div>
       </section>
 
-      {/* Your research — single-player value, works from day one, before the team has
-          enough shared history for real cross-person connections. Always rendered, with an
-          honest "still learning" state, so it doesn't just silently vanish when there isn't
-          enough browsing history yet (that looked like a missing feature, not an empty state). */}
+      {/* Live catches — the actual product: contradictions/duplicates FOMO has
+          found across this room's connected files, not a research/discovery feed. */}
       <section data-reveal style={{
         background: "white", borderRadius: 20, border: "1px solid var(--line)",
         boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "40px", marginBottom: 24
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
           <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
-          Discovery
+          Recent catches
         </div>
-        <WorkstreamNoteEditor roomSlug={slug} />
-        {!guidance && (
+        {catches.length === 0 && (
           <p style={{ maxWidth: 480 }}>
-            Once you&apos;ve browsed a bit, or told FOMO what you&apos;re working on above, this starts pointing you toward directions worth exploring. Check back soon.
+            Nothing caught yet. Once files are connected and someone edits one, contradictions and duplicated work will show up here the moment FOMO finds them.
           </p>
         )}
-        {guidance && guidance.recommendations.length > 0 && (
-            <>
-              <span className="kicker" style={{ marginBottom: 10, display: "block" }}>Where this connects to the rest of the team</span>
-              <div style={{ display: "grid", gap: 10 }}>
-                {guidance.recommendations.map((rec, i) => (
-                  <DiscoveryRecommendationCard key={i} rec={rec} roomSlug={slug} />
-                ))}
+        {catches.length > 0 && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {catches.map((c) => (
+              <div key={c.cardKey} style={{
+                background: "var(--surface-raised)", border: "1px solid var(--line)",
+                borderLeft: `3px solid ${c.conflictKind === "contradiction" ? "var(--tension)" : "var(--accent)"}`,
+                borderRadius: 14, padding: "16px 18px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 12 }}>
+                  <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: c.conflictKind === "contradiction" ? "var(--tension)" : "var(--accent)" }}>
+                    {CONFLICT_LABEL[c.conflictKind]}
+                  </span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--subtle)", flexShrink: 0 }}>{timeAgo(c.pinnedAt)}</span>
+                </div>
+                <p style={{ fontSize: "0.9rem", lineHeight: 1.6, margin: "0 0 8px", color: "var(--text-strong)" }}>{c.text}</p>
+                {c.files.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {c.files.map((f) => <span key={f} className="chip">{f}</span>)}
+                  </div>
+                )}
               </div>
-            </>
-          )}
+            ))}
+          </div>
+        )}
       </section>
 
       <WorkstreamUnified roomId={slug} />

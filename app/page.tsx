@@ -103,64 +103,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Discovery — text left, product card right */}
-      <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
-            <span style={{ display: "block", width: 40, height: 1, background: "var(--line-strong)" }} />
-            Discovery
-          </div>
-          <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Not a search bar. A nudge.
-          </h2>
-          <p style={{ fontSize: "1.05rem", lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-            When your own work touches something a teammate already has, FOMO says so, without describing what it is or who has it. One click gets it to you immediately.
-          </p>
-          <div style={{ display: "grid", gap: 16 }}>
-            {[
-              { title: "Nothing shown until you ask.", body: "The nudge is deliberately vague. Requesting it is a real action you take, not something dumped on the page." },
-              { title: "No approval to wait on.", body: "You get it the moment you click. The owner gets a heads-up after the fact, not a request to approve." },
-              { title: "Grounded, never invented.", body: "Every nudge traces back to a real connected file or conversation. If it can't, FOMO doesn't say it." },
-            ].map((f) => (
-              <div key={f.title} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)", display: "grid", placeItems: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0, marginTop: 3 }}>✓</span>
-                <p style={{ fontSize: "0.95rem", lineHeight: 1.7 }}><strong style={{ color: "var(--text)" }}>{f.title}</strong> {f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Product mockup card — the actual Discovery output */}
-        <div style={{
-          background: "white",
-          borderRadius: 20,
-          boxShadow: "0 32px 90px rgba(0,0,0,0.14), 0 4px 20px rgba(0,0,0,0.05)",
-          border: "1px solid var(--line)",
-          overflow: "hidden"
-        }}>
-          <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Discovery</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Your research pattern</div>
-            </div>
-            <span className="pill" style={{ fontSize: "0.75rem" }}>◆ Team signal</span>
-          </div>
-          <div style={{ padding: "22px 26px" }}>
-            <div style={{ background: "var(--accent-soft)", border: "1px solid var(--accent)", borderLeft: "3px solid var(--accent)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
-              <p style={{ fontSize: "0.88rem", lineHeight: 1.6, margin: "0 0 12px", color: "var(--text-strong)" }}>
-                A teammate already has connected material relevant to European reimbursement timing, worth asking before redoing this research.
-              </p>
-              <span className="button-secondary" style={{ fontSize: "0.8rem", padding: "7px 16px", display: "inline-flex" }}>Request it</span>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <span className="chip">anonymous nudge</span>
-              <span className="chip">no wait</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* The mirror — text left, product card right (keeps the alternating rhythm) */}
+      {/* The mirror — text left, product card right. What's actually live: two
+          chat-editable memory panels, not the old decision/disagreement tiles. */}
       <section data-reveal className="grid two" style={{ padding: "90px 0", gap: 80, alignItems: "center", borderTop: "1px solid var(--line)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
@@ -168,14 +112,14 @@ export default function LandingPage() {
             The mirror
           </div>
           <h2 style={{ fontSize: "clamp(2.2rem, 4vw, 3.4rem)", lineHeight: 1.08, marginBottom: 20 }}>
-            Not a snapshot. A directory.
+            Not a snapshot. A memory.
           </h2>
           <p style={{ fontSize: "1.05rem", lineHeight: 1.8, maxWidth: 420 }}>
-            Decisions, open questions, disagreements, the exact history of every number that&apos;s changed, and a private file of what FOMO understands about how you specifically work. Real files, not a wall of generated prose. A new member opens the ones they need and is caught up in minutes, no meeting required.
+            A private file of how you specifically work, and a shared one for the whole team, both editable in plain chat. The more accurate they are, the sharper FOMO gets at knowing what&apos;s actually worth flagging you for, not just what technically differs.
           </p>
         </div>
 
-        {/* Product mockup card — a small preview of the actual directory grid */}
+        {/* Product mockup card — the two real memory panels */}
         <div style={{
           background: "white",
           borderRadius: 20,
@@ -184,26 +128,23 @@ export default function LandingPage() {
           overflow: "hidden"
         }}>
           <div style={{ padding: "20px 26px", borderBottom: "2px solid var(--text)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>Team Mirror</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--subtle)" }}>Biotech Research Team</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span className="pill" style={{ fontSize: "0.75rem" }}>Your memory</span>
+              <span className="pill" style={{ fontSize: "0.75rem", background: "var(--surface-muted)", color: "var(--subtle)" }}>Team memory</span>
             </div>
-            <span className="pill" style={{ fontSize: "0.75rem" }}>Live</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--subtle)" }}>🔒 Private</span>
           </div>
-          <div style={{ padding: "22px 26px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[
-              { label: "Decisions", count: "03", color: "var(--direction)" },
-              { label: "Disagreements", count: "01", color: "var(--tension)" },
-              { label: "Fact history", count: "—", color: "var(--accent)" },
-              { label: "Your memory", count: "🔒", color: "var(--gold)" },
-            ].map((f) => (
-              <div key={f.label} style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: f.color }}>{f.label}</span>
-                  <span style={{ fontFamily: "ui-monospace, monospace", fontSize: "0.7rem", color: "var(--subtle)" }}>{f.count}</span>
-                </div>
-              </div>
-            ))}
+          <div style={{ padding: "22px 26px" }}>
+            <div style={{ background: "var(--surface-muted)", borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--subtle)" }}>What FOMO understands</span>
+              <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: "8px 0 0", color: "var(--text-strong)" }}>
+                You always double-check Q4 numbers against Budget.xlsx before pushing an update.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", background: "var(--surface-raised)", border: "1px solid var(--line)", borderRadius: 12, padding: "10px 12px" }}>
+              <div style={{ flex: 1, fontSize: "0.82rem", color: "var(--subtle)" }}>Actually I check it against Forecast.xlsx now, not Budget...</div>
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--subtle)", marginTop: 12 }}>Correct it any time, right in the chat. No forms, no settings page.</p>
           </div>
         </div>
       </section>
