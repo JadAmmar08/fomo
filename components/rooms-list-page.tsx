@@ -145,6 +145,32 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
         </div>
       </section>
 
+      {type === "team" && (
+        <section style={{
+          background: "white", borderRadius: 20, border: "1px solid var(--line)",
+          boxShadow: "0 16px 48px rgba(0,0,0,0.07)", padding: "36px 40px", marginBottom: 24
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+            <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+            Two ways to connect
+          </div>
+          <div className="grid two" style={{ gap: 28 }}>
+            <div>
+              <h3 style={{ fontSize: "1.05rem", marginBottom: 8 }}>Connect OneDrive, Google Drive, or Slack.</h3>
+              <p style={{ fontSize: "0.9rem", lineHeight: 1.65 }}>
+                Once you&apos;re in a team, link a file, folder, or channel in a couple clicks. Catches contradictions the moment a file is saved, no install needed.
+              </p>
+            </div>
+            <div>
+              <h3 style={{ fontSize: "1.05rem", marginBottom: 8 }}>Add the FOMO add-in for instant alerts.</h3>
+              <p style={{ fontSize: "0.9rem", lineHeight: 1.65, marginBottom: 10 }}>
+                In Word, Excel, or PowerPoint: <strong style={{ color: "var(--text)" }}>Insert → Add-ins → search &quot;FOMO&quot; → Add.</strong> Free, one-time per device. Excel then catches it live, cell by cell, as you type.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {showCreate && (
         <section className="panel">
           <h2 style={{ marginBottom: 20 }}>New {type}</h2>
