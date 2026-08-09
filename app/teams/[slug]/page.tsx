@@ -110,6 +110,37 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
 
       <WorkstreamUnified roomId={slug} />
 
+      {/* Office Add-in — the instant, in-document layer on top of the folder
+          connections above. Those alone give webhook-speed detection (save-triggered,
+          no install needed); the add-in is what makes Excel catch it live, as you type. */}
+      <section data-reveal className="panel" style={{ padding: "40px", marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, color: "var(--subtle)", fontSize: "0.75rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 500 }}>
+          <span style={{ display: "block", width: 32, height: 1, background: "var(--line-strong)" }} />
+          For instant, in-document alerts
+        </div>
+        <h3 style={{ fontSize: "1.3rem", marginBottom: 10 }}>Get the FOMO add-in for Word, Excel, and PowerPoint.</h3>
+        <p style={{ maxWidth: 560, marginBottom: 24 }}>
+          The connections above catch contradictions the moment a file is saved. The add-in goes further in Excel, catching it live, cell by cell, as you type, with the conflict highlighted right where it happened.
+        </p>
+        <div style={{ display: "grid", gap: 14 }}>
+          {[
+            { n: "1", title: "Open any file in Word, Excel, or PowerPoint.", body: "Desktop or web, either works." },
+            { n: "2", title: "Insert → Add-ins → search \"FOMO\" → Add.", body: "One-time, per device. Free, no license needed." },
+            { n: "3", title: "Sign in with the same team you connected above.", body: "That's it, no separate setup. Detection starts on your next edit." },
+          ].map((step) => (
+            <div key={step.n} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <span style={{
+                width: 26, height: 26, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent)",
+                display: "grid", placeItems: "center", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0
+              }}>{step.n}</span>
+              <p style={{ fontSize: "0.92rem", lineHeight: 1.65 }}>
+                <strong style={{ color: "var(--text)" }}>{step.title}</strong> {step.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
         <p style={{ margin: 0 }}>Want to invite more people?</p>
         <Link href={"/teams" as Route} className="button-secondary" style={{ display: "inline-flex" }}>

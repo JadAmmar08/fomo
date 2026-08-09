@@ -34,14 +34,14 @@ const COPY = {
   },
   team: {
     eyebrow: "Teams",
-    heading: "Separate research.",
-    headingEm: "One discovery.",
-    subhead: "Invite a research group into a private team and see the AI-found connections between what everyone's separately looking into.",
+    heading: "Catches contradictions.",
+    headingEm: "Before they ship.",
+    subhead: "Create a private team, connect the Excel, PowerPoint, Word, and Slack you already use, and FOMO catches it live when two people's numbers stop agreeing.",
     createButton: "Create a team",
     createLabel: "Team name",
-    createPlaceholder: "e.g. Biotech Research Group",
+    createPlaceholder: "e.g. Client Deliverables",
     emptyHeading: "No teams",
-    emptyBody: "Create one and send the invite link to your research group. Connections start surfacing once everyone's browsing.",
+    emptyBody: "Create one, connect what your team already uses, and send the invite link. Detection starts the moment files are connected.",
     joinPath: "/teams/join",
     slugPath: "/teams"
   }
