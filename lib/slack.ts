@@ -10,7 +10,7 @@ const SLACK_OAUTH_ACCESS_URL = "https://slack.com/api/oauth.v2.access";
 // (matched by email, see resolveSlackSenderAnonymousId) so detection and
 // personal-memory activity get attributed to whoever really said something,
 // not just whoever installed the app.
-export const SLACK_SCOPES = ["channels:history", "channels:read", "channels:join", "team:read", "users:read.email"].join(",");
+export const SLACK_SCOPES = ["channels:history", "channels:read", "channels:join", "team:read", "users:read", "users:read.email"].join(",");
 
 function requireEnv(name: string) {
   const value = process.env[name];
