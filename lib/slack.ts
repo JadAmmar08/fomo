@@ -276,7 +276,12 @@ export async function resolveSlackSenderAnonymousId(accessToken: string, teamId:
   );
 
   let email: string | null;
-  if (cached.rows[0]) {
+  if (cached.rows[0]?.email) {
+    // Only a real cached email short-circuits the API call. A null result
+    // (transient API error, missing scope at the time, or a genuine bot/no-
+    // email user) is never trusted long-term — caching that permanently would
+    // mean a real, fixable cause (like the scope being added after the fact,
+    // confirmed to happen live) silently never gets retried.
     email = cached.rows[0].email;
   } else {
     email = await fetchSlackUserEmail(accessToken, slackUserId);
