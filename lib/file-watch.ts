@@ -5,7 +5,7 @@ import * as microsoft from "@/lib/microsoft";
 import { sendPushToUser } from "@/lib/push";
 import { getPersonalMemory, maybeSyncPersonalMemoryFromActivity } from "@/lib/personal-memory";
 
-type Provider = "google" | "microsoft";
+export type Provider = "google" | "microsoft" | "slack";
 
 function requireEnv(name: string) {
   const value = process.env[name];

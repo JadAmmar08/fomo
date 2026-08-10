@@ -440,7 +440,7 @@ create table if not exists project_facts (
   id uuid primary key default gen_random_uuid(),
   anonymous_user_id text not null,
   room_id text not null,
-  provider text not null check (provider in ('google', 'microsoft')),
+  provider text not null check (provider in ('google', 'microsoft', 'slack')),
   file_id text not null,
   file_name text not null,
   entity text,
