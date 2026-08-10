@@ -6,7 +6,11 @@ const SLACK_OAUTH_ACCESS_URL = "https://slack.com/api/oauth.v2.access";
 // Bot-level scopes for a single workspace install (not a per-user token). channels:history
 // and channels:read are the two that matter — everything else stays off by design, since
 // this only ever reads channels a room's members have explicitly linked, never a user's DMs.
-export const SLACK_SCOPES = ["channels:history", "channels:read", "channels:join", "team:read"].join(",");
+// users:read.email lets us resolve a message's actual sender to a FOMO account
+// (matched by email, see resolveSlackSenderAnonymousId) so detection and
+// personal-memory activity get attributed to whoever really said something,
+// not just whoever installed the app.
+export const SLACK_SCOPES = ["channels:history", "channels:read", "channels:join", "team:read", "users:read.email"].join(",");
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -250,6 +254,57 @@ export async function summarizeChannelActivity(messages: Array<{ user?: string; 
     return block.type === "text" ? block.text : null;
   } catch (err) {
     console.error("[summarizeChannelActivity] failed:", err);
+    return null;
+  }
+}
+
+// Resolves a Slack message's real sender to a FOMO account, so detection and
+// personal-memory activity get attributed to whoever actually said something,
+// not just whoever installed the app into the workspace. Matched by email:
+// Slack's users.info (requires users:read.email) gives the sender's email,
+// which is looked up against `accounts` (the same email a person used to sign
+// into FOMO). No match, no account, or a bot user all fall back to null,
+// letting the caller decide the fallback (currently: attribute to whoever
+// installed the connection, same as before this existed).
+export async function resolveSlackSenderAnonymousId(accessToken: string, teamId: string, slackUserId: string): Promise<string | null> {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const cached = await pool.query<{ email: string | null }>(
+    `select email from slack_user_emails where slack_team_id = $1 and slack_user_id = $2`,
+    [teamId, slackUserId]
+  );
+
+  let email: string | null;
+  if (cached.rows[0]) {
+    email = cached.rows[0].email;
+  } else {
+    email = await fetchSlackUserEmail(accessToken, slackUserId);
+    await pool.query(
+      `insert into slack_user_emails (slack_team_id, slack_user_id, email) values ($1, $2, $3)
+       on conflict (slack_team_id, slack_user_id) do update set email = excluded.email, fetched_at = now()`,
+      [teamId, slackUserId, email]
+    );
+  }
+  if (!email) return null;
+
+  const account = await pool.query<{ anonymous_user_id: string }>(
+    `select anonymous_user_id from accounts where email = $1`,
+    [email]
+  );
+  return account.rows[0]?.anonymous_user_id ?? null;
+}
+
+async function fetchSlackUserEmail(accessToken: string, slackUserId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://slack.com/api/users.info?user=${slackUserId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const data = await res.json() as { ok: boolean; user?: { is_bot?: boolean; profile?: { email?: string } } };
+    if (!data.ok || !data.user || data.user.is_bot) return null;
+    return data.user.profile?.email ?? null;
+  } catch (err) {
+    console.error("[fetchSlackUserEmail] failed:", err);
     return null;
   }
 }

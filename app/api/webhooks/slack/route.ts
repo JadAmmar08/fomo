@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/postgres";
 import { extractFactsFromCells, checkFactsForConflict } from "@/lib/file-watch";
+import { resolveSlackSenderAnonymousId } from "@/lib/slack";
 
 // Slack signs every request with HMAC-SHA256 over "v0:{timestamp}:{raw body}",
 // using the app's Signing Secret. Verifying this (not the deprecated Verification
@@ -77,9 +78,10 @@ export async function POST(req: NextRequest) {
   const rooms = await pool.query<{
     room_id: string;
     installed_by: string;
+    access_token: string;
     linked_channel_name: string | null;
   }>(
-    `select room_id, installed_by, linked_channel_name from slack_connections
+    `select room_id, installed_by, access_token, linked_channel_name from slack_connections
      where slack_team_id = $1 and (linked_channel_id = $2 or auto_join_all = true)`,
     [body.team_id, event.channel]
   );
@@ -92,12 +94,24 @@ export async function POST(req: NextRequest) {
         channelLabel
       );
       if (facts.length === 0) continue;
+
+      // Attribute to whoever actually sent the message, not whoever installed
+      // the app, so detection ownership and personal-memory activity (see
+      // syncPersonalMemoryFromActivity, which reads project_facts by
+      // anonymous_user_id) reflect the real person, when their Slack account
+      // can be matched to a FOMO one by email. Falls back to the installer
+      // when no match exists, same as before this resolution existed.
+      const senderId = event.user
+        ? await resolveSlackSenderAnonymousId(room.access_token, body.team_id!, event.user).catch(() => null)
+        : null;
+      const ownerId = senderId ?? room.installed_by;
+
       // Each message is its own unique "file" (fileId = its ts), so the
       // supersession cleanup in checkFactsForConflict only ever looks at THIS
       // message's own prior state (none, since it's brand new) — it never
       // touches earlier messages' facts, which is what makes reusing that
       // function safe for an incremental stream instead of a full-file rescan.
-      await checkFactsForConflict(room.installed_by, room.room_id, "slack", event.ts, channelLabel, facts);
+      await checkFactsForConflict(ownerId, room.room_id, "slack", event.ts, channelLabel, facts);
     } catch (err) {
       console.error("[slack webhook] failed to process message for room", room.room_id, err);
     }

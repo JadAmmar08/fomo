@@ -260,6 +260,18 @@ create table if not exists slack_connections (
 alter table slack_connections add column if not exists auto_join_all boolean not null default false;
 alter table slack_connections add column if not exists linked_channel_is_external boolean not null default false;
 
+-- Caches Slack user id -> email (via users.info) so every incoming message
+-- doesn't need its own Slack API round trip just to find out who sent it.
+-- email is nullable: a bot user, or a real person Slack won't disclose the
+-- email of, still gets a row so we don't refetch it every time either.
+create table if not exists slack_user_emails (
+  slack_team_id text not null,
+  slack_user_id text not null,
+  email text,
+  fetched_at timestamptz not null default now(),
+  primary key (slack_team_id, slack_user_id)
+);
+
 create table if not exists google_connections (
   anonymous_user_id text not null,
   room_id text not null default '',
