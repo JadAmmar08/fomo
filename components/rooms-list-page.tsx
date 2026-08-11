@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
 interface Room {
@@ -48,6 +49,7 @@ const COPY = {
 } as const;
 
 export function RoomsListPage({ type }: RoomsListPageProps) {
+  const router = useRouter();
   const copy = COPY[type];
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,11 +88,14 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
       setCreating(false);
       return;
     }
-    setRooms(prev => [{ ...data.room, member_count: 1, role: "admin" }, ...prev]);
     setShowCreate(false);
     setName("");
     setDescription("");
     setCreating(false);
+    // Land straight in the new team, where the connect cards actually are,
+    // instead of back on the list — the extra click to find and open the
+    // team you just made was pure friction with no purpose.
+    router.push(`${copy.slugPath}/${data.room.slug}` as Route);
   }
 
   function copyInvite(room: Room) {
@@ -156,7 +161,7 @@ export function RoomsListPage({ type }: RoomsListPageProps) {
           </div>
           <div className="grid two" style={{ gap: 28 }}>
             <div>
-              <h3 style={{ fontSize: "1.05rem", marginBottom: 8 }}>Connect OneDrive, Google Drive, or Slack.</h3>
+              <h3 style={{ fontSize: "1.05rem", marginBottom: 8 }}>Connect OneDrive or Slack.</h3>
               <p style={{ fontSize: "0.9rem", lineHeight: 1.65 }}>
                 Once you&apos;re in a team, link a file, folder, or channel in a couple clicks. Catches contradictions the moment a file is saved, no install needed.
               </p>
