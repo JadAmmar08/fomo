@@ -463,16 +463,19 @@ export async function processFileChange(
   const isGoogleSheet = provider === "google" && (file as { mimeType?: string }).mimeType === "application/vnd.google-apps.spreadsheet";
   const isExcelFile = provider === "microsoft" && /\.(xlsx|xls)$/i.test(fileName);
   const isPptxFile = provider === "microsoft" && /\.pptx$/i.test(fileName);
+  const isDocxFile = provider === "microsoft" && /\.docx$/i.test(fileName);
 
   let usedStructuredFacts = false;
   let results: ConflictResult[] = [];
-  if (isGoogleSheet || isExcelFile || isPptxFile) {
+  if (isGoogleSheet || isExcelFile || isPptxFile || isDocxFile) {
     try {
       const cells = provider === "google"
         ? await google.getSheetValuesWithCoordinates(token, fileId)
         : isPptxFile
           ? await microsoft.extractStructuredSlides(token, fileId, fileName)
-          : await microsoft.extractStructuredCells(token, fileId, fileName);
+          : isDocxFile
+            ? await microsoft.extractStructuredParagraphs(token, fileId, fileName)
+            : await microsoft.extractStructuredCells(token, fileId, fileName);
 
       if (cells && cells.length > 0) {
         const facts = await extractFactsFromCells(cells, fileName);

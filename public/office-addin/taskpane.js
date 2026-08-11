@@ -102,7 +102,7 @@ const FOMO_COMMENT_MARKER = "[FOMO] ";
 // produce) and marks that exact cell: a fill color plus a native Excel comment with the
 // conflict text, the actual in-document visual (closer to Grammarly's inline underline
 // than the sidebar card alone).
-async function highlightCell(cardKey, location, commentText) {
+async function highlightCellExcel(cardKey, location, commentText) {
   const [sheetName, address] = location.includes("!") ? location.split("!") : [null, location];
   try {
     await Excel.run(async (context) => {
@@ -112,11 +112,77 @@ async function highlightCell(cardKey, location, commentText) {
       sheet.comments.add(address, FOMO_COMMENT_MARKER + commentText);
       await context.sync();
     });
-    highlightedCells.set(cardKey, { sheetName, address });
+    highlightedCells.set(cardKey, { host: "excel", sheetName, address });
     saveHighlightedCells();
   } catch (err) {
     console.error("[taskpane] highlighting cell failed:", err);
   }
+}
+
+async function clearHighlightExcel(cell) {
+  const { sheetName, address } = cell;
+  await Excel.run(async (context) => {
+    const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
+    sheet.getRange(address).format.fill.clear();
+    sheet.comments.getItemByCell(address).delete();
+    await context.sync();
+  });
+}
+
+// Word equivalent of the Excel highlight above — "location" here is a verbatim
+// snippet of the source paragraph (see extractStructuredParagraphs in
+// lib/microsoft.ts), found via Word's own text search rather than a cell
+// address, since paragraphs have no natural coordinate the way cells do.
+// Word's highlightColor only accepts a fixed set of named colors, not
+// arbitrary hex like Excel's fill, so "Yellow" is the closest match.
+async function highlightCellWord(cardKey, location, commentText) {
+  try {
+    await Word.run(async (context) => {
+      const results = context.document.body.search(location, { matchCase: false });
+      results.load("items");
+      await context.sync();
+      if (results.items.length === 0) return;
+      const range = results.items[0];
+      range.font.highlightColor = "Yellow";
+      range.insertComment(FOMO_COMMENT_MARKER + commentText);
+      await context.sync();
+    });
+    highlightedCells.set(cardKey, { host: "word", snippet: location });
+    saveHighlightedCells();
+  } catch (err) {
+    console.error("[taskpane] highlighting Word range failed:", err);
+  }
+}
+
+async function clearHighlightWord(cell) {
+  await Word.run(async (context) => {
+    const results = context.document.body.search(cell.snippet, { matchCase: false });
+    results.load("items");
+    await context.sync();
+    if (results.items.length === 0) return;
+    const range = results.items[0];
+    range.font.highlightColor = "None";
+    const comments = range.getComments();
+    comments.load("items/content");
+    await context.sync();
+    for (const comment of comments.items) {
+      if (comment.content.startsWith(FOMO_COMMENT_MARKER)) comment.delete();
+    }
+    await context.sync();
+  });
+}
+
+function currentHost() {
+  if (typeof Office === "undefined" || !Office.context) return null;
+  if (Office.context.host === Office.HostType.Excel) return "excel";
+  if (Office.context.host === Office.HostType.Word) return "word";
+  return null;
+}
+
+async function highlightCell(cardKey, location, commentText) {
+  const host = currentHost();
+  if (host === "excel") return highlightCellExcel(cardKey, location, commentText);
+  if (host === "word") return highlightCellWord(cardKey, location, commentText);
 }
 
 async function clearHighlight(cardKey) {
@@ -124,16 +190,11 @@ async function clearHighlight(cardKey) {
   if (!cell) return;
   highlightedCells.delete(cardKey);
   saveHighlightedCells();
-  const { sheetName, address } = cell;
   try {
-    await Excel.run(async (context) => {
-      const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
-      sheet.getRange(address).format.fill.clear();
-      sheet.comments.getItemByCell(address).delete();
-      await context.sync();
-    });
+    if (cell.host === "excel") await clearHighlightExcel(cell);
+    else if (cell.host === "word") await clearHighlightWord(cell);
   } catch (err) {
-    console.error("[taskpane] clearing cell highlight failed:", err);
+    console.error("[taskpane] clearing highlight failed:", err);
   }
 }
 

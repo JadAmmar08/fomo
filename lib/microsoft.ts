@@ -705,6 +705,43 @@ export async function extractStructuredSlides(accessToken: string, fileId: strin
   }
 }
 
+// Paragraph-level structured facts for Word — same shape and purpose as
+// extractStructuredSlides above, but "location" here is a verbatim snippet of
+// the source paragraph (not an index) so the client-side add-in can find and
+// highlight the exact text later via Word.js's range.search, which matches on
+// literal text, not paragraph numbers. Capped at 150 chars: long enough to be
+// a unique, findable anchor, short enough that search() stays reliable (Word's
+// search API can behave inconsistently on very long strings spanning
+// formatting boundaries).
+const WORD_LOCATION_SNIPPET_LENGTH = 150;
+
+export async function extractStructuredParagraphs(accessToken: string, fileId: string, fileName: string): Promise<StructuredCell[] | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (ext !== "docx") return null;
+
+  try {
+    const res = await fetch(`${GRAPH_BASE}/me/drive/items/${fileId}/content`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    const paragraphs = result.value.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+
+    const cells: StructuredCell[] = paragraphs.map((text) => ({
+      location: text.slice(0, WORD_LOCATION_SNIPPET_LENGTH),
+      value: text
+    }));
+
+    return cells.length > 0 ? cells.slice(0, 100) : null;
+  } catch (err) {
+    console.error(`[extractStructuredParagraphs] failed for ${fileName}:`, err);
+    return null;
+  }
+}
+
 async function enrichFiles(accessToken: string, files: OneDriveFile[]) {
   return Promise.all(
     files.map(async (f) => {
