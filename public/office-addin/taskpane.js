@@ -50,14 +50,29 @@ function renderAlerts(alerts) {
 
   container.innerHTML = alerts.map((alert) => {
     const label = alert.conflictKind === "contradiction" ? "Conflicting data found" : "Possible overlap";
+    // Collapsed by default — clicking reveals exactly where the OTHER side of
+    // the conflict lives, inline in this same card, no navigating away needed.
+    const sourceLink = alert.otherFile
+      ? `<div class="source-link" data-card-key="${alert.cardKey}">View in ${alert.otherFile} &rsaquo;</div>
+         <div class="source-detail" data-card-key="${alert.cardKey}" style="display:none;">${alert.otherFile}${alert.otherLocation ? ` — ${alert.otherLocation}` : ""}</div>`
+      : "";
     return `
       <div class="alert-card" data-card-key="${alert.cardKey}">
         <div class="alert-label">${label}</div>
         <div class="alert-text">${alert.text}</div>
+        ${sourceLink}
         <button class="dismiss-btn">Dismiss</button>
       </div>
     `;
   }).join("");
+
+  container.querySelectorAll(".source-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      const cardKey = link.getAttribute("data-card-key");
+      const detail = container.querySelector(`.source-detail[data-card-key="${cardKey}"]`);
+      if (detail) detail.style.display = detail.style.display === "none" ? "block" : "none";
+    });
+  });
 
   container.querySelectorAll(".alert-card").forEach((card) => {
     const cardKey = card.getAttribute("data-card-key");
@@ -108,7 +123,8 @@ async function highlightCellExcel(cardKey, location, commentText) {
     await Excel.run(async (context) => {
       const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
       const range = sheet.getRange(address);
-      range.format.fill.color = "#FFF3B0";
+      // No fill color — Excel's own comment-corner triangle is mark enough,
+      // and leaves the cell's actual value/formatting fully visible underneath.
       sheet.comments.add(address, FOMO_COMMENT_MARKER + commentText);
       await context.sync();
     });
@@ -123,7 +139,6 @@ async function clearHighlightExcel(cell) {
   const { sheetName, address } = cell;
   await Excel.run(async (context) => {
     const sheet = sheetName ? context.workbook.worksheets.getItem(sheetName) : context.workbook.worksheets.getActiveWorksheet();
-    sheet.getRange(address).format.fill.clear();
     sheet.comments.getItemByCell(address).delete();
     await context.sync();
   });
